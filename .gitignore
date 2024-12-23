@@ -1,0 +1,5 @@
+# For security reasons
+.env
+
+# Log files
+**/*.log
