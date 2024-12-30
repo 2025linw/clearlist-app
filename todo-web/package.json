@@ -1,0 +1,15 @@
+{
+  "name": "todo-web",
+  "version": "0.0.1",
+  "description": "Web server for Todo List App",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "2025linw",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.2",
+    "pug": "^3.0.3"
+  }
+}
