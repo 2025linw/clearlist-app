@@ -34,6 +34,11 @@ app.get(['/', '/inbox'], async (req, res) => {
 
 });
 
+// 404 Not Found Catch-all
 app.get('*', (_, res) => {
   res.status(404).render('404.pug');
+});
+
+app.listen(PORT, () => {
+  console.log(`Todo List Web Server started on Port ${PORT}`);
 });
