@@ -31,7 +31,7 @@ const PORT = 8081;
 
 // Main
 app.get(['/', '/inbox'], async (req, res) => {
-
+  res.render('layout.pug');
 });
 
 // 404 Not Found Catch-all
