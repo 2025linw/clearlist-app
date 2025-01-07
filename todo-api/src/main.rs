@@ -67,11 +67,12 @@ async fn main() {
                 .delete(data::tag::delete_tag),
         )
         .with_state(state);
+    let router = Router::new().nest("/api", api_router);
 
     let listener = tokio::net::TcpListener::bind(format!("localhost:{PORT}"))
         .await
         .unwrap();
 
     // Setup Server
-    axum::serve(listener, api_router).await.unwrap();
+    axum::serve(listener, router).await.unwrap();
 }
