@@ -1,74 +1,102 @@
-CREATE SCHEMA todo_auth AUTHORIZATION CURRENT_USER;
-CREATE SCHEMA todo_data AUTHORIZATION CURRENT_USER;
+-- Drop Schemas
+DROP SCHEMA IF EXISTS todo_auth, todo_data CASCADE;
 
 
--- Tables in user schema
-CREATE TABLE todo_auth.users
+-- Create Schemas with permission changes
+CREATE SCHEMA todo_auth;
+GRANT USAGE ON SCHEMA todo_auth TO todo_app;
+
+CREATE SCHEMA todo_data;
+GRANT USAGE ON SCHEMA todo_data TO todo_app;
+
+ALTER DEFAULT PRIVILEGES
+IN SCHEMA todo_auth, todo_data
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO todo_app;
+
+
+-- Tables in todo_auth schema
+CREATE TABLE IF NOT EXISTS todo_auth.users
 (
-	user_id uuid,
-	username varchar(50),
+	user_id uuid DEFAULT gen_random_uuid(),
+	username varchar(50) NOT NULL,
 	password_hash text,
 
 	email varchar(320),
+
+	created_on timestamp(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
 	PRIMARY KEY (user_id)
 );
 
 
 -- Tables in todo_data schema
-CREATE TABLE todo_data.areas	(
-	area_id	uuid,
+CREATE TABLE IF NOT EXISTS todo_data.areas
+(
+	area_id	uuid DEFAULT gen_random_uuid(),
 	area_name varchar(255),
 
 	icon_url text,
-
+	
 	user_id uuid NOT NULL,
 
 	PRIMARY	KEY(area_id),
 	FOREIGN	KEY(user_id) REFERENCES todo_auth.users(user_id)
 );
 
-CREATE TABLE todo_data.todos	(
-	todo_id uuid,
-	todo_title varchar(255),
-	todo_notes text,
+CREATE TABLE IF NOT EXISTS todo_data.projects
+(
+	project_id uuid DEFAULT gen_random_uuid(),
+    project_title varchar(255),
+    project_notes text,
 
-	area_id uuid,
-
-	start_date date,
+    start_date date,
 	start_time time(0),
 	deadline date,
 
-	user_id	uuid NOT NULL,
-	created_on timestamp(0) DEFAULT CURRENT_TIMESTAMP,
+    area_id uuid,
+
+	completed_on timestamp(0),
+	logged_on timestamp(0),
+	trashed_on timestamp(0),
+	
+    user_id	uuid NOT NULL,
+	created_on timestamp(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+
+	PRIMARY KEY(project_id),
+    FOREIGN KEY(area_id) REFERENCES todo_data.areas(area_id),
+	FOREIGN	KEY(user_id) REFERENCES todo_auth.users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS todo_data.tasks
+(
+	task_id uuid DEFAULT gen_random_uuid(),
+    task_title varchar(255),
+    task_notes text,
+
+    start_date date,
+	start_time time(0),
+	deadline date,
+
+	project_id uuid,
+    area_id uuid,
+
 	completed_on timestamp(0),
 	logged_on timestamp(0),
 	trashed_on timestamp(0),
 
-	PRIMARY KEY(todo_id),
-	FOREIGN KEY(user_id) REFERENCES todo_auth.users(user_id)
-);
-
-CREATE TABLE todo_data.projects (
-	project_id uuid,
-
-	PRIMARY KEY(project_id),
-	FOREIGN KEY(project_id) REFERENCES todo_data.todos(todo_id)
-);
-
-CREATE TABLE todo_data.tasks (
-	task_id uuid,
-
-	project_id uuid,
-
+    user_id	uuid NOT NULL,
+	created_on timestamp(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	
 	PRIMARY KEY(task_id),
-	FOREIGN KEY(task_id) REFERENCES todo_data.todos(todo_id),
-	FOREIGN KEY(project_id) REFERENCES todo_data.projects(project_id)
+	FOREIGN KEY(project_id) REFERENCES todo_data.projects(project_id),
+	FOREIGN KEY(area_id) REFERENCES todo_data.areas(area_id),
+	FOREIGN	KEY(user_id) REFERENCES todo_auth.users(user_id)
 );
 
-CREATE TABLE todo_data.tags (
-	tag_id uuid,
-	tag_label varchar(255),
+CREATE TABLE IF NOT EXISTS todo_data.tags
+(
+	tag_id uuid DEFAULT gen_random_uuid(),
+	tag_label varchar(255) NOT NULL,
 	tag_category varchar(255),
 
 	color varchar(255),
@@ -79,11 +107,22 @@ CREATE TABLE todo_data.tags (
 	FOREIGN KEY(user_id) REFERENCES todo_auth.users(user_id)
 );
 
-CREATE TABLE todo_data.tagged_with (
-	todo_id uuid,
+CREATE TABLE IF NOT EXISTS todo_data.project_tags
+(
+	project_id uuid,
 	tag_id uuid,
 
-	PRIMARY KEY(todo_id, tag_id),
-	FOREIGN KEY(todo_id) REFERENCES todo_data.todos(todo_id),
+	PRIMARY KEY(project_id, tag_id),
+	FOREIGN KEY(project_id) REFERENCES todo_data.projects(project_id),
 	FOREIGN KEY(tag_id) REFERENCES todo_data.tags(tag_id)
-)
+);
+
+CREATE TABLE IF NOT EXISTS todo_data.task_tags
+(
+	task_id uuid,
+	tag_id uuid,
+
+	PRIMARY KEY(task_id, tag_id),
+	FOREIGN KEY(task_id) REFERENCES todo_data.tasks(task_id),
+	FOREIGN KEY(tag_id) REFERENCES todo_data.tags(tag_id)
+);
