@@ -2,9 +2,10 @@
   "name": "todo-web",
   "version": "0.0.1",
   "description": "Web server for Todo List App",
+  "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node ."
   },
   "author": "2025linw",
   "license": "ISC",
