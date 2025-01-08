@@ -826,20 +826,306 @@ VALUES
 
 
 -- Task G: Priority
+INSERT INTO todo_data.tasks
+(
+	task_title,
+	task_notes,
 
+	user_id
+)
+VALUES
+(
+	'Task G0',
+	'Priority: Low',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Task G1',
+	'Priority: Mid',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Task G2',
+	'Priority: High',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+);
+
+INSERT INTO todo_data.task_tags
+(
+	task_id,
+	tag_id
+)
+VALUES
+(
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task G0'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Low' AND tag_category='Priority')
+),
+(
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task G1'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Mid' AND tag_category='Priority')
+),
+(
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task G2'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='High' AND tag_category='Priority')
+);
 
 
 -- Task H: School
+INSERT INTO todo_data.tasks
+(
+	task_title,
+	task_notes,
 
+	user_id
+)
+VALUES
+(
+	'Task H0',
+	'School: Class 1',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Task H1',
+	'School: Class 2',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Task H2',
+	'School: Class 3',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Task H3',
+	'School: Class 4',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Task H4',
+	'School: Class 5',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+);
+
+INSERT INTO todo_data.task_tags
+(
+	task_id,
+	tag_id
+)
+VALUES
+(
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H0'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 1' AND tag_category='School')
+),
+(
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H1'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 2' AND tag_category='School')
+),
+(
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H2'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 3' AND tag_category='School')
+),
+(
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H3'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 4' AND tag_category='School')
+),
+(
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H4'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 5' AND tag_category='School')
+);
 
 
 -- Task I: Scrum
+INSERT INTO todo_data.tasks
+(
+	task_title,
+	task_notes,
 
+	user_id
+)
+VALUES
+(
+	'Task I0',
+	'Scrum: Backlog',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Task I1',
+	'Scrum: To-do',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Task I2',
+	'Scrum: In-progress',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Task I3',
+	'Scrum: Done',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+);
+
+INSERT INTO todo_data.task_tags
+(
+	task_id,
+	tag_id
+)
+VALUES
+(
+	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I0'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Backlog' AND tag_category='Scrum')
+),
+(
+	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I1'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Important' AND tag_category IS NULL)
+),
+(
+	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I1'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='To-do' AND tag_category='Scrum')
+),
+(
+	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I2'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Urgent' AND tag_category IS NULL)
+),
+(
+	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I2'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='In-progress' AND tag_category='Scrum')
+),
+(
+	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I3'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Done' AND tag_category='Scrum')
+);
 
 
 -- Project G: Priority
+INSERT INTO todo_data.projects
+(
+	project_title,
+	project_notes,
 
+	user_id
+)
+VALUES
+(
+	'Project G0',
+	'Priority: Low',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Project G1',
+	'Priority: Mid',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Project G2',
+	'Priority: High',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+);
+
+INSERT INTO todo_data.project_tags
+(
+	project_id,
+	tag_id
+)
+VALUES
+(
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G0'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Low' AND tag_category='Priority')
+),
+(
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G1'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Important' AND tag_category IS NULL)
+),
+(
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G1'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Mid' AND tag_category='Priority')
+),
+(
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G2'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Urgent' AND tag_category IS NULL)
+),
+(
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G2'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='High' AND tag_category='Priority')
+);
 
 
 -- Project H: School
+INSERT INTO todo_data.projects
+(
+	project_title,
+	project_notes,
 
+	user_id
+)
+VALUES
+(
+	'Project H0',
+	'School: Class 1',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Project H1',
+	'School: Class 2',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Project H2',
+	'School: Class 3',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Project H3',
+	'School: Class 4',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+	'Project H4',
+	'School: Class 5',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+);
+
+INSERT INTO todo_data.project_tags
+(
+	project_id,
+	tag_id
+)
+VALUES
+(
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H0'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 1' AND tag_category='School')
+),
+(
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H1'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 2' AND tag_category='School')
+),
+(
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H2'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 3' AND tag_category='School')
+),
+(
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H3'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 4' AND tag_category='School')
+),
+(
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H4'),
+	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 5' AND tag_category='School')
+);
