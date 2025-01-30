@@ -1,4 +1,3 @@
--- Reset Tables
 -- Clear tables
 TRUNCATE
 	todo_auth.users,
@@ -9,41 +8,93 @@ TRUNCATE
 CASCADE;
 
 
--- User: Testing Users
+/* UUID v4 Format
+* xxxxxxxx-xxxx-4xTT-9xVV-############
+* T: type
+* - a: task
+* - b: project
+* - c: area
+* - d: tag
+* - f: user
+* V: variant
+* #: number
+*/
+
+/* UUID Details
+* Task 0 [1] (00000000-0000-40aa-9000-000000000000): No Title
+* Task A [6] (00000000-0000-40aa-9001-############): Date Test
+* Task B [8] (00000000-0000-40aa-9002-############): Complete, Log, Trash
+
+* Project 0 [1] (00000000-0000-40bb-9000-000000000000): No Title
+* Project A [6] (00000000-0000-40bb-9001-############): Date Test
+* Project B [8] (00000000-0000-40bb-9002-############): Complete, Log, Trash
+* Project C [1] (00000000-0000-40bb-9003-000000000000): Has Tasks; Not in Area
+*   Task C [5] (00000000-0000-40aa-9003-############): In Project C
+
+* Area 0 [1] (00000000-0000-40cc-9000-000000000000): No Title
+* Area D [1] (00000000-0000-40cc-9004-000000000000): Has Project (with Tasks)
+*   Project D [1] (00000000-0000-40bb-9004-000000000000): In Area D
+*     Task D [5] (00000000-0000-40aa-9004-############): In Project D
+* Area E [1] (00000000-0000-40cc-9005-000000000000): Has Projects and Tasks
+*   Task E [5] (00000000-0000-40aa-9005-############): In Area E
+*   Project E [5] (00000000-0000-40bb-9005-############): In Area E; No Tasks
+*   Project F [1] (00000000-0000-40bb-9006-000000000000): In Area E; Has Tasks
+*     Task F [5] (00000000-0000-40aa-9006-############): In Project F
+
+* Tag 0 [2] (00000000-0000-40dd-9000-############): General Tags
+* Tag A [3] (00000000-0000-40dd-9001-############): Priority Tags
+*   Task G [3] (00000000-0000-40aa-9007-############): Priority Tag
+*   Project G [3] (00000000-0000-40bb-9007-############): Priority Tag
+* Tag B [4] (00000000-0000-40dd-9002-############): Scrum Tags
+*   Task I [4] (00000000-0000-40aa-9009-############): Scrum Tag
+* Tag C [5] (00000000-0000-40dd-9003-############): School Tags
+*   Task H [5] (00000000-0000-40aa-9008-############): School Tag
+*   Project H [5] (00000000-0000-40bb-9008-############): School Tag
+
+* Users: 00000000-0000-40ff-9000-############: Test Users
+*/
+
+
+/* USERS */
 INSERT INTO todo_auth.users
 (
+    user_id,
 	username
 )
 VALUES
 (
+    '00000000-0000-40ff-9000-000000000001',
     'Test User 1'
 ),
 (
+    '00000000-0000-40ff-9000-000000000002',
     'Test User 2'
 ),
 (
+    '00000000-0000-40ff-9000-000000000003',
     'Test User 3'
 );
 
 
--- Task 0: No Title Test
-INSERT INTO todo_data.tasks
+/* TASKS */
+INSERT INTO todo_data.tasks -- Task 0
 (
+    task_id,
 	task_notes,
 
 	user_id
 )
 VALUES
 (
+    '00000000-0000-40aa-9000-000000000000',
 	'No Title',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
 
-
--- Task A: Date Tests
-INSERT INTO todo_data.tasks
+INSERT INTO todo_data.tasks -- Task A
 (
+    task_id,
     task_title,
     task_notes,
 
@@ -55,7 +106,8 @@ INSERT INTO todo_data.tasks
 )
 VALUES
 (
-    'Task A0',
+    '00000000-0000-40aa-9001-000000000001',
+    'Task A1',
     'No start date, No start time, No deadline',
 
     NULL,
@@ -65,7 +117,8 @@ VALUES
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-    'Task A1',
+    '00000000-0000-40aa-9001-000000000002',
+    'Task A2',
     'Start date, No start time, No deadline',
 
     '2026-01-01',
@@ -75,7 +128,8 @@ VALUES
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-    'Task A2',
+    '00000000-0000-40aa-9001-000000000003',
+    'Task A3',
     'Start date, Start time, No deadline',
 
     '2026-01-01',
@@ -85,7 +139,8 @@ VALUES
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-    'Task A3',
+    '00000000-0000-40aa-9001-000000000004',
+    'Task A4',
     'No start date, No start time, Deadline',
 
     NULL,
@@ -95,7 +150,8 @@ VALUES
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-    'Task A4',
+    '00000000-0000-40aa-9001-000000000005',
+    'Task A5',
     'Start date, No start time, Deadline',
 
     '2026-01-01',
@@ -105,7 +161,8 @@ VALUES
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-    'Task A5',
+    '00000000-0000-40aa-9001-000000000006',
+    'Task A6',
     'Start date, Start time, Deadline',
 
     '2026-01-01',
@@ -115,10 +172,9 @@ VALUES
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
 
-
--- Task B: Complete, log, and trash test
-INSERT INTO todo_data.tasks
+INSERT INTO todo_data.tasks -- Task B
 (
+    task_id,
 	task_title,
 	task_notes,
 
@@ -129,7 +185,8 @@ INSERT INTO todo_data.tasks
 )
 VALUES
 (
-    'Task B0',
+    '00000000-0000-40aa-9002-000000000001',
+    'Task B1',
     'No Completed, No Logged, No Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -138,7 +195,8 @@ VALUES
 	NULL
 ),
 (
-    'Task B1',
+    '00000000-0000-40aa-9002-000000000002',
+    'Task B2',
     'No Completed, No Logged, Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -147,7 +205,8 @@ VALUES
     '2025-01-03'
 ),
 (
-    'Task B2',
+    '00000000-0000-40aa-9002-000000000003',
+    'Task B3',
     'No Completed, Logged, No Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -156,7 +215,8 @@ VALUES
     NULL
 ),
 (
-    'Task B3',
+    '00000000-0000-40aa-9002-000000000004',
+    'Task B4',
     'No Completed, Logged, Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -165,7 +225,8 @@ VALUES
     '2025-01-03'
 ),
 (
-    'Task B4',
+    '00000000-0000-40aa-9002-000000000005',
+    'Task B5',
     'Completed, No Logged, No Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -174,7 +235,8 @@ VALUES
 	NULL
 ),
 (
-    'Task B5',
+    '00000000-0000-40aa-9002-000000000006',
+    'Task B6',
     'Completed, No Logged, Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -183,7 +245,8 @@ VALUES
     '2025-01-03'
 ),
 (
-    'Task B6',
+    '00000000-0000-40aa-9002-000000000007',
+    'Task B7',
     'Completed, Logged, No Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -192,7 +255,8 @@ VALUES
     NULL
 ),
 (
-    'Task B7',
+    '00000000-0000-40aa-9002-000000000008',
+    'Task B8',
     'Completed, Logged, Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -202,24 +266,25 @@ VALUES
 );
 
 
--- Project 0: No Title Test
-INSERT INTO todo_data.projects
+/* PROJECTS */
+INSERT INTO todo_data.projects -- Project 0
 (
+    project_id,
 	project_notes,
 
 	user_id
 )
 VALUES
 (
+    '00000000-0000-40bb-9000-000000000000',
 	'No Title',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
 
-
--- Project A: Date Test
-INSERT INTO todo_data.projects
+INSERT INTO todo_data.projects -- Project A
 (
+    project_id,
 	project_title,
     project_notes,
 
@@ -231,7 +296,8 @@ INSERT INTO todo_data.projects
 )
 VALUES
 (
-	'Project A0',
+    '00000000-0000-40bb-9001-000000000001',
+	'Project A1',
 	'No start date, No start time, No deadline',
 
 	NULL,
@@ -241,7 +307,8 @@ VALUES
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Project A1',
+    '00000000-0000-40bb-9001-000000000002',
+	'Project A2',
 	'Start date, No start time, No deadline',
 
 	'2026-01-01',
@@ -251,7 +318,8 @@ VALUES
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Project A2',
+    '00000000-0000-40bb-9001-000000000003',
+	'Project A3',
 	'Start date, Start time, No deadline',
 
 	'2026-01-01',
@@ -261,7 +329,8 @@ VALUES
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Project A3',
+    '00000000-0000-40bb-9001-000000000004',
+	'Project A4',
 	'No start date, No start time, Deadline',
 
 	NULL,
@@ -271,7 +340,8 @@ VALUES
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Project A4',
+    '00000000-0000-40bb-9001-000000000005',
+	'Project A5',
 	'Start date, No start time, Deadline',
 
 	'2026-01-01',
@@ -281,7 +351,8 @@ VALUES
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Project A5',
+    '00000000-0000-40bb-9001-000000000006',
+	'Project A6',
 	'Start date, Start time, Deadline',
 
 	'2026-01-01',
@@ -291,10 +362,9 @@ VALUES
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
 
-
--- Project B: Complete, log, and trash test
-INSERT INTO todo_data.projects
+INSERT INTO todo_data.projects -- Project B
 (
+    project_id,
 	project_title,
 	project_notes,
 
@@ -305,7 +375,8 @@ INSERT INTO todo_data.projects
 )
 VALUES
 (
-    'Project B0',
+    '00000000-0000-40bb-9002-000000000001',
+    'Project B1',
     'No Completed, No Logged, No Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -314,7 +385,8 @@ VALUES
 	NULL
 ),
 (
-    'Project B1',
+    '00000000-0000-40bb-9002-000000000002',
+    'Project B2',
     'No Completed, No Logged, Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -323,7 +395,8 @@ VALUES
     '2025-01-03'
 ),
 (
-    'Project B2',
+    '00000000-0000-40bb-9002-000000000003',
+    'Project B3',
     'No Completed, Logged, No Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -332,7 +405,8 @@ VALUES
     NULL
 ),
 (
-    'Project B3',
+    '00000000-0000-40bb-9002-000000000004',
+    'Project B4',
     'No Completed, Logged, Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -341,7 +415,8 @@ VALUES
     '2025-01-03'
 ),
 (
-    'Project B4',
+    '00000000-0000-40bb-9002-000000000005',
+    'Project B5',
     'Completed, No Logged, No Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -350,7 +425,8 @@ VALUES
 	NULL
 ),
 (
-    'Project B5',
+    '00000000-0000-40bb-9002-000000000006',
+    'Project B6',
     'Completed, No Logged, Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -359,7 +435,8 @@ VALUES
     '2025-01-03'
 ),
 (
-    'Project B6',
+    '00000000-0000-40bb-9002-000000000007',
+    'Project B7',
     'Completed, Logged, No Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -368,7 +445,8 @@ VALUES
     NULL
 ),
 (
-    'Project B7',
+    '00000000-0000-40bb-9002-000000000008',
+    'Project B8',
     'Completed, Logged, Trashed',
 
     (SELECT user_id FROM todo_auth.users WHERE username='Test User 1'),
@@ -377,10 +455,9 @@ VALUES
     '2025-01-03'
 );
 
-
--- Project C[Task C]: No Area
-INSERT INTO todo_data.projects
+INSERT INTO todo_data.projects -- Project C
 (
+    project_id,
 	project_title,
 	project_notes,
 
@@ -388,14 +465,15 @@ INSERT INTO todo_data.projects
 )
 VALUES
 (
-	'Project C0',
+    '00000000-0000-40bb-9003-000000000000',
+	'Project C',
 	'No Area',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
-
-INSERT INTO todo_data.tasks
+INSERT INTO todo_data.tasks -- Task C
 (
+    task_id,
 	task_title,
 	task_notes,
 
@@ -405,74 +483,81 @@ INSERT INTO todo_data.tasks
 )
 VALUES
 (
-	'Task C0',
-	'In Project C0',
-
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project C0'),
-
-	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
-),
-(
+    '00000000-0000-40aa-9003-000000000001',
 	'Task C1',
-	'In Project C0',
+	'In Project C',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project C0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project C'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9003-000000000002',
 	'Task C2',
-	'In Project C0',
+	'In Project C',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project C0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project C'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9003-000000000003',
 	'Task C3',
-	'In Project C0',
+	'In Project C',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project C0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project C'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9003-000000000004',
 	'Task C4',
-	'In Project C0',
+	'In Project C',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project C0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project C'),
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+    '00000000-0000-40aa-9003-000000000005',
+	'Task C5',
+	'In Project C',
+
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project C'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
 
 
--- Area 0: No Name
-INSERT INTO todo_data.areas
+/* AREAS */
+INSERT INTO todo_data.areas -- Area 0
 (
+    area_id,
 	user_id
 )
 VALUES
 (
-	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')	
+    '00000000-0000-40cc-9000-000000000000',
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
 
-
--- Area D: Project that contains tasks
-INSERT INTO todo_data.areas
+INSERT INTO todo_data.areas -- Area D
 (
+    area_id,
 	area_name,
 
 	user_id
 )
 VALUES
 (
+    '00000000-0000-40cc-9004-000000000000',
 	'Area D',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
-
-INSERT INTO todo_data.projects
+INSERT INTO todo_data.projects -- Project D
 (
+    project_id,
 	project_title,
 	project_notes,
 
@@ -482,16 +567,17 @@ INSERT INTO todo_data.projects
 )
 VALUES
 (
-	'Project D0',
+    '00000000-0000-40bb-9004-000000000000',
+	'Project D',
 	'In Area D',
 
 	(SELECT area_id FROM todo_data.areas WHERE area_name='Area D'),
 
-	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')	
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
-
-INSERT INTO todo_data.tasks
+INSERT INTO todo_data.tasks -- Task D
 (
+    task_id,
 	task_title,
 	task_notes,
 
@@ -501,63 +587,68 @@ INSERT INTO todo_data.tasks
 )
 VALUES
 (
-	'Task D0',
-	'In Project D0',
-
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project D0'),
-
-	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
-),
-(
+    '00000000-0000-40aa-9004-000000000001',
 	'Task D1',
-	'In Project D0',
+	'In Project D',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project D0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project D'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9004-000000000002',
 	'Task D2',
-	'In Project D0',
+	'In Project D',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project D0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project D'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9004-000000000003',
 	'Task D3',
-	'In Project D0',
+	'In Project D',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project D0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project D'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9004-000000000004',
 	'Task D4',
-	'In Project D0',
+	'In Project D',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project D0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project D'),
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+    '00000000-0000-40aa-9004-000000000005',
+	'Task D5',
+	'In Project D',
+
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project D'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
 
-
--- Area E: Contains both tasks and projects
-INSERT INTO todo_data.areas
+INSERT INTO todo_data.areas -- Area E
 (
+    area_id,
 	area_name,
 
 	user_id
 )
 VALUES
 (
+    '00000000-0000-40cc-9005-000000000000',
 	'Area E',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
-
-INSERT INTO todo_data.tasks
+INSERT INTO todo_data.tasks -- Task E
 (
+    task_id,
 	task_title,
 	task_notes,
 
@@ -567,14 +658,7 @@ INSERT INTO todo_data.tasks
 )
 VALUES
 (
-	'Task E0',
-	'In Area E',
-
-	(SELECT area_id FROM todo_data.areas WHERE area_name='Area E'),
-
-	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
-),
-(
+    '00000000-0000-40aa-9005-000000000001',
 	'Task E1',
 	'In Area E',
 
@@ -583,6 +667,7 @@ VALUES
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9005-000000000002',
 	'Task E2',
 	'In Area E',
 
@@ -591,6 +676,7 @@ VALUES
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9005-000000000003',
 	'Task E3',
 	'In Area E',
 
@@ -599,16 +685,26 @@ VALUES
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9005-000000000004',
 	'Task E4',
 	'In Area E',
 
 	(SELECT area_id FROM todo_data.areas WHERE area_name='Area E'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
-);
-
-INSERT INTO todo_data.projects
+),
 (
+    '00000000-0000-40aa-9005-000000000005',
+	'Task E5',
+	'In Area E',
+
+	(SELECT area_id FROM todo_data.areas WHERE area_name='Area E'),
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+);
+INSERT INTO todo_data.projects -- Project E
+(
+    project_id,
 	project_title,
 	project_notes,
 
@@ -617,51 +713,54 @@ INSERT INTO todo_data.projects
 	user_id
 )
 VALUES
-(	
-	'Project E0',
-	'In Area E',
-	
-	(SELECT area_id FROM todo_data.areas WHERE area_name='Area E'),
-
-	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
-),
-(	
+(
+    '00000000-0000-40bb-9005-000000000001',
 	'Project E1',
 	'In Area E',
-	
+
 	(SELECT area_id FROM todo_data.areas WHERE area_name='Area E'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
-(	
+(
+    '00000000-0000-40bb-9005-000000000002',
 	'Project E2',
 	'In Area E',
-	
+
 	(SELECT area_id FROM todo_data.areas WHERE area_name='Area E'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
-(	
+(
+    '00000000-0000-40bb-9005-000000000003',
 	'Project E3',
 	'In Area E',
-	
+
 	(SELECT area_id FROM todo_data.areas WHERE area_name='Area E'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
-(	
+(
+    '00000000-0000-40bb-9005-000000000004',
 	'Project E4',
 	'In Area E',
-	
+
+	(SELECT area_id FROM todo_data.areas WHERE area_name='Area E'),
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+    '00000000-0000-40bb-9005-000000000005',
+	'Project E5',
+	'In Area E',
+
 	(SELECT area_id FROM todo_data.areas WHERE area_name='Area E'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
-
-
--- Project F: In Area E and contains tasks
-INSERT INTO todo_data.projects
+INSERT INTO todo_data.projects -- Project F
 (
+    project_id,
 	project_title,
 	project_notes,
 
@@ -670,17 +769,18 @@ INSERT INTO todo_data.projects
 	user_id
 )
 VALUES
-(	
-	'Project F0',
+(
+    '00000000-0000-40bb-9006-000000000000',
+	'Project F',
 	'In Area E',
-	
+
 	(SELECT area_id FROM todo_data.areas WHERE area_name='Area E'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
-
-INSERT INTO todo_data.tasks
+INSERT INTO todo_data.tasks -- Task F
 (
+    task_id,
 	task_title,
 	task_notes,
 
@@ -690,144 +790,200 @@ INSERT INTO todo_data.tasks
 )
 VALUES
 (
-	'Task F0',
-	'In Project F0',
-
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project F0'),
-
-	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
-),
-(
+    '00000000-0000-40aa-9006-000000000001',
 	'Task F1',
-	'In Project F0',
+	'In Project F',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project F0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project F'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9006-000000000002',
 	'Task F2',
-	'In Project F0',
+	'In Project F',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project F0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project F'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9006-000000000003',
 	'Task F3',
-	'In Project F0',
+	'In Project F',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project F0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project F'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9006-000000000004',
 	'Task F4',
-	'In Project F0',
+	'In Project F',
 
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project F0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project F'),
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+    '00000000-0000-40aa-9006-000000000005',
+	'Task F5',
+	'In Project F',
+
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project F'),
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
 
--- Tag: Add various tags
+
+/* TAGS */
 INSERT INTO todo_data.tags
 (
+    tag_id,
 	tag_label,
 	tag_category,
+
+	color,
 
 	user_id
 )
 VALUES
+-- Tag 0
 (
-	'Urgent',
-	NULL,
-
-	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
-),
-(
+    '00000000-0000-40dd-9000-000000000001',
 	'Important',
 	NULL,
 
+	'#ffe600',
+
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40dd-9000-000000000002',
+	'Urgent',
+	NULL,
+
+	'#ff0000',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+-- Tag A
+(
+    '00000000-0000-40dd-9001-000000000001',
 	'Low',
 	'Priority',
 
+	'#0aab20',
+
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40dd-9001-000000000002',
 	'Mid',
 	'Priority',
 
+	'#faea05',
+
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40dd-9001-000000000003',
 	'High',
 	'Priority',
 
+	'#fa1d05',
+
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
+-- Tag B
 (
+    '00000000-0000-40dd-9002-000000000001',
 	'Backlog',
 	'Scrum',
 
+	'#757171',
+
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40dd-9002-000000000002',
 	'To-do',
 	'Scrum',
 
+	'#e3c905',
+
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40dd-9002-000000000003',
 	'In-progress',
 	'Scrum',
 
+	'#f59b0a',
+
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40dd-9002-000000000004',
 	'Done',
 	'Scrum',
 
+	'#02d102',
+
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
+-- Tag C
 (
+    '00000000-0000-40dd-9003-000000000001',
 	'Class 1',
 	'School',
 
+	'#d11702',
+
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40dd-9003-000000000002',
 	'Class 2',
 	'School',
 
+	'#e08002',
+
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40dd-9003-000000000003',
 	'Class 3',
 	'School',
 
-	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
-),
-(
-	'Class 4',
-	'School',
+	'#fcf000',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40dd-9003-000000000004',
+	'Class 4',
+	'School',
+
+	'#02cc02',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+    '00000000-0000-40dd-9003-000000000005',
 	'Class 5',
 	'School',
+
+	'#0b2fe3',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
 
 
--- Task G: Priority
-INSERT INTO todo_data.tasks
+/* TASK WITH TAGS */
+INSERT INTO todo_data.tasks -- Task G
 (
+    task_id,
 	task_title,
 	task_notes,
 
@@ -835,24 +991,26 @@ INSERT INTO todo_data.tasks
 )
 VALUES
 (
-	'Task G0',
+    '00000000-0000-40aa-9007-000000000001',
+	'Task G1',
 	'Priority: Low',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Task G1',
+    '00000000-0000-40aa-9007-000000000002',
+	'Task G2',
 	'Priority: Mid',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Task G2',
+    '00000000-0000-40aa-9007-000000000003',
+	'Task G3',
 	'Priority: High',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
-
 INSERT INTO todo_data.task_tags
 (
 	task_id,
@@ -860,22 +1018,21 @@ INSERT INTO todo_data.task_tags
 )
 VALUES
 (
-	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task G0'),
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task G1'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Low' AND tag_category='Priority')
 ),
 (
-	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task G1'),
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task G2'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Mid' AND tag_category='Priority')
 ),
 (
-	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task G2'),
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task G3'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='High' AND tag_category='Priority')
 );
 
-
--- Task H: School
-INSERT INTO todo_data.tasks
+INSERT INTO todo_data.tasks -- Task H
 (
+    task_id,
 	task_title,
 	task_notes,
 
@@ -883,36 +1040,40 @@ INSERT INTO todo_data.tasks
 )
 VALUES
 (
-	'Task H0',
+    '00000000-0000-40aa-9008-000000000001',
+	'Task H1',
 	'School: Class 1',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Task H1',
+    '00000000-0000-40aa-9008-000000000002',
+	'Task H2',
 	'School: Class 2',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Task H2',
+    '00000000-0000-40aa-9008-000000000003',
+	'Task H3',
 	'School: Class 3',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Task H3',
+    '00000000-0000-40aa-9008-000000000004',
+	'Task H4',
 	'School: Class 4',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Task H4',
+    '00000000-0000-40aa-9008-000000000005',
+	'Task H5',
 	'School: Class 5',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
-
 INSERT INTO todo_data.task_tags
 (
 	task_id,
@@ -920,30 +1081,29 @@ INSERT INTO todo_data.task_tags
 )
 VALUES
 (
-	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H0'),
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H1'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 1' AND tag_category='School')
 ),
 (
-	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H1'),
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H2'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 2' AND tag_category='School')
 ),
 (
-	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H2'),
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H3'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 3' AND tag_category='School')
 ),
 (
-	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H3'),
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H4'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 4' AND tag_category='School')
 ),
 (
-	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H4'),
+	(SELECT	task_id FROM todo_data.tasks WHERE task_title='Task H5'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 5' AND tag_category='School')
 );
 
-
--- Task I: Scrum
-INSERT INTO todo_data.tasks
+INSERT INTO todo_data.tasks -- Task I
 (
+    task_id,
 	task_title,
 	task_notes,
 
@@ -951,30 +1111,33 @@ INSERT INTO todo_data.tasks
 )
 VALUES
 (
-	'Task I0',
-	'Scrum: Backlog',
-
-	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
-),
-(
+    '00000000-0000-40aa-9009-000000000001',
 	'Task I1',
-	'Scrum: To-do',
+	'Scrum: Backlog; Important',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
+    '00000000-0000-40aa-9009-000000000002',
 	'Task I2',
+	'Scrum: To-do; Urgent',
+
+	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
+),
+(
+    '00000000-0000-40aa-9009-000000000003',
+	'Task I3',
 	'Scrum: In-progress',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Task I3',
+    '00000000-0000-40aa-9009-000000000004',
+	'Task I4',
 	'Scrum: Done',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
-
 INSERT INTO todo_data.task_tags
 (
 	task_id,
@@ -982,7 +1145,7 @@ INSERT INTO todo_data.task_tags
 )
 VALUES
 (
-	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I0'),
+	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I1'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Backlog' AND tag_category='Scrum')
 ),
 (
@@ -990,7 +1153,7 @@ VALUES
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Important' AND tag_category IS NULL)
 ),
 (
-	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I1'),
+	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I2'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='To-do' AND tag_category='Scrum')
 ),
 (
@@ -998,18 +1161,19 @@ VALUES
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Urgent' AND tag_category IS NULL)
 ),
 (
-	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I2'),
+	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I3'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='In-progress' AND tag_category='Scrum')
 ),
 (
-	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I3'),
+	(SELECT task_id FROM todo_data.tasks WHERE task_title='Task I4'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Done' AND tag_category='Scrum')
 );
 
 
--- Project G: Priority
-INSERT INTO todo_data.projects
+/* PROJECT WITH TAGS */
+INSERT INTO todo_data.projects -- Project G
 (
+    project_id,
 	project_title,
 	project_notes,
 
@@ -1017,24 +1181,26 @@ INSERT INTO todo_data.projects
 )
 VALUES
 (
-	'Project G0',
+    '00000000-0000-40bb-9007-000000000001',
+	'Project G1',
 	'Priority: Low',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Project G1',
+    '00000000-0000-40bb-9007-000000000002',
+	'Project G2',
 	'Priority: Mid',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Project G2',
+    '00000000-0000-40bb-9007-000000000003',
+	'Project G3',
 	'Priority: High',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
-
 INSERT INTO todo_data.project_tags
 (
 	project_id,
@@ -1042,30 +1208,29 @@ INSERT INTO todo_data.project_tags
 )
 VALUES
 (
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G1'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Low' AND tag_category='Priority')
 ),
 (
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G1'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G2'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Important' AND tag_category IS NULL)
 ),
 (
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G1'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G2'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Mid' AND tag_category='Priority')
 ),
 (
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G2'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G3'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Urgent' AND tag_category IS NULL)
 ),
 (
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G2'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project G3'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='High' AND tag_category='Priority')
 );
 
-
--- Project H: School
-INSERT INTO todo_data.projects
+INSERT INTO todo_data.projects -- Project H
 (
+    project_id,
 	project_title,
 	project_notes,
 
@@ -1073,36 +1238,40 @@ INSERT INTO todo_data.projects
 )
 VALUES
 (
-	'Project H0',
+    '00000000-0000-40bb-9008-000000000001',
+	'Project H1',
 	'School: Class 1',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Project H1',
+    '00000000-0000-40bb-9008-000000000002',
+	'Project H2',
 	'School: Class 2',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Project H2',
+    '00000000-0000-40bb-9008-000000000003',
+	'Project H3',
 	'School: Class 3',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Project H3',
+    '00000000-0000-40bb-9008-000000000004',
+	'Project H4',
 	'School: Class 4',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 ),
 (
-	'Project H4',
+    '00000000-0000-40bb-9008-000000000005',
+	'Project H5',
 	'School: Class 5',
 
 	(SELECT user_id FROM todo_auth.users WHERE username='Test User 1')
 );
-
 INSERT INTO todo_data.project_tags
 (
 	project_id,
@@ -1110,22 +1279,22 @@ INSERT INTO todo_data.project_tags
 )
 VALUES
 (
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H0'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H1'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 1' AND tag_category='School')
 ),
 (
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H1'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H2'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 2' AND tag_category='School')
 ),
 (
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H2'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H3'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 3' AND tag_category='School')
 ),
 (
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H3'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H4'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 4' AND tag_category='School')
 ),
 (
-	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H4'),
+	(SELECT project_id FROM todo_data.projects WHERE project_title='Project H5'),
 	(SELECT tag_id FROM todo_data.tags WHERE tag_label='Class 5' AND tag_category='School')
 );
