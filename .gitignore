@@ -1,3 +1,6 @@
+# Settings Files
+**/.vscode
+
 # For security reasons
 **/.env
 

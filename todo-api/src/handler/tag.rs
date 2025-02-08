@@ -10,11 +10,10 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::{
-    database::TagModel,
     database::AppState,
+    database::TagModel,
     request::{
-        api::{Create, Delete, InfoBuilder, Query, Retrieve, Update},
-        extract_user_id,
+        api::{extract_user_id, Create, Delete, Query, Retrieve, Update},
         tag::*,
     },
     response::{COOKIE_GET_ERROR, SERVER_POOL_ERROR},
@@ -23,7 +22,11 @@ use crate::{
 // Database Model
 
 // POST /api/tags
-pub async fn create(State(state): State<AppState>, Json(details): Json<TagModel>) -> Response {
+pub async fn create(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Json(details): Json<TagModel>,
+) -> Response {
     let state = state.clone();
     let conn = match state.get_conn().await {
         Ok(conn) => conn,
@@ -38,7 +41,11 @@ pub async fn create(State(state): State<AppState>, Json(details): Json<TagModel>
 }
 
 // GET /api/tags/:id
-pub async fn retrieve(State(state): State<AppState>, Path(id): Path<uuid::Uuid>) -> Response {
+pub async fn retrieve(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Path(id): Path<uuid::Uuid>,
+) -> Response {
     let state = state.clone();
     let conn = match state.get_conn().await {
         Ok(conn) => conn,
@@ -55,8 +62,9 @@ pub async fn retrieve(State(state): State<AppState>, Path(id): Path<uuid::Uuid>)
 // PUT /api/tags/:id
 pub async fn update(
     State(state): State<AppState>,
+    jar: CookieJar,
     Path(id): Path<uuid::Uuid>,
-    Json(details): Json<TagUpdateRequest>,
+    Json(details): Json<TagPutRequest>,
 ) -> Response {
     let state = state.clone();
     let conn = match state.get_conn().await {
@@ -72,7 +80,11 @@ pub async fn update(
 }
 
 // DELETE /api/tags/:id
-pub async fn delete(State(state): State<AppState>, Path(id): Path<uuid::Uuid>) -> Response {
+pub async fn delete(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Path(id): Path<uuid::Uuid>,
+) -> Response {
     let state = state.clone();
     let conn = match state.get_conn().await {
         Ok(conn) => conn,
@@ -89,6 +101,7 @@ pub async fn delete(State(state): State<AppState>, Path(id): Path<uuid::Uuid>) -
 // POST /api/tags/query
 pub async fn query(
     State(state): State<AppState>,
+    jar: CookieJar,
     URLQuery(params): URLQuery<HashMap<String, String>>,
     Json(details): Json<TagQueryRequest>,
 ) -> Response {

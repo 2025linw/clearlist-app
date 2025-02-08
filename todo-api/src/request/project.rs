@@ -6,11 +6,11 @@ use chrono::{NaiveDate, NaiveTime};
 use uuid::Uuid;
 
 use crate::{
-    database::{ProjectModel, ProjectTagModel},
+    database::{ProjectModel, ProjectTagModel, PROJECT_TABLE},
     request::{
-        api::{Create, Delete, Info, Query, Retrieve, Update},
-        query::CmpFlag,
-        DateFilter, UpdateMethod, TIMESTAMP_NULL,
+        api::{Create, Delete, Query, Retrieve, Update},
+        query::{CmpFlag, ToQuery, TIMESTAMP_NULL},
+        UpdateMethod,
     },
     response::Error,
 };
@@ -27,122 +27,38 @@ pub struct ProjectPostRequest {
 
     area_id: Option<Uuid>,
 
+    user_id: Option<Uuid>,
+
     tag_ids: Option<Vec<Uuid>>,
 }
 
+impl ProjectPostRequest {
+    pub fn user_id(&mut self, id: Uuid) -> &mut Self {
+        self.user_id = Some(id);
+
+        self
+    }
+}
+
 impl Create for ProjectPostRequest {
-    fn columns_vec(&self) -> Vec<String> {
-        let mut columns: Vec<String> = Vec::new();
-
-        if self.title.is_some() {
-            columns.push(ProjectModel::TITLE.to_string());
-        }
-        if self.notes.is_some() {
-            columns.push(ProjectModel::NOTES.to_string());
-        }
-
-        if self.start_date.is_some() {
-            columns.push(ProjectModel::START_DATE.to_string());
-        }
-        if self.start_time.is_some() {
-            columns.push(ProjectModel::START_TIME.to_string());
-        }
-        if self.deadline.is_some() {
-            columns.push(ProjectModel::DEADLINE.to_string());
-        }
-
-        if self.area_id.is_some() {
-            columns.push(ProjectModel::AREA_ID.to_string());
-        }
-
-        columns
-    }
-
-    fn params<'a>(&'a self) -> Vec<&'a (dyn ToSql + Sync)> {
-        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
-
-        if let Some(s) = &self.title {
-            params.push(s);
-        }
-        if let Some(s) = &self.notes {
-            params.push(s);
-        }
-
-        if let Some(d) = &self.start_date {
-            params.push(d);
-        }
-        if let Some(t) = &self.start_time {
-            params.push(t);
-        }
-        if let Some(d) = &self.deadline {
-            params.push(d);
-        }
-
-        if let Some(i) = &self.area_id {
-            params.push(i);
-        }
-
-        params
-    }
-
-    async fn insert_query(&self, conn: &mut Object, info: Option<Info>) -> Result<Row, Error> {
+    async fn query(&self, conn: &mut Object) -> Result<Row, Error> {
         let transaction = match conn.transaction().await {
             Ok(t) => t,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
 
-        // Setup
-        let info = info.unwrap();
-
         // Project Insert Query
-        let mut params = self.params();
-        params.splice(0..0, [info.user_id() as &(dyn ToSql + Sync)]);
-
-        let statement = format!(
-            "INSERT INTO todo_data.projects \
-			({}, {}) \
-			VALUES \
-			($1, {}) \
-			RETURNING task_id",
-            ProjectModel::USER_ID,
-            self.columns_vec().join(", "),
-            (1..params.len()) // TODO: make a function or macro to prevent rewriting this
-                .map(|n| format!("${}", 1 + n))
-                .collect::<Vec<String>>()
-                .join(", "),
-        );
-
-        let row = match transaction.query_one(&statement, &params).await {
+        let row = match transaction
+            .query_one(&self.statement(), &self.params())
+            .await
+        {
             Ok(r) => r,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
 
         // Project Tag Insert Query
         if let Some(tag_ids) = &self.tag_ids {
-            let project_id: Uuid = row.get(ProjectModel::ID);
-
-            let mut params: Vec<&(dyn ToSql + Sync)> = vec![&project_id];
-            for tag_id in tag_ids {
-                params.push(tag_id);
-            }
-
-            let statement = format!(
-                "INSERT INTO todo_data.project_tags \
-				({}, {}) \
-				VALUES \
-				{}",
-                ProjectTagModel::PROJECT_ID,
-                ProjectTagModel::TAG_ID,
-                (1..params.len())
-                    .map(|n| format!("($1, ${})", 1 + n))
-                    .collect::<Vec<String>>()
-                    .join(", "),
-            );
-
-            let rows_affected = match transaction.execute(&statement, &params).await {
-                Ok(n) => n,
-                Err(e) => return Err(Error::DatabaseError(e)),
-            };
+            todo!();
         }
 
         // Commit
@@ -154,34 +70,57 @@ impl Create for ProjectPostRequest {
     }
 }
 
+impl ToQuery for ProjectPostRequest {
+    fn statement(&self) -> String {
+        todo!()
+    }
+
+    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
+        todo!()
+    }
+}
+
 #[derive(Debug)]
-pub struct ProjectGetRequest {}
+pub struct ProjectGetRequest {
+    project_id: Option<Uuid>,
+
+    user_id: Option<Uuid>,
+}
+
+impl ProjectGetRequest {
+    pub fn new() -> Self {
+        Self {
+            project_id: None,
+
+            user_id: None,
+        }
+    }
+
+    pub fn project_id(&mut self, id: Uuid) -> &mut Self {
+        self.project_id = Some(id);
+
+        self
+    }
+
+    pub fn user_id(&mut self, id: Uuid) -> &mut Self {
+        self.user_id = Some(id);
+
+        self
+    }
+}
 
 impl Retrieve for ProjectGetRequest {
-    async fn select_query(
-        &self,
-        conn: &mut Object,
-        info: Option<Info>,
-    ) -> Result<Option<Row>, Error> {
+    async fn query(&self, conn: &mut Object) -> Result<Option<Row>, Error> {
         let transaction = match conn.transaction().await {
             Ok(t) => t,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
 
-        // Setup
-        let info = info.unwrap();
-
         // Project Get Query
-        let params: Vec<&(dyn ToSql + Sync)> = vec![info.user_id(), info.obj_id()];
-
-        let statement = format!(
-            "SELECT * FROM todo_data.projects \
-			WHERE {}=$1 AND {}=$2",
-            ProjectModel::USER_ID,
-            ProjectModel::ID,
-        );
-
-        let row_opt = match transaction.query_opt(&statement, &params).await {
+        let row_opt = match transaction
+            .query_opt(&self.statement(), &self.params())
+            .await
+        {
             Ok(o) => o,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
@@ -195,9 +134,21 @@ impl Retrieve for ProjectGetRequest {
     }
 }
 
+impl ToQuery for ProjectGetRequest {
+    fn statement(&self) -> String {
+        todo!()
+    }
+
+    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
+        todo!()
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
 pub struct ProjectPutRequest {
+    project_id: Option<Uuid>,
+
     title: Option<UpdateMethod<String>>,
     notes: Option<UpdateMethod<String>>,
 
@@ -211,181 +162,44 @@ pub struct ProjectPutRequest {
     logged: Option<bool>,
     trashed: Option<bool>,
 
+    user_id: Option<Uuid>,
+
     tag_id: Option<UpdateMethod<Vec<Uuid>>>,
 }
 
+impl ProjectPutRequest {
+    pub fn project_id(&mut self, id: Uuid) -> &mut Self {
+        self.project_id = Some(id);
+
+        self
+    }
+
+    pub fn user_id(&mut self, id: Uuid) -> &mut Self {
+        self.user_id = Some(id);
+
+        self
+    }
+}
+
 impl Update for ProjectPutRequest {
-    fn columns_vec(&self) -> Vec<String> {
-        let mut columns = Vec::new();
-
-        if let Some(_) = &self.title {
-            columns.push(ProjectModel::TITLE.to_string());
-        }
-        if let Some(_) = &self.notes {
-            columns.push(ProjectModel::NOTES.to_string());
-        }
-
-        if let Some(_) = &self.start_date {
-            columns.push(ProjectModel::START_DATE.to_string());
-        }
-        if let Some(_) = &self.start_time {
-            columns.push(ProjectModel::START_TIME.to_string());
-        }
-        if let Some(_) = &self.deadline {
-            columns.push(ProjectModel::DEADLINE.to_string());
-        }
-
-        if let Some(_) = &self.area_id {
-            columns.push(ProjectModel::AREA_ID.to_string());
-        }
-
-        if let Some(_) = &self.completed {
-            columns.push(ProjectModel::COMPLETED.to_string());
-        }
-        if let Some(_) = &self.logged {
-            columns.push(ProjectModel::LOGGED.to_string());
-        }
-        if let Some(_) = &self.trashed {
-            columns.push(ProjectModel::TRASHED.to_string());
-        }
-
-        columns
-    }
-
-    fn params<'a>(&'a self) -> Vec<&'a (dyn ToSql + Sync)> {
-        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
-
-        if let Some(s) = &self.title {
-            params.push(s);
-        }
-        if let Some(s) = &self.notes {
-            params.push(s);
-        }
-
-        if let Some(d) = &self.start_date {
-            params.push(d);
-        }
-        if let Some(t) = &self.start_time {
-            params.push(t);
-        }
-        if let Some(d) = &self.deadline {
-            params.push(d);
-        }
-
-        if let Some(i) = &self.area_id {
-            params.push(i);
-        }
-
-        params
-    }
-
-    async fn update_query(
-        &self,
-        conn: &mut Object,
-        info: Option<Info>,
-    ) -> Result<Option<Row>, Error> {
+    async fn query(&self, conn: &mut Object) -> Result<Option<Row>, Error> {
         let transaction = match conn.transaction().await {
             Ok(t) => t,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
 
-        // Setup
-        let info = info.unwrap();
-
         // Project Update Query
-        let mut params: Vec<&(dyn ToSql + Sync)> = self.params();
-        if let Some(b) = self.completed {
-            if b {
-                params.push(info.timestamp());
-            } else {
-                params.push(TIMESTAMP_NULL);
-            }
-        }
-        if let Some(b) = self.logged {
-            if b {
-                params.push(info.timestamp());
-            } else {
-                params.push(TIMESTAMP_NULL);
-            }
-        }
-        if let Some(b) = self.trashed {
-            if b {
-                params.push(info.timestamp());
-            } else {
-                params.push(TIMESTAMP_NULL);
-            }
-        }
-        // TODO: catch if params is empty; return none?
-        params.splice(
-            0..0,
-            [
-                info.user_id() as &(dyn ToSql + Sync),
-                info.obj_id() as &(dyn ToSql + Sync),
-                info.timestamp() as &(dyn ToSql + Sync),
-            ],
-        );
-
-        let statement = format!(
-            "UPDATE todo_data.projects \
-			SET ({}, {})=($3, {}) \
-			WHERE {}=$1 AND {}=$2 \
-			RETURNING *",
-            ProjectModel::UPDATED,
-            self.columns_vec().join(", "),
-            (3..params.len())
-                .map(|n| format!("${}", 1 + n))
-                .collect::<Vec<String>>()
-                .join(", "),
-            ProjectModel::USER_ID,
-            ProjectModel::ID,
-        );
-
-        let row_opt = match transaction.query_opt(&statement, &params).await {
+        let row_opt = match transaction
+            .query_opt(&self.statement(), &self.params())
+            .await
+        {
             Ok(o) => o,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
 
         // Project Tag Update Query
         if let (true, Some(tag_update)) = (row_opt.is_some(), &self.tag_id) {
-            let rows_affected = match transaction
-                .execute(
-                    &format!(
-                        "DELETE FROM todo_data.project_tags \
-						WHERE {}=$1",
-                        ProjectTagModel::PROJECT_ID,
-                    ),
-                    &[info.obj_id()],
-                )
-                .await
-            {
-                Ok(n) => n,
-                Err(e) => return Err(Error::DatabaseError(e)),
-            };
-
-            if let UpdateMethod::Change(tag_ids) = tag_update {
-                let mut params: Vec<&(dyn ToSql + Sync)> =
-                    tag_ids.iter().map(|i| i as &(dyn ToSql + Sync)).collect();
-                // TODO: catch if params is empty
-                params.splice(0..0, [info.obj_id() as &(dyn ToSql + Sync)]);
-
-                let statement = format!(
-                    "INSERT INTO todo_data.task_tags \
-					({}, {}) \
-					VALUES \
-					{}",
-                    ProjectTagModel::PROJECT_ID,
-                    ProjectTagModel::TAG_ID,
-                    (1..params.len())
-                        .map(|n| format!("($1, ${})", 1 + n))
-                        .collect::<Vec<String>>()
-                        .join(", "),
-                );
-
-                let rows_affected = match transaction.execute(&statement, &params).await {
-                    Ok(n) => n,
-                    Err(e) => return Err(Error::DatabaseError(e)),
-                };
-            }
+            todo!();
         }
 
         // Commit
@@ -397,33 +211,54 @@ impl Update for ProjectPutRequest {
     }
 }
 
+impl ToQuery for ProjectPutRequest {
+    fn statement(&self) -> String {
+        todo!()
+    }
+
+    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
+        todo!()
+    }
+}
+
 #[derive(Debug)]
-pub struct ProjectDeleteRequest {}
+pub struct ProjectDeleteRequest {
+    project_id: Option<Uuid>,
+
+    user_id: Option<Uuid>,
+}
+
+impl ProjectDeleteRequest {
+    pub fn new() -> Self {
+        Self {
+            project_id: None,
+
+            user_id: None,
+        }
+    }
+
+    pub fn project_id(&mut self, id: Uuid) -> &mut Self {
+        self.project_id = Some(id);
+
+        self
+    }
+
+    pub fn user_id(&mut self, id: Uuid) -> &mut Self {
+        self.user_id = Some(id);
+
+        self
+    }
+}
 
 impl Delete for ProjectDeleteRequest {
-    async fn delete_query(&self, conn: &mut Object, info: Option<Info>) -> Result<bool, Error> {
+    async fn query(&self, conn: &mut Object) -> Result<bool, Error> {
         let transaction = match conn.transaction().await {
             Ok(t) => t,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
 
-        // Setup
-        let info = info.unwrap();
-
         // Project Delete Query
-        let params: Vec<&(dyn ToSql + Sync)> = vec![info.obj_id()];
-
-        let statement = format!(
-            "WITH deleted AS ( \
-			DELETE FROM todo_data.project_tags \
-			WHERE {0}=$1 \
-			) \
-			DELETE FROM todo_data.projects \
-			WHERE {0}=$1",
-            ProjectTagModel::PROJECT_ID,
-        );
-
-        let result = match transaction.execute(&statement, &params).await {
+        let result = match transaction.execute(&self.statement(), &self.params()).await {
             Ok(0) => false,
             Ok(1) => true,
             Ok(..) => {
@@ -443,32 +278,61 @@ impl Delete for ProjectDeleteRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all(deserialize = "camelCase"))]
-pub struct ProjectQueryRequest {
-    data_filter: Option<DateFilter>,
-
-    area_id: Option<Uuid>,
-
-    tag_ids: Option<Vec<Uuid>>,
-
-    completed: Option<bool>,
-    logged: Option<bool>,
-    trashed: Option<bool>,
-
-    user_id: Uuid,
-}
-
-impl Query for ProjectQueryRequest {
-    fn conditions(&self) -> Vec<String> {
+impl ToQuery for ProjectDeleteRequest {
+    fn statement(&self) -> String {
         todo!()
     }
 
     fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
         todo!()
     }
+}
 
-    async fn query(&self, conn: &mut Object, info: Option<Info>) -> Result<Vec<Row>, Error> {
+#[derive(Debug, Deserialize)]
+#[serde(rename_all(deserialize = "camelCase"))]
+pub struct ProjectQueryRequest {
+    user_id: Option<Uuid>,
+
+    search_query: Option<String>,
+
+    start_date: Option<(NaiveDate, CmpFlag)>,
+    deadline: Option<(NaiveDate, CmpFlag)>,
+
+    area_id: Option<(Uuid, CmpFlag)>,
+
+    completed: Option<bool>,
+    logged: Option<bool>,
+    trashed: Option<bool>,
+
+    tag_ids: Option<(Vec<Uuid>, CmpFlag)>,
+}
+
+impl ProjectQueryRequest {
+    pub fn search_query(&mut self, query: String) -> &mut Self {
+        self.search_query = Some(query);
+
+        self
+    }
+
+    pub fn user_id(&mut self, id: Uuid) -> &mut Self {
+        self.user_id = Some(id);
+
+        self
+    }
+}
+
+impl Query for ProjectQueryRequest {
+    async fn query(&self, conn: &mut Object) -> Result<Vec<Row>, Error> {
+        todo!()
+    }
+}
+
+impl ToQuery for ProjectQueryRequest {
+    fn statement(&self) -> String {
+        todo!()
+    }
+
+    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
         todo!()
     }
 }

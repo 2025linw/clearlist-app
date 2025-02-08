@@ -10,18 +10,21 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::{
-    database::AreaModel,
     database::AppState,
+    database::AreaModel,
     request::{
-        api::{Create, Delete, Info, InfoBuilder, Query, Retrieve, Update},
+        api::{extract_user_id, Create, Delete, Query, Retrieve, Update},
         area::*,
-        extract_user_id,
     },
     response::SERVER_POOL_ERROR,
 };
 
 // POST /api/areas
-pub async fn create(State(state): State<AppState>, Json(details): Json<AreaModel>) -> Response {
+pub async fn create(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Json(details): Json<AreaModel>,
+) -> Response {
     let state = state.clone();
     let conn = match state.get_conn().await {
         Ok(c) => c,
@@ -36,7 +39,11 @@ pub async fn create(State(state): State<AppState>, Json(details): Json<AreaModel
 }
 
 // GET /api/areas/:id
-pub async fn retrieve(State(state): State<AppState>, Path(id): Path<uuid::Uuid>) -> Response {
+pub async fn retrieve(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Path(id): Path<uuid::Uuid>,
+) -> Response {
     let state = state.clone();
     let conn = match state.get_conn().await {
         Ok(c) => c,
@@ -53,6 +60,7 @@ pub async fn retrieve(State(state): State<AppState>, Path(id): Path<uuid::Uuid>)
 // PUT /api/areas/:id
 pub async fn update(
     State(state): State<AppState>,
+    jar: CookieJar,
     Path(id): Path<uuid::Uuid>,
     Json(details): Json<AreaPutRequest>,
 ) -> Response {
@@ -70,7 +78,11 @@ pub async fn update(
 }
 
 // DELETE /api/areas/:id
-pub async fn delete(State(state): State<AppState>, Path(id): Path<uuid::Uuid>) -> Response {
+pub async fn delete(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Path(id): Path<uuid::Uuid>,
+) -> Response {
     let state = state.clone();
     let conn = match state.get_conn().await {
         Ok(c) => c,
@@ -87,6 +99,7 @@ pub async fn delete(State(state): State<AppState>, Path(id): Path<uuid::Uuid>) -
 // POST /api/areas/query
 pub async fn query(
     State(state): State<AppState>,
+    jar: CookieJar,
     URLQuery(params): URLQuery<HashMap<String, String>>,
     Json(details): Json<AreaQueryRequest>,
 ) -> Response {

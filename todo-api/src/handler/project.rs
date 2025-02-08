@@ -10,11 +10,10 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::{
-    database::ProjectModel,
     database::AppState,
+    database::ProjectModel,
     request::{
-        api::{Create, Delete, InfoBuilder, Query, Retrieve, Update},
-        extract_user_id,
+        api::{extract_user_id, Create, Delete, Query, Retrieve, Update},
         project::*,
     },
     response::{COOKIE_GET_ERROR, SERVER_POOL_ERROR},
@@ -36,9 +35,9 @@ pub async fn create(
         }
     };
 
-    let mut info_builder = InfoBuilder::new();
+    let mut details = details;
     match extract_user_id(&jar) {
-        Some(i) => info_builder.user_id(i),
+        Some(i) => details.user_id(i),
         None => {
             eprintln!("{}", COOKIE_GET_ERROR);
 
@@ -46,8 +45,7 @@ pub async fn create(
         }
     };
 
-    let info = info_builder.build();
-    let project_id: Uuid = match details.insert_query(&mut conn, Some(info)).await {
+    let project_id: Uuid = match details.query(&mut conn).await {
         Ok(r) => r.get(ProjectModel::ID),
         Err(e) => {
             eprintln!("{e}");
@@ -79,21 +77,18 @@ pub async fn retrieve(
         }
     };
 
-    let details = ProjectGetRequest {};
-
-    let mut info_builder = InfoBuilder::new();
+    let mut details = ProjectGetRequest::new();
     match extract_user_id(&jar) {
-        Some(i) => info_builder.user_id(i),
+        Some(i) => details.user_id(i),
         None => {
             eprintln!("{}", COOKIE_GET_ERROR);
 
             return (StatusCode::INTERNAL_SERVER_ERROR, COOKIE_GET_ERROR).into_response();
         }
     };
-    info_builder.obj_id(project_id);
+    details.project_id(project_id);
 
-    let info = info_builder.build();
-    let row_opt = match details.select_query(&mut conn, Some(info)).await {
+    let row_opt = match details.query(&mut conn).await {
         Ok(o) => o,
         Err(e) => {
             eprintln!("{e}");
@@ -135,19 +130,18 @@ pub async fn update(
         }
     };
 
-    let mut info_builder = InfoBuilder::new();
+    let mut details = details;
     match extract_user_id(&jar) {
-        Some(i) => info_builder.user_id(i),
+        Some(i) => details.user_id(i),
         None => {
             eprintln!("{}", COOKIE_GET_ERROR);
 
             return (StatusCode::INTERNAL_SERVER_ERROR, COOKIE_GET_ERROR).into_response();
         }
     };
-    info_builder.obj_id(project_id);
+    details.project_id(project_id);
 
-    let info = info_builder.build();
-    let row_opt = match details.update_query(&mut conn, Some(info)).await {
+    let row_opt = match details.query(&mut conn).await {
         Ok(o) => o,
         Err(e) => {
             eprintln!("{e}");
@@ -188,21 +182,18 @@ pub async fn delete(
         }
     };
 
-    let details = ProjectDeleteRequest {};
-
-    let mut info_builder = InfoBuilder::new();
+    let mut details = ProjectDeleteRequest::new();
     match extract_user_id(&jar) {
-        Some(i) => info_builder.user_id(i),
+        Some(i) => details.user_id(i),
         None => {
             eprintln!("{}", COOKIE_GET_ERROR);
 
             return (StatusCode::INTERNAL_SERVER_ERROR, COOKIE_GET_ERROR).into_response();
         }
     };
-    info_builder.obj_id(project_id);
+    details.project_id(project_id);
 
-    let info = info_builder.build();
-    let success = match details.delete_query(&mut conn, Some(info)).await {
+    let success = match details.query(&mut conn).await {
         Ok(b) => b,
         Err(e) => {
             eprintln!("{e}");
@@ -239,9 +230,9 @@ pub async fn query(
         }
     };
 
-    let mut info_builder = InfoBuilder::new();
+    let mut details = details;
     match extract_user_id(&jar) {
-        Some(i) => info_builder.user_id(i),
+        Some(i) => details.user_id(i),
         None => {
             eprintln!("{}", COOKIE_GET_ERROR);
 
@@ -249,11 +240,10 @@ pub async fn query(
         }
     };
     if let Some(query) = params.get("query") {
-        info_builder.query(query.clone());
+        details.search_query(query.clone());
     }
 
-    let info = info_builder.build();
-    let rows = match details.query(&mut conn, Some(info)).await {
+    let rows = match details.query(&mut conn).await {
         Ok(v) => v,
         Err(e) => {
             eprintln!("{e}");

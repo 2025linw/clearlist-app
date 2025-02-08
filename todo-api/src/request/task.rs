@@ -1,26 +1,26 @@
+use chrono::{DateTime, Local, NaiveDate, NaiveTime};
 use deadpool_postgres::Object;
 use serde::Deserialize;
 use tokio_postgres::{types::ToSql, Row};
-
-use chrono::{NaiveDate, NaiveTime};
 use uuid::Uuid;
 
 use crate::{
     database::{TaskModel, TaskTagModel},
     request::{
-        api::{Create, Delete, Info, Query, Retrieve, Update},
-        query::CmpFlag,
-        DateFilter, UpdateMethod, TIMESTAMP_NULL,
+        api::{Create, Delete, Query, Retrieve, Update},
+        query::{parameter_string, CmpFlag, ToQuery, TIMESTAMP_NULL},
+        UpdateMethod,
     },
     response::Error,
 };
+
+use super::query::QueryMethod;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
 pub struct TaskPostRequest {
     title: Option<String>,
     notes: Option<String>,
-
     start_date: Option<NaiveDate>,
     start_time: Option<NaiveTime>,
     deadline: Option<NaiveDate>,
@@ -34,109 +34,25 @@ pub struct TaskPostRequest {
 }
 
 impl TaskPostRequest {
-    pub fn user_id(&mut self, id: Uuid) {
+    pub fn user_id(&mut self, id: Uuid) -> &mut Self {
         self.user_id = Some(id);
+
+        self
     }
 }
 
 impl Create for TaskPostRequest {
-    fn columns_vec(&self) -> Vec<String> {
-        let mut columns: Vec<String> = Vec::new();
-
-        let mut statement = format!(
-            "INSERT INTO todo_data.tasks \
-			("
-        );
-
-        if self.title.is_some() {
-            columns.push(TaskModel::TITLE.to_string());
-        }
-        if self.notes.is_some() {
-            columns.push(TaskModel::NOTES.to_string());
-        }
-
-        if self.start_date.is_some() {
-            columns.push(TaskModel::START_DATE.to_string());
-        }
-        if self.start_time.is_some() {
-            columns.push(TaskModel::START_TIME.to_string());
-        }
-        if self.deadline.is_some() {
-            columns.push(TaskModel::DEADLINE.to_string());
-        }
-
-        if self.area_id.is_some() {
-            columns.push(TaskModel::AREA_ID.to_string());
-        }
-        if self.project_id.is_some() {
-            columns.push(TaskModel::PROJECT_ID.to_string());
-        }
-
-        if self.user_id.is_some() {
-            columns.push(TaskModel::USER_ID.to_string());
-        }
-
-        columns
-    }
-
-    fn params<'a>(&'a self) -> Vec<&'a (dyn ToSql + Sync)> {
-        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
-
-        if let Some(s) = &self.title {
-            params.push(s);
-        }
-        if let Some(s) = &self.notes {
-            params.push(s);
-        }
-
-        if let Some(d) = &self.start_date {
-            params.push(d);
-        }
-        if let Some(t) = &self.start_time {
-            params.push(t);
-        }
-        if let Some(d) = &self.deadline {
-            params.push(d);
-        }
-
-        if let Some(i) = &self.area_id {
-            params.push(i);
-        }
-        if let Some(i) = &self.project_id {
-            params.push(i);
-        }
-
-        params
-    }
-
-    async fn insert_query(&self, conn: &mut Object, info: Option<Info>) -> Result<Row, Error> {
+    async fn query(&self, conn: &mut Object) -> Result<Row, Error> {
         let transaction = match conn.transaction().await {
             Ok(t) => t,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
 
-        // Setup
-        let info = info.unwrap();
-
         // Task Insert Query
-        let mut params = self.params();
-        params.splice(0..0, [info.user_id() as &(dyn ToSql + Sync)]);
-
-        let statement = format!(
-            "INSERT INTO todo_data.tasks \
-			({}, {}) \
-			VALUES \
-			($1, {}) \
-			RETURNING task_id",
-            TaskModel::USER_ID,
-            self.columns_vec().join(", "),
-            (1..params.len())
-                .map(|n| format!("${}", 1 + n))
-                .collect::<Vec<String>>()
-                .join(", "),
-        );
-
-        let row = match transaction.query_one(&statement, &params).await {
+        let row = match transaction
+            .query_one(&self.statement(), &self.params())
+            .await
+        {
             Ok(r) => r,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
@@ -149,12 +65,9 @@ impl Create for TaskPostRequest {
             for tag_id in tag_ids {
                 params.push(tag_id);
             }
-
             let statement = format!(
-                "INSERT INTO todo_data.task_tags \
-				({}, {}) \
-				VALUES \
-				{}",
+                "INSERT INTO {} ({}, {}) VALUES {}",
+                TaskTagModel::TABLE,
                 TaskTagModel::TASK_ID,
                 TaskTagModel::TAG_ID,
                 (1..params.len())
@@ -163,7 +76,8 @@ impl Create for TaskPostRequest {
                     .join(", "),
             );
 
-            let rows_affected = match transaction.execute(&statement, &params).await {
+            // TODO: Do something with this value
+            let _rows_affected = match transaction.execute(&statement, &params).await {
                 Ok(n) => n,
                 Err(e) => return Err(Error::DatabaseError(e)),
             };
@@ -178,110 +92,44 @@ impl Create for TaskPostRequest {
     }
 }
 
-#[derive(Debug)]
-pub struct TaskGetRequest {}
+impl ToQuery for TaskPostRequest {
+    fn statement(&self) -> String {
+        let mut columns: Vec<&str> = vec![TaskModel::USER_ID];
 
-impl Retrieve for TaskGetRequest {
-    async fn select_query(
-        &self,
-        conn: &mut Object,
-        info: Option<Info>,
-    ) -> Result<Option<Row>, Error> {
-        let transaction = match conn.transaction().await {
-            Ok(t) => t,
-            Err(e) => return Err(Error::DatabaseError(e)),
-        };
+        if self.title.is_some() {
+            columns.push(TaskModel::TITLE);
+        }
+        if self.notes.is_some() {
+            columns.push(TaskModel::NOTES);
+        }
+        if self.start_date.is_some() {
+            columns.push(TaskModel::START_DATE);
+        }
+        if self.start_time.is_some() {
+            columns.push(TaskModel::START_TIME);
+        }
+        if self.deadline.is_some() {
+            columns.push(TaskModel::DEADLINE);
+        }
 
-        // Setup
-        let info = info.unwrap();
+        if self.area_id.is_some() {
+            columns.push(TaskModel::AREA_ID);
+        }
+        if self.project_id.is_some() {
+            columns.push(TaskModel::PROJECT_ID);
+        }
 
-        // Task Get Query
-        let params: Vec<&(dyn ToSql + Sync)> = vec![info.user_id(), info.obj_id()];
-
-        let statement = format!(
-            "SELECT * FROM todo_data.tasks \
-			WHERE {}=$1 AND {}=$2",
-            TaskModel::USER_ID,
+        format!(
+            "INSERT INTO {} ({}) VALUES ({}) RETURNING {}",
+            TaskModel::TABLE,
+            columns.join(", "),
+            parameter_string(1..=columns.len()),
             TaskModel::ID,
-        );
-
-        let row_opt = match transaction.query_opt(&statement, &params).await {
-            Ok(o) => o,
-            Err(e) => return Err(Error::DatabaseError(e)),
-        };
-
-        // Commit
-        if let Err(e) = transaction.commit().await {
-            return Err(Error::DatabaseError(e));
-        }
-
-        Ok(row_opt)
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all(deserialize = "camelCase"))]
-pub struct TaskPutRequest {
-    title: Option<UpdateMethod<String>>,
-    notes: Option<UpdateMethod<String>>,
-
-    start_date: Option<UpdateMethod<NaiveDate>>,
-    start_time: Option<UpdateMethod<NaiveTime>>,
-    deadline: Option<UpdateMethod<NaiveDate>>,
-
-    area_id: Option<UpdateMethod<Uuid>>,
-    project_id: Option<UpdateMethod<Uuid>>,
-
-    completed: Option<bool>,
-    logged: Option<bool>,
-    trashed: Option<bool>,
-
-    tag_ids: Option<UpdateMethod<Vec<Uuid>>>,
-}
-
-impl Update for TaskPutRequest {
-    fn columns_vec(&self) -> Vec<String> {
-        let mut columns = Vec::new();
-
-        if let Some(_) = &self.title {
-            columns.push(TaskModel::TITLE.to_string());
-        }
-        if let Some(_) = &self.notes {
-            columns.push(TaskModel::NOTES.to_string());
-        }
-
-        if let Some(_) = &self.start_date {
-            columns.push(TaskModel::START_DATE.to_string());
-        }
-        if let Some(_) = &self.start_time {
-            columns.push(TaskModel::START_TIME.to_string());
-        }
-        if let Some(_) = &self.deadline {
-            columns.push(TaskModel::DEADLINE.to_string());
-        }
-
-        if let Some(_) = &self.area_id {
-            columns.push(TaskModel::AREA_ID.to_string());
-        }
-        if let Some(_) = &self.project_id {
-            columns.push(TaskModel::PROJECT_ID.to_string());
-        }
-
-        if let Some(_) = &self.completed {
-            columns.push(TaskModel::COMPLETED.to_string());
-        }
-        if let Some(_) = &self.logged {
-            columns.push(TaskModel::LOGGED.to_string());
-        }
-        if let Some(_) = &self.trashed {
-            columns.push(TaskModel::TRASHED.to_string());
-        }
-
-        columns
+        )
     }
 
-    fn params<'a>(&'a self) -> Vec<&'a (dyn ToSql + Sync)> {
-        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
+        let mut params: Vec<&(dyn ToSql + Sync)> = vec![self.user_id.as_ref().unwrap()];
 
         if let Some(s) = &self.title {
             params.push(s);
@@ -289,7 +137,6 @@ impl Update for TaskPutRequest {
         if let Some(s) = &self.notes {
             params.push(s);
         }
-
         if let Some(d) = &self.start_date {
             params.push(d);
         }
@@ -309,101 +156,163 @@ impl Update for TaskPutRequest {
 
         params
     }
+}
 
-    async fn update_query(
-        &self,
-        conn: &mut Object,
-        info: Option<Info>,
-    ) -> Result<Option<Row>, Error> {
+#[derive(Debug)]
+pub struct TaskGetRequest {
+    task_id: Option<Uuid>,
+
+    user_id: Option<Uuid>,
+}
+
+impl TaskGetRequest {
+    pub fn task_id(&mut self, id: Uuid) -> &mut Self {
+        self.task_id = Some(id);
+
+        self
+    }
+
+    pub fn user_id(&mut self, id: Uuid) -> &mut Self {
+        self.user_id = Some(id);
+
+        self
+    }
+}
+
+impl Default for TaskGetRequest {
+    fn default() -> Self {
+        Self {
+            task_id: None,
+
+            user_id: None,
+        }
+    }
+}
+
+impl Retrieve for TaskGetRequest {
+    async fn query(&self, conn: &mut Object) -> Result<Option<Row>, Error> {
         let transaction = match conn.transaction().await {
             Ok(t) => t,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
 
-        // Setup
-        let info = info.unwrap();
+        // Task Select Query
+        let row_opt = match transaction
+            .query_opt(&self.statement(), &self.params())
+            .await
+        {
+            Ok(o) => o,
+            Err(e) => return Err(Error::DatabaseError(e)),
+        };
+
+        // Commit
+        if let Err(e) = transaction.commit().await {
+            return Err(Error::DatabaseError(e));
+        }
+
+        Ok(row_opt)
+    }
+}
+
+impl ToQuery for TaskGetRequest {
+    fn statement(&self) -> String {
+        format!(
+            "SELECT * FROM {} WHERE {}=$1 AND {}=$2",
+            TaskModel::TABLE,
+            TaskModel::ID,
+            TaskModel::USER_ID,
+        )
+    }
+
+    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
+        vec![
+            self.task_id.as_ref().unwrap(),
+            self.user_id.as_ref().unwrap(),
+        ]
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all(deserialize = "camelCase"))]
+pub struct TaskPutRequest {
+    task_id: Option<Uuid>,
+
+    title: Option<UpdateMethod<String>>,
+    notes: Option<UpdateMethod<String>>,
+    start_date: Option<UpdateMethod<NaiveDate>>,
+    start_time: Option<UpdateMethod<NaiveTime>>,
+    deadline: Option<UpdateMethod<NaiveDate>>,
+    completed: Option<bool>,
+    logged: Option<bool>,
+    trashed: Option<bool>,
+
+    area_id: Option<UpdateMethod<Uuid>>,
+    project_id: Option<UpdateMethod<Uuid>>,
+
+    user_id: Option<Uuid>,
+
+    #[serde(default)]
+    timestamp: DateTime<Local>,
+    tag_ids: Option<UpdateMethod<Vec<Uuid>>>,
+}
+
+impl TaskPutRequest {
+    pub fn task_id(&mut self, id: Uuid) -> &mut Self {
+        self.task_id = Some(id);
+
+        self
+    }
+
+    pub fn user_id(&mut self, id: Uuid) -> &mut Self {
+        self.user_id = Some(id);
+
+        self
+    }
+}
+
+impl Update for TaskPutRequest {
+    async fn query(&self, conn: &mut Object) -> Result<Option<Row>, Error> {
+        let transaction = match conn.transaction().await {
+            Ok(t) => t,
+            Err(e) => return Err(Error::DatabaseError(e)),
+        };
 
         // Task Update Query
-        let mut params: Vec<&(dyn ToSql + Sync)> = self.params();
-        if let Some(b) = self.completed {
-            if b {
-                params.push(info.timestamp());
-            } else {
-                params.push(TIMESTAMP_NULL);
-            }
-        }
-        if let Some(b) = self.logged {
-            if b {
-                params.push(info.timestamp());
-            } else {
-                params.push(TIMESTAMP_NULL);
-            }
-        }
-        if let Some(b) = self.trashed {
-            if b {
-                params.push(info.timestamp());
-            } else {
-                params.push(TIMESTAMP_NULL);
-            }
-        }
-        // TODO: catch if params is empty; return none?
-        params.splice(
-            0..0,
-            [
-                info.user_id() as &(dyn ToSql + Sync),
-                info.obj_id() as &(dyn ToSql + Sync),
-                info.timestamp() as &(dyn ToSql + Sync),
-            ],
-        );
-
-        let statement = format!(
-            "UPDATE todo_data.tasks \
-			SET ({}, {})=($3, {}) \
-			WHERE {}=$1 AND {}=$2 \
-			RETURNING *",
-            TaskModel::UPDATED,
-            self.columns_vec().join(", "),
-            (3..params.len())
-                .map(|n| format!("${}", 1 + n))
-                .collect::<Vec<String>>()
-                .join(", "),
-            TaskModel::USER_ID,
-            TaskModel::ID,
-        );
-
-        let row_opt = match transaction.query_opt(&statement, &params).await {
+        let row_opt = match transaction
+            .query_opt(&self.statement(), &self.params())
+            .await
+        {
             Ok(o) => o,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
 
         // Task Tag Update Query
-        if let (true, Some(tag_update)) = (row_opt.is_some(), &self.tag_ids) {
-            let rows_affected = match transaction
-                .execute(
-                    &format!(
-                        "DELETE FROM todo_data.task_tags \
-						WHERE {}=$1",
-                        TaskTagModel::TASK_ID,
-                    ),
-                    &[info.obj_id()],
-                )
-                .await
-            {
+        if let (Some(r), Some(tag_update)) = (&row_opt, &self.tag_ids) {
+            let task_id: Uuid = r.get(TaskModel::ID);
+
+            // Remove tags
+            let params: Vec<&(dyn ToSql + Sync)> = vec![&task_id];
+            let statement = format!(
+                "DELETE FROM {} WHERE {}=$1",
+                TaskTagModel::TABLE,
+                TaskModel::ID
+            );
+
+            // TODO: do something with rows_affected
+            let _rows_affected = match transaction.execute(&statement, &params).await {
                 Ok(n) => n,
                 Err(e) => return Err(Error::DatabaseError(e)),
             };
 
+            // Add tag
             if let UpdateMethod::Change(tag_ids) = tag_update {
-                let mut params: Vec<&(dyn ToSql + Sync)> =
-                    tag_ids.iter().map(|i| i as &(dyn ToSql + Sync)).collect();
-                // TODO: catch if params is empty
-                params.splice(0..0, [info.obj_id() as &(dyn ToSql + Sync)]);
-
+                let mut params: Vec<&(dyn ToSql + Sync)> = vec![&task_id];
+                for tag_id in tag_ids {
+                    params.push(tag_id);
+                }
                 let statement = format!(
-                    "INSERT INTO todo_data.task_tags \
-					({}, {}) \
-					VALUES \
-					{}",
+                    "INSERT INTO {} ({}, {}) VALUES {}",
+                    TaskTagModel::TABLE,
                     TaskTagModel::TASK_ID,
                     TaskTagModel::TAG_ID,
                     (1..params.len())
@@ -412,7 +321,8 @@ impl Update for TaskPutRequest {
                         .join(", "),
                 );
 
-                let rows_affected = match transaction.execute(&statement, &params).await {
+                // TODO: do something with rows_affected
+                let _rows_affected = match transaction.execute(&statement, &params).await {
                     Ok(n) => n,
                     Err(e) => return Err(Error::DatabaseError(e)),
                 };
@@ -428,168 +338,96 @@ impl Update for TaskPutRequest {
     }
 }
 
-#[derive(Debug)]
-pub struct TaskDeleteRequest {}
+impl ToQuery for TaskPutRequest {
+    fn statement(&self) -> String {
+        let mut columns: Vec<&str> = vec![TaskModel::UPDATED];
 
-impl Delete for TaskDeleteRequest {
-    async fn delete_query(&self, conn: &mut Object, info: Option<Info>) -> Result<bool, Error> {
-        let transaction = match conn.transaction().await {
-            Ok(t) => t,
-            Err(e) => return Err(Error::DatabaseError(e)),
-        };
-
-        // Setup
-        let info = info.unwrap();
-
-        // Task Delete Query
-        let params: Vec<&(dyn ToSql + Sync)> = vec![info.obj_id()];
-
-        let statement = format!(
-            "WITH deleted AS ( \
-			DELETE FROM todo_data.task_tags \
-			WHERE {0}=$1 \
-			) \
-			DELETE FROM todo_data.tasks \
-			WHERE {0}=$1",
-            TaskTagModel::TASK_ID,
-        );
-
-        let result = match transaction.execute(&statement, &params).await {
-            Ok(0) => false,
-            Ok(1) => true,
-            Ok(..) => return Err(Error::QueryError("More than one task deleted".to_string())),
-            Err(e) => return Err(Error::DatabaseError(e)),
-        };
-
-        // Commit
-        if let Err(e) = transaction.commit().await {
-            return Err(Error::DatabaseError(e));
+        if let Some(_) = &self.title {
+            columns.push(TaskModel::TITLE);
+        }
+        if let Some(_) = &self.notes {
+            columns.push(TaskModel::NOTES);
+        }
+        if let Some(_) = &self.start_date {
+            columns.push(TaskModel::START_DATE);
+        }
+        if let Some(_) = &self.start_time {
+            columns.push(TaskModel::START_TIME);
+        }
+        if let Some(_) = &self.deadline {
+            columns.push(TaskModel::DEADLINE);
+        }
+        if let Some(_) = &self.completed {
+            columns.push(TaskModel::COMPLETED);
+        }
+        if let Some(_) = &self.logged {
+            columns.push(TaskModel::LOGGED);
+        }
+        if let Some(_) = &self.trashed {
+            columns.push(TaskModel::TRASHED);
         }
 
-        Ok(result)
+        if let Some(_) = &self.area_id {
+            columns.push(TaskModel::AREA_ID);
+        }
+        if let Some(_) = &self.project_id {
+            columns.push(TaskModel::PROJECT_ID);
+        }
+
+        format!(
+            "UPDATE {} SET ({})=({}) WHERE {}=$1 AND {}=$2 RETURNING *",
+            TaskModel::TABLE,
+            columns.join(", "),
+            (0..columns.len())
+                .map(|n| format!("${}", 3 + n))
+                .collect::<Vec<String>>()
+                .join(", "),
+            TaskModel::USER_ID,
+            TaskModel::ID,
+        )
     }
-}
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all(deserialize = "camelCase"))]
-pub struct TaskQueryRequest {
-    date_filter: Option<DateFilter>,
+    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
+        let mut params: Vec<&(dyn ToSql + Sync)> = vec![
+            self.user_id.as_ref().unwrap(),
+            self.task_id.as_ref().unwrap(),
+            &self.timestamp,
+        ];
 
-    area_id: Option<Uuid>,
-    project_id: Option<Uuid>,
-
-    tag_ids: Option<Vec<Uuid>>,
-
-    completed: Option<bool>,
-    logged: Option<bool>,
-    trashed: Option<bool>,
-}
-
-impl Query for TaskQueryRequest {
-    fn conditions(&self) -> Vec<String> {
-        let mut conditions = Vec::new();
-        let mut n = 2;
-
-        if let Some(f) = &self.date_filter {
-            let mut date_conditions: Vec<String> = Vec::new();
-
-            match (&f.start, &f.start_cmp) {
-                (_, Some(CmpFlag::IS_NULL)) => {
-                    date_conditions.push(format!("{} IS NULL", TaskModel::START_DATE));
-                }
-                (Some(_), cmp_opt) => {
-                    if let Some(cmp) = cmp_opt {
-                        date_conditions.push(format!(
-                            "{}{}${}",
-                            TaskModel::START_DATE,
-                            cmp.to_sql_cmp(),
-                            n
-                        ));
-                    } else {
-                        date_conditions.push(format!("{}=${}", TaskModel::START_DATE, n));
-                    }
-
-                    n += 1;
-                }
-                _ => (),
-            }
-
-            match (&f.deadline, &f.deadline_cmp) {
-                (Some(_), Some(CmpFlag::IS_NULL)) => {
-                    date_conditions.push(format!("{} IS NULL", TaskModel::DEADLINE));
-                }
-                (Some(_), cmp_opt) => {
-                    if let Some(cmp) = cmp_opt {
-                        date_conditions.push(format!(
-                            "{}{}${}",
-                            TaskModel::DEADLINE,
-                            cmp.to_sql_cmp(),
-                            n
-                        ));
-                    } else {
-                        date_conditions.push(format!("{}=${}", TaskModel::DEADLINE, n));
-                    }
-
-                    n += 1;
-                }
-                _ => (),
-            }
-
-            if f.or {
-                conditions.push(date_conditions.join(" OR "));
-            } else {
-                conditions.push(date_conditions.join(" AND "));
-            }
+        if let Some(s) = &self.title {
+            params.push(s);
         }
-
-        if let Some(_) = self.area_id {
-            conditions.push(format!("{}=${}", TaskModel::AREA_ID, n));
-
-            n += 1;
+        if let Some(s) = &self.notes {
+            params.push(s);
         }
-        if let Some(_) = self.project_id {
-            conditions.push(format!("{}=${}", TaskModel::PROJECT_ID, n));
+        if let Some(d) = &self.start_date {
+            params.push(d);
         }
-
+        if let Some(t) = &self.start_time {
+            params.push(t);
+        }
+        if let Some(d) = &self.deadline {
+            params.push(d);
+        }
         if let Some(b) = self.completed {
             if b {
-                conditions.push(format!("{} IS NOT NULL", TaskModel::COMPLETED));
+                params.push(&self.timestamp);
             } else {
-                conditions.push(format!("{} IS NULL", TaskModel::COMPLETED));
+                params.push(TIMESTAMP_NULL);
             }
         }
         if let Some(b) = self.logged {
             if b {
-                conditions.push(format!("{} IS NOT NULL", TaskModel::LOGGED));
+                params.push(&self.timestamp);
             } else {
-                conditions.push(format!("{} IS NULL", TaskModel::LOGGED));
+                params.push(TIMESTAMP_NULL);
             }
         }
         if let Some(b) = self.trashed {
             if b {
-                conditions.push(format!("{} IS NOT NULL", TaskModel::TRASHED));
+                params.push(&self.timestamp);
             } else {
-                conditions.push(format!("{} IS NULL", TaskModel::TRASHED));
-            }
-        }
-
-        conditions
-    }
-
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
-
-        if let Some(f) = &self.date_filter {
-            match (&f.start, &f.start_cmp) {
-                (_, Some(CmpFlag::IS_NULL)) => (),
-                (Some(d), _) => params.push(d),
-                (_, _) => (),
-            }
-
-            match (&f.deadline, &f.deadline_cmp) {
-                (_, Some(CmpFlag::IS_NULL)) => (),
-                (Some(d), _) => params.push(d),
-                (_, _) => (),
+                params.push(TIMESTAMP_NULL);
             }
         }
 
@@ -602,80 +440,163 @@ impl Query for TaskQueryRequest {
 
         params
     }
+}
 
-    async fn query(&self, conn: &mut Object, info: Option<Info>) -> Result<Vec<Row>, Error> {
+#[derive(Debug)]
+pub struct TaskDeleteRequest {
+    task_id: Option<Uuid>,
+
+    user_id: Option<Uuid>,
+}
+
+impl TaskDeleteRequest {
+    pub fn task_id(&mut self, id: Uuid) -> &mut Self {
+        self.task_id = Some(id);
+
+        self
+    }
+
+    pub fn user_id(&mut self, id: Uuid) -> &mut Self {
+        self.user_id = Some(id);
+
+        self
+    }
+}
+
+impl Default for TaskDeleteRequest {
+    fn default() -> Self {
+        Self {
+            task_id: None,
+
+            user_id: None,
+        }
+    }
+}
+
+impl Delete for TaskDeleteRequest {
+    async fn query(&self, conn: &mut Object) -> Result<bool, Error> {
         let transaction = match conn.transaction().await {
             Ok(t) => t,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
 
-        // Setup
-        let info = info.unwrap();
-        let temp: String;
+        // Task Delete Query
+        let success = match transaction.execute(&self.statement(), &self.params()).await {
+            Ok(0) => false,
+            Ok(1) => true,
+            Ok(..) => return Err(Error::QueryError("More than one task deleted".to_string())),
+            Err(e) => return Err(Error::DatabaseError(e)),
+        };
+
+        // Commit
+        if let Err(e) = transaction.commit().await {
+            return Err(Error::DatabaseError(e));
+        }
+
+        Ok(success)
+    }
+}
+
+impl ToQuery for TaskDeleteRequest {
+    fn statement(&self) -> String {
+        let conditions = vec![
+            format!("{}=$1", TaskModel::ID),
+            format!("{}=$2", TaskModel::USER_ID),
+        ];
+
+        format!(
+            "WITH deleted AS (DELETE FROM {} WHERE {}) DELETE FROM {} WHERE {}",
+            TaskTagModel::TABLE,
+            conditions[0],
+            TaskModel::TABLE,
+            conditions.join(" AND "),
+        )
+    }
+
+    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
+        vec![
+            self.task_id.as_ref().unwrap(),
+            self.user_id.as_ref().unwrap(),
+        ]
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all(deserialize = "camelCase"))]
+pub struct TaskQueryRequest {
+    search_query: Option<String>,
+
+    start_date: Option<QueryMethod<NaiveDate>>,
+    deadline: Option<QueryMethod<NaiveDate>>,
+    completed: Option<QueryMethod<bool>>,
+    logged: Option<QueryMethod<bool>>,
+    trashed: Option<QueryMethod<bool>>,
+
+    area_id: Option<QueryMethod<Uuid>>,
+    project_id: Option<QueryMethod<Uuid>>,
+
+    user_id: Option<Uuid>,
+
+    tag_ids: Option<QueryMethod<Vec<Uuid>>>,
+}
+
+impl TaskQueryRequest {
+    pub fn search_query(&mut self, query: String) -> &mut Self {
+        self.search_query = Some(query);
+
+        self
+    }
+
+    pub fn user_id(&mut self, id: Uuid) -> &mut Self {
+        self.user_id = Some(id);
+
+        self
+    }
+}
+
+impl Query for TaskQueryRequest {
+    async fn query(&self, conn: &mut Object) -> Result<Vec<Row>, Error> {
+        let transaction = match conn.transaction().await {
+            Ok(t) => t,
+            Err(e) => return Err(Error::DatabaseError(e)),
+        };
 
         // Task Query
-        let mut params: Vec<&(dyn ToSql + Sync)> = self.params();
-        params.splice(0..0, [info.user_id() as &(dyn ToSql + Sync)]);
-        let n = params.len();
-
-        let mut statement = format!(
-            "SELECT * FROM todo_data.tasks \
-			WHERE {}=$1",
-            TaskModel::USER_ID,
-        );
-        let conditions = self.conditions();
-        if !conditions.is_empty() {
-            statement.push_str(format!(" AND {}", conditions.join(" AND ")).as_str());
-        }
-        if let Some(query) = info.query() {
-            temp = format!("%{}%", query);
-            params.push(&temp);
-            statement.push_str(format!(" AND {} LIKE ${}", TaskModel::TITLE, n + 1).as_str());
-        }
-
-        let mut rows = match transaction.query(&statement, &params).await {
+        let mut rows = match transaction.query(&self.statement(), &self.params()).await {
             Ok(r) => r,
             Err(e) => return Err(Error::DatabaseError(e)),
         };
 
         // Task Tags Query
-        if let Some(tag_ids) = &self.tag_ids {
-            let params = tag_ids
-                .iter()
-                .map(|i| i as &(dyn ToSql + Sync))
-                .collect::<Vec<&(dyn ToSql + Sync)>>();
-
+        if let (Some(_), Some(QueryMethod::Match(tag_ids))) = (&self.tag_ids, &self.tag_ids) {
+            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+            for tag_id in tag_ids {
+                params.push(tag_id);
+            }
             let statement = format!(
-                "SELECT task_id FROM todo_data.task_tags \
-				WHERE tag_id IN ({}) \
-				GROUP BY task_id \
-				HAVING COUNT(DISTINCT tag_id) >= {}",
-                (0..tag_ids.len())
-                    .map(|n| format!("${}", 1 + n))
-                    .collect::<Vec<String>>()
-                    .join(", "),
-                tag_ids.len(),
-            );
+				"SELECT {1} FROM {0} WHERE {2} IN ({3}) GROUP BY {1} HAVING COUNT(DISTINCT {2}) >= {4}",
+				TaskTagModel::TABLE,
+				TaskTagModel::TASK_ID,
+				TaskTagModel::TAG_ID,
+				parameter_string(1..=params.len()),
+				params.len(),
+			);
 
-            let matching_tasks = match transaction.query(&statement, &params).await {
-                Ok(r) => r,
+			// Get all tasks that have the queried tags
+            let matched_tasks: Vec<Uuid> = match transaction.query(&statement, &params).await {
+                Ok(r) => r
+                    .iter()
+                    .map(|o| o.to_owned().get::<&str, Uuid>(TaskTagModel::TASK_ID))
+                    .collect(),
                 Err(e) => return Err(Error::DatabaseError(e)),
             };
 
-            let task_ids = matching_tasks
-                .iter()
-                .map(|r| r.get("task_id"))
-                .collect::<Vec<Uuid>>();
-
+			// Filter out all tasks that have the queried tags
             rows = rows
                 .iter()
-                .filter(|r| {
-                    let task_id: Uuid = r.get("task_id");
-
-                    task_ids.contains(&task_id)
-                })
-                .map(|r| r.clone())
-                .collect::<Vec<Row>>();
+                .filter(|r| matched_tasks.contains(&r.get::<&str, Uuid>(TaskModel::ID)))
+                .map(|r| r.to_owned())
+                .collect();
         }
 
         // Commit
@@ -684,6 +605,95 @@ impl Query for TaskQueryRequest {
         }
 
         Ok(rows)
+    }
+}
+
+impl ToQuery for TaskQueryRequest {
+    fn statement(&self) -> String {
+        let mut conditions: Vec<String> = vec![format!("{}=$1", TaskModel::USER_ID)];
+
+        let mut n = conditions.len() + 1;
+        if self.search_query.is_some() {
+            conditions.push(format!("{} LIKE ${}", TaskModel::TITLE, n));
+
+            n += 1;
+        }
+
+        let mut condition;
+        if let Some(q) = &self.start_date {
+            (condition, n) = q.condition_string(TaskModel::START_DATE, n);
+
+            conditions.push(condition);
+        }
+        if let Some(q) = &self.deadline {
+            (condition, n) = q.condition_string(TaskModel::DEADLINE, n);
+
+            conditions.push(condition);
+        }
+        if let Some(q) = &self.completed {
+            (condition, n) = q.condition_string(TaskModel::COMPLETED, n);
+
+            conditions.push(condition);
+        }
+        if let Some(q) = &self.logged {
+            (condition, n) = q.condition_string(TaskModel::LOGGED, n);
+
+            conditions.push(condition);
+        }
+        if let Some(q) = &self.trashed {
+            (condition, n) = q.condition_string(TaskModel::TRASHED, n);
+
+            conditions.push(condition);
+        }
+
+        if let Some(q) = &self.area_id {
+            (condition, n) = q.condition_string(TaskModel::AREA_ID, n);
+
+            conditions.push(condition);
+        }
+        if let Some(q) = &self.project_id {
+            (condition, n) = q.condition_string(TaskModel::PROJECT_ID, n);
+
+            conditions.push(condition);
+        }
+
+        format!(
+            "SELECT * FROM {} WHERE {}",
+            TaskModel::TABLE,
+            conditions.join(" AND "),
+        )
+    }
+
+    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
+        let mut params: Vec<&(dyn ToSql + Sync)> = vec![self.user_id.as_ref().unwrap()];
+
+        if self.search_query.is_some() {
+            params.push(self.search_query.as_ref().unwrap())
+        }
+
+        if let Some(q) = &self.start_date {
+            if let Some(d) = q.get_param() {
+                params.push(d);
+            }
+        }
+        if let Some(q) = &self.deadline {
+            if let Some(d) = q.get_param() {
+                params.push(d);
+            }
+        }
+
+        if let Some(q) = &self.area_id {
+            if let Some(i) = q.get_param() {
+                params.push(i);
+            }
+        }
+        if let Some(q) = &self.project_id {
+            if let Some(i) = q.get_param() {
+                params.push(i);
+            }
+        }
+
+        return params;
     }
 }
 
