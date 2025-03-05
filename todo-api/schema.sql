@@ -1,5 +1,5 @@
 -- Drop Schemas
-DROP SCHEMA IF EXISTS todo_auth, todo_data CASCADE;
+DROP SCHEMA IF EXISTS auth, data CASCADE;
 DROP EXTENSION IF EXISTS citext;
 
 
@@ -7,20 +7,22 @@ DROP EXTENSION IF EXISTS citext;
 CREATE EXTENSION citext;
 
 
--- Create Schemas with permission changes
-CREATE SCHEMA todo_auth;
-GRANT USAGE ON SCHEMA todo_auth TO todo_app;
-
-CREATE SCHEMA todo_data;
-GRANT USAGE ON SCHEMA todo_data TO todo_app;
-
+-- Create schemas and add permissions
+CREATE SCHEMA auth;
+GRANT USAGE ON SCHEMA auth TO todo_app;
 ALTER DEFAULT PRIVILEGES
-IN SCHEMA todo_auth, todo_data
+IN SCHEMA auth
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO todo_app;
+
+CREATE SCHEMA data;
+GRANT USAGE ON SCHEMA data TO todo_app;
+ALTER DEFAULT PRIVILEGES
+IN SCHEMA data
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO todo_app;
 
 
--- Tables in todo_auth schema
-CREATE TABLE IF NOT EXISTS todo_auth.users
+-- Tables in auth schema
+CREATE TABLE auth.users
 (
 	user_id uuid DEFAULT gen_random_uuid(),
 
@@ -35,8 +37,8 @@ CREATE TABLE IF NOT EXISTS todo_auth.users
 );
 
 
--- Tables in todo_data schema
-CREATE TABLE IF NOT EXISTS todo_data.areas
+-- Tables in data schema
+CREATE TABLE data.areas
 (
 	area_id	uuid DEFAULT gen_random_uuid(),
 
@@ -48,10 +50,10 @@ CREATE TABLE IF NOT EXISTS todo_data.areas
     updated_on timestamptz(0) DEFAULT now() NOT NULL,
 
 	PRIMARY	KEY(area_id),
-	FOREIGN	KEY(user_id) REFERENCES todo_auth.users(user_id)
+	FOREIGN	KEY(user_id) REFERENCES auth.users(user_id)
 );
 
-CREATE TABLE IF NOT EXISTS todo_data.projects
+CREATE TABLE data.projects
 (
 	project_id uuid DEFAULT gen_random_uuid(),
 
@@ -71,11 +73,11 @@ CREATE TABLE IF NOT EXISTS todo_data.projects
     updated_on timestamptz(0) DEFAULT now() NOT NULL,
 
 	PRIMARY KEY(project_id),
-    FOREIGN KEY(area_id) REFERENCES todo_data.areas(area_id),
-	FOREIGN	KEY(user_id) REFERENCES todo_auth.users(user_id)
+    FOREIGN KEY(area_id) REFERENCES data.areas(area_id),
+	FOREIGN	KEY(user_id) REFERENCES auth.users(user_id)
 );
 
-CREATE TABLE IF NOT EXISTS todo_data.tasks
+CREATE TABLE data.tasks
 (
 	task_id uuid DEFAULT gen_random_uuid(),
 
@@ -96,12 +98,12 @@ CREATE TABLE IF NOT EXISTS todo_data.tasks
     updated_on timestamptz(0) DEFAULT now() NOT NULL,
 
 	PRIMARY KEY(task_id),
-	FOREIGN KEY(area_id) REFERENCES todo_data.areas(area_id),
-	FOREIGN KEY(project_id) REFERENCES todo_data.projects(project_id),
-	FOREIGN	KEY(user_id) REFERENCES todo_auth.users(user_id)
+	FOREIGN KEY(area_id) REFERENCES data.areas(area_id),
+	FOREIGN KEY(project_id) REFERENCES data.projects(project_id),
+	FOREIGN	KEY(user_id) REFERENCES auth.users(user_id)
 );
 
-CREATE TABLE IF NOT EXISTS todo_data.tags
+CREATE TABLE data.tags
 (
 	tag_id uuid DEFAULT gen_random_uuid(),
 
@@ -114,25 +116,25 @@ CREATE TABLE IF NOT EXISTS todo_data.tags
     updated_on timestamptz(0) DEFAULT now() NOT NULL,
 
 	PRIMARY KEY(tag_id),
-	FOREIGN KEY(user_id) REFERENCES todo_auth.users(user_id)
+	FOREIGN KEY(user_id) REFERENCES auth.users(user_id)
 );
 
-CREATE TABLE IF NOT EXISTS todo_data.project_tags
+CREATE TABLE data.project_tags
 (
 	project_id uuid,
 	tag_id uuid,
 
 	PRIMARY KEY(project_id, tag_id),
-	FOREIGN KEY(project_id) REFERENCES todo_data.projects(project_id),
-	FOREIGN KEY(tag_id) REFERENCES todo_data.tags(tag_id)
+	FOREIGN KEY(project_id) REFERENCES data.projects(project_id) ON DELETE CASCADE,
+	FOREIGN KEY(tag_id) REFERENCES data.tags(tag_id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS todo_data.task_tags
+CREATE TABLE data.task_tags
 (
 	task_id uuid,
 	tag_id uuid,
 
 	PRIMARY KEY(task_id, tag_id),
-	FOREIGN KEY(task_id) REFERENCES todo_data.tasks(task_id),
-	FOREIGN KEY(tag_id) REFERENCES todo_data.tags(tag_id)
+	FOREIGN KEY(task_id) REFERENCES data.tasks(task_id) ON DELETE CASCADE,
+	FOREIGN KEY(tag_id) REFERENCES data.tags(tag_id) ON DELETE CASCADE
 );
