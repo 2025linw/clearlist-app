@@ -1,30 +1,30 @@
-pub mod database;
-pub mod handler;
-pub mod request;
-pub mod response;
+mod routes;
+mod storage;
 
-use axum::{
-    routing::{get, post},
-    Router,
-};
-use std::env;
+mod error;
+mod util;
 
-use handler::{area, project, tag, task};
+use axum::Extension;
+use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, PoolError};
+use dotenvy::dotenv;
+use error::Error;
+use std::{env, sync::Arc};
+use tokio_postgres::{Config, NoTls};
 
-// Server Constants
-const PORT: u16 = 8082;
+use routes::api;
 
-/*
- * Server Startup
- */
+// TODO: Get logging library/middleware
 
+// Server Main
 #[tokio::main]
 async fn main() {
     // Setup Environment Variables
-    dotenvy::dotenv().unwrap();
+    dotenv().unwrap();
+
+    let port = env::var("SRV_PORT").unwrap().parse::<u16>().unwrap();
 
     // Setup Database Connection Pool
-    let pool = match database::get_database_pool(
+    let pool = match get_database_pool(
         env::var("DB_HOST").unwrap(),
         env::var("DB_PORT").unwrap().parse::<u16>().unwrap(),
         env::var("DB_NAME").unwrap(),
@@ -41,53 +41,45 @@ async fn main() {
         }
     };
 
-    let state = database::AppState::with_pool(pool);
+    let shared_state = Arc::new(AppState::with_pool(pool));
 
-    // Setup Web Server Routing
-    let task_api_router = Router::new()
-        .route("/", post(task::create))
-        .route(
-            "/{id}",
-            get(task::retrieve).put(task::update).delete(task::delete),
-        )
-        .route("/query", post(task::query));
-    let project_api_router = Router::new()
-        .route("/", post(project::create))
-        .route(
-            "/{id}",
-            get(project::retrieve)
-                .put(project::update)
-                .delete(project::delete),
-        )
-        .route("/query", post(project::query));
-    let area_api_router = Router::new()
-        .route("/", post(area::create))
-        .route(
-            "/{id}",
-            get(area::create).put(area::update).delete(area::delete),
-        )
-        .route("/query", post(area::query));
-    let tag_api_router = Router::new()
-        .route("/", post(tag::create))
-        .route(
-            "/{id}",
-            get(tag::retrieve).put(tag::update).delete(tag::delete),
-        )
-        .route("/query", post(tag::query));
-
-    let api_router = Router::new()
-        .nest("/tasks", task_api_router)
-        .nest("/projects", project_api_router)
-        .nest("/areas", area_api_router)
-        .nest("/tags", tag_api_router)
-        .with_state(state);
-
-    let router = Router::new().nest("/api", api_router);
-
-    let listener = tokio::net::TcpListener::bind(format!("localhost:{PORT}"))
+    let listener = tokio::net::TcpListener::bind(format!("localhost:{port}"))
         .await
         .unwrap();
-
-    // Setup Server
+    let router = api().layer(Extension(shared_state));
     axum::serve(listener, router).await.unwrap();
+}
+
+pub struct AppState {
+    db_pool: Pool,
+}
+
+impl AppState {
+    pub fn with_pool(pool: Pool) -> Self {
+        Self { db_pool: pool }
+    }
+
+    #[inline]
+    pub async fn get_conn(&self) -> Result<Object, Error> {
+        return Ok(self.db_pool.get().await?);
+    }
+}
+
+pub async fn get_database_pool(
+    host: String,
+    port: u16,
+    database: String,
+    user: String,
+    pass: String,
+) -> Result<Pool, PoolError> {
+    let mut pg_config = Config::new();
+    pg_config.host(host).port(port);
+    pg_config.user(user).password(pass).dbname(database);
+
+    let manager = Manager::from_config(pg_config, NoTls, ManagerConfig::default());
+
+    let pool = Pool::builder(manager).max_size(16).build().unwrap();
+    let _ = pool.get().await?;
+
+    Ok(pool)
 }
