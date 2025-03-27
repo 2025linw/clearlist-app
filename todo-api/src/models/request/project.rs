@@ -6,16 +6,11 @@ use uuid::Uuid;
 
 use crate::{
     error::Error,
-    storage::{
-        db::{DBDelete, DBInsert, DBQuery, DBSelectAll, DBSelectOne, DBSubquery, DBUpdate},
-        model::{ProjectModel, ProjectTagModel},
-    },
-    util::parameter_values,
+    models::db::{ProjectModel, ProjectTagModel, parameter_values},
+    storage::db::{DBDelete, DBInsert, DBQuery, DBSelectAll, DBSelectOne, DBSubquery, DBUpdate},
 };
 
 use super::{QueryMethod, UpdateMethod};
-
-const TIMESTAMP_NULL: &Option<DateTime<Local>> = &None;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
@@ -103,14 +98,14 @@ impl DBSubquery for ProjectCreateRequest {
 }
 
 impl DBInsert for ProjectCreateRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<Row, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<Row, Error> {
         // Insert Project
         let (statement, params) = self.get_query();
 
         let row: Row = transaction.query_one(&statement, &params).await?;
 
         // Insert Project Tags
-        if let Some(_) = self.tag_ids {
+        if self.tag_ids.is_some() {
             let project_id: Uuid = row.get("id");
 
             let (statement, params) = self.get_subquery(&project_id);
@@ -214,84 +209,92 @@ impl ProjectUpdateRequest {
 
 impl DBQuery for ProjectUpdateRequest {
     fn get_query(&self) -> (String, Vec<&(dyn ToSql + Sync)>) {
-        let mut columns: Vec<&str> = vec![ProjectModel::UPDATED];
+        let mut updates: Vec<String> = vec![format!("{}=$3", ProjectModel::UPDATED)];
         let mut params: Vec<&(dyn ToSql + Sync)> = vec![
             self.project_id.as_ref().unwrap(),
             self.user_id.as_ref().unwrap(),
             &self.timestamp,
         ];
 
+        let mut n = params.len() + 1;
+
+        let mut update;
         if let Some(u) = &self.title {
-            columns.push(ProjectModel::TITLE);
+            (update, n) = u.update_string(ProjectModel::TITLE, n);
+            updates.push(update);
+
             if let Some(s) = u.get_param() {
                 params.push(s);
             }
         }
         if let Some(u) = &self.notes {
-            columns.push(ProjectModel::NOTES);
+            (update, n) = u.update_string(ProjectModel::NOTES, n);
+            updates.push(update);
+
             if let Some(s) = u.get_param() {
                 params.push(s);
             }
         }
         if let Some(u) = &self.start_date {
-            columns.push(ProjectModel::START_DATE);
+            (update, n) = u.update_string(ProjectModel::START_DATE, n);
+            updates.push(update);
+
             if let Some(d) = u.get_param() {
                 params.push(d);
             }
         }
         if let Some(u) = &self.start_time {
-            columns.push(ProjectModel::START_TIME);
+            (update, n) = u.update_string(ProjectModel::START_TIME, n);
+            updates.push(update);
+
             if let Some(t) = u.get_param() {
                 params.push(t);
             }
         }
         if let Some(u) = &self.deadline {
-            columns.push(ProjectModel::DEADLINE);
+            (update, n) = u.update_string(ProjectModel::DEADLINE, n);
+            updates.push(update);
+
             if let Some(d) = u.get_param() {
                 params.push(d);
             }
         }
 
         if let Some(b) = self.completed {
-            columns.push(ProjectModel::COMPLETED);
             if b {
-                params.push(&self.timestamp);
+                updates.push(format!("{}=$3", ProjectModel::COMPLETED));
             } else {
-                params.push(TIMESTAMP_NULL);
+                updates.push(format!("{} IS NULL", ProjectModel::COMPLETED));
             }
         }
         if let Some(b) = self.logged {
-            columns.push(ProjectModel::LOGGED);
             if b {
-                params.push(&self.timestamp);
+                updates.push(format!("{}=$3", ProjectModel::LOGGED));
             } else {
-                params.push(TIMESTAMP_NULL);
+                updates.push(format!("{} IS NULL", ProjectModel::LOGGED));
             }
         }
         if let Some(b) = self.trashed {
-            columns.push(ProjectModel::TRASHED);
             if b {
-                params.push(&self.timestamp);
+                updates.push(format!("{}=$3", ProjectModel::TRASHED));
             } else {
-                params.push(TIMESTAMP_NULL);
+                updates.push(format!("{} IS NULL", ProjectModel::TRASHED));
             }
         }
 
         if let Some(u) = &self.area_id {
-            columns.push(ProjectModel::AREA_ID);
+            (update, _) = u.update_string(ProjectModel::DEADLINE, n);
+            updates.push(update);
+
             if let Some(i) = u.get_param() {
                 params.push(i);
             }
         }
 
         let statement = format!(
-            "UPDATE {} SET ({})=({}) WHERE {}=$1 AND {}=$2 RETURNING *",
+            "UPDATE {} SET {} WHERE {}=$1 AND {}=$2 RETURNING *",
             ProjectModel::TABLE,
-            columns.join(","),
-            (0..columns.len()) // TODO: change this to use params.len
-                .map(|n| format!("${}", 3 + n))
-                .collect::<Vec<String>>()
-                .join(","),
+            updates.join(","),
             ProjectModel::ID,
             ProjectModel::USER_ID,
         );
@@ -334,7 +337,7 @@ impl DBSubquery for ProjectUpdateRequest {
 }
 
 impl DBUpdate for ProjectUpdateRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<Option<Row>, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<Option<Row>, Error> {
         // Update Project
         let (statement, params) = self.get_query();
 
@@ -394,7 +397,7 @@ impl DBQuery for ProjectDeleteRequest {
 }
 
 impl DBDelete for ProjectDeleteRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<bool, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<bool, Error> {
         // Delete Project
         let (statement, params) = self.get_query();
 
@@ -578,8 +581,8 @@ mod tests {
     // TODO: make tests
     // use super::*;
 
-    #[test]
-    fn placeholder() {
-        unimplemented!()
-    }
+    // #[test]
+    // fn placeholder() {
+    //     unimplemented!()
+    // }
 }

@@ -5,6 +5,7 @@ use axum::{
 
 // TODO: use thiserror
 
+#[derive(Debug)]
 pub enum Error {
     DatabasePool(deadpool_postgres::PoolError),
     Database(tokio_postgres::Error),

@@ -60,6 +60,7 @@ impl From<Row> for TaskModel {
             start_date: value.try_get(TaskModel::START_DATE).ok(),
             start_time: value.try_get(TaskModel::START_TIME).ok(),
             deadline: value.try_get(TaskModel::DEADLINE).ok(),
+
             completed_on: value.try_get(TaskModel::COMPLETED).ok(),
             logged_on: value.try_get(TaskModel::LOGGED).ok(),
             trashed_on: value.try_get(TaskModel::TRASHED).ok(),

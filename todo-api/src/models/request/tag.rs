@@ -6,11 +6,8 @@ use uuid::Uuid;
 
 use crate::{
     error::Error,
-    storage::{
-        db::{DBDelete, DBInsert, DBQuery, DBSelectAll, DBSelectOne, DBUpdate},
-        model::TagModel,
-    },
-    util::parameter_values,
+    models::db::{TagModel, parameter_values},
+    storage::db::{DBDelete, DBInsert, DBQuery, DBSelectAll, DBSelectOne, DBUpdate},
 };
 
 use super::{QueryMethod, UpdateMethod};
@@ -64,7 +61,7 @@ impl DBQuery for TagCreateRequest {
 }
 
 impl DBInsert for TagCreateRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<Row, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<Row, Error> {
         // Insert Tag
         let (statement, params) = self.get_query();
 
@@ -155,40 +152,45 @@ impl TagUpdateRequest {
 
 impl DBQuery for TagUpdateRequest {
     fn get_query(&self) -> (String, Vec<&(dyn ToSql + Sync)>) {
-        let mut columns: Vec<&str> = vec![TagModel::UPDATED];
+        let mut updates: Vec<String> = vec![format!("{}=$3", TagModel::UPDATED)];
         let mut params: Vec<&(dyn ToSql + Sync)> = vec![
             self.tag_id.as_ref().unwrap(),
             self.user_id.as_ref().unwrap(),
             &self.timestamp,
         ];
 
+        let mut n = params.len() + 1;
+
+        let mut update;
         if let Some(u) = &self.label {
-            columns.push(TagModel::LABEL);
+            (update, n) = u.update_string(TagModel::LABEL, n);
+            updates.push(update);
+
             if let Some(s) = u.get_param() {
                 params.push(s);
             }
         }
         if let Some(u) = &self.category {
-            columns.push(TagModel::CATEGORY);
+            (update, n) = u.update_string(TagModel::CATEGORY, n);
+            updates.push(update);
+
             if let Some(s) = u.get_param() {
                 params.push(s);
             }
         }
         if let Some(u) = &self.color {
-            columns.push(TagModel::COLOR);
+            (update, _) = u.update_string(TagModel::COLOR, n);
+            updates.push(update);
+
             if let Some(c) = u.get_param() {
                 params.push(c);
             }
         }
 
         let statement = format!(
-            "UPDATE {} SET ({})=({}) WHERE {}=$1 AND {}=$2 RETURNING *",
+            "UPDATE {} SET {} WHERE {}=$1 AND {}=$2 RETURNING *",
             TagModel::TABLE,
-            columns.join(","),
-            (0..params.len())
-                .map(|n| format!("${}", 3 + n))
-                .collect::<Vec<String>>()
-                .join(","),
+            updates.join(","),
             TagModel::ID,
             TagModel::USER_ID,
         );
@@ -198,7 +200,7 @@ impl DBQuery for TagUpdateRequest {
 }
 
 impl DBUpdate for TagUpdateRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<Option<Row>, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<Option<Row>, Error> {
         // Update Tag
         let (statement, params) = self.get_query();
 
@@ -248,7 +250,7 @@ impl DBQuery for TagDeleteRequest {
 }
 
 impl DBDelete for TagDeleteRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<bool, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<bool, Error> {
         // Delete Tag
         let (statement, params) = self.get_query();
 
@@ -334,9 +336,11 @@ impl DBSelectAll for TagQueryRequest {
 
 #[cfg(test)]
 mod tests {
+    // TODO: make tests
+    // use super::*;
 
-    #[test]
-    fn placeholder() {
-        unimplemented!()
-    }
+    // #[test]
+    // fn placeholder() {
+    //     unimplemented!()
+    // }
 }

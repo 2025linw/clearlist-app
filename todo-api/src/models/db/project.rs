@@ -58,6 +58,7 @@ impl From<Row> for ProjectModel {
             start_date: value.try_get(ProjectModel::START_DATE).ok(),
             start_time: value.try_get(ProjectModel::START_TIME).ok(),
             deadline: value.try_get(ProjectModel::DEADLINE).ok(),
+
             completed_on: value.try_get(ProjectModel::COMPLETED).ok(),
             logged_on: value.try_get(ProjectModel::LOGGED).ok(),
             trashed_on: value.try_get(ProjectModel::TRASHED).ok(),

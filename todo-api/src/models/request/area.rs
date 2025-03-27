@@ -6,11 +6,8 @@ use uuid::Uuid;
 
 use crate::{
     error::Error,
-    storage::{
-        db::{DBDelete, DBInsert, DBQuery, DBSelectAll, DBSelectOne, DBUpdate},
-        model::AreaModel,
-    },
-    util::parameter_values,
+    models::db::{AreaModel, parameter_values},
+    storage::db::{DBDelete, DBInsert, DBQuery, DBSelectAll, DBSelectOne, DBUpdate},
 };
 
 use super::UpdateMethod;
@@ -59,7 +56,7 @@ impl DBQuery for AreaCreateRequest {
 }
 
 impl DBInsert for AreaCreateRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<Row, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<Row, Error> {
         // Insert Area
         let (statement, params) = self.get_query();
 
@@ -149,34 +146,37 @@ impl AreaUpdateRequest {
 
 impl DBQuery for AreaUpdateRequest {
     fn get_query(&self) -> (String, Vec<&(dyn ToSql + Sync)>) {
-        let mut columns: Vec<&str> = vec![AreaModel::UPDATED];
+        let mut updates: Vec<String> = vec![format!("{}=$3", AreaModel::UPDATED)];
         let mut params: Vec<&(dyn ToSql + Sync)> = vec![
             self.area_id.as_ref().unwrap(),
             self.user_id.as_ref().unwrap(),
             &self.timestamp,
         ];
 
+        let mut n = params.len() + 1;
+
+        let mut update;
         if let Some(u) = &self.name {
-            columns.push(AreaModel::NAME);
+            (update, n) = u.update_string(AreaModel::NAME, n);
+            updates.push(update);
+
             if let Some(s) = u.get_param() {
                 params.push(s);
             }
         }
         if let Some(u) = &self.icon_url {
-            columns.push(AreaModel::ICON_URL);
+            (update, _) = u.update_string(AreaModel::ICON_URL, n);
+            updates.push(update);
+
             if let Some(s) = u.get_param() {
                 params.push(s);
             }
         }
 
         let statement = format!(
-            "UPDATE {} SET ({})=({}) WHERE {}=$1 AND {}=$2 RETURNING *",
+            "UPDATE {} SET {} WHERE {}=$1 AND {}=$2 RETURNING *",
             AreaModel::TABLE,
-            columns.join(","),
-            (0..params.len())
-                .map(|n| format!("${}", 3 + n))
-                .collect::<Vec<String>>()
-                .join(","),
+            updates.join(","),
             AreaModel::ID,
             AreaModel::USER_ID,
         );
@@ -186,7 +186,7 @@ impl DBQuery for AreaUpdateRequest {
 }
 
 impl DBUpdate for AreaUpdateRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<Option<Row>, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<Option<Row>, Error> {
         // Update Area
         let (statement, params) = self.get_query();
 
@@ -236,7 +236,7 @@ impl DBQuery for AreaDeleteRequest {
 }
 
 impl DBDelete for AreaDeleteRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<bool, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<bool, Error> {
         // Delete Area
         let (statement, params) = self.get_query();
 
@@ -315,8 +315,8 @@ mod tests {
     // TODO: make tests
     // use super::*;
 
-    #[test]
-    fn placeholder() {
-        unimplemented!()
-    }
+    // #[test]
+    // fn placeholder() {
+    //     unimplemented!()
+    // }
 }

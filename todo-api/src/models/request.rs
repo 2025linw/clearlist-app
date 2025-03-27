@@ -47,24 +47,22 @@ impl CmpFlag {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum UpdateMethod<T> {
-    Change(T),
     Remove,
+    Change(T),
 }
 
 impl<T> UpdateMethod<T> {
-    pub fn get_param(&self) -> Option<&T> {
+    pub fn update_string(&self, column_name: &str, n: usize) -> (String, usize) {
         match self {
-            UpdateMethod::Change(o) => Some(o),
-            UpdateMethod::Remove => None,
+            UpdateMethod::Remove => (format!("{}=NULL", column_name), n),
+            UpdateMethod::Change(_) => (format!("{}=${}", column_name, n), n + 1),
         }
     }
-}
 
-impl<T> From<UpdateMethod<T>> for Option<T> {
-    fn from(value: UpdateMethod<T>) -> Self {
-        match value {
-            UpdateMethod::Change(o) => Some(o),
+    pub fn get_param(&self) -> Option<&T> {
+        match self {
             UpdateMethod::Remove => None,
+            UpdateMethod::Change(o) => Some(o),
         }
     }
 }
@@ -72,18 +70,14 @@ impl<T> From<UpdateMethod<T>> for Option<T> {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum QueryMethod<T> {
-    Compare(T, CmpFlag),
-    Match(T),
     NotNull(bool),
+    Match(T),
+    Compare(T, CmpFlag),
 }
 
 impl<T> QueryMethod<T> {
     pub fn condition_string(&self, column_name: &str, n: usize) -> (String, usize) {
         match self {
-            QueryMethod::Compare(_, cmp) => {
-                (format!("{}{}${}", column_name, cmp.to_sql_cmp(), n), n + 1)
-            }
-            QueryMethod::Match(_) => (format!("{}=${}", column_name, n), n + 1),
             QueryMethod::NotNull(b) => {
                 if *b {
                     (format!("{} IS NOT NULL", column_name), n)
@@ -91,13 +85,17 @@ impl<T> QueryMethod<T> {
                     (format!("{} IS NULL", column_name), n)
                 }
             }
+            QueryMethod::Match(_) => (format!("{}=${}", column_name, n), n + 1),
+            QueryMethod::Compare(_, cmp) => {
+                (format!("{}{}${}", column_name, cmp.to_sql_cmp(), n), n + 1)
+            }
         }
     }
 
     pub fn get_param(&self) -> Option<&T> {
         match self {
-            QueryMethod::Compare(o, _) | QueryMethod::Match(o) => Some(o),
             QueryMethod::NotNull(..) => None,
+            QueryMethod::Match(o) | QueryMethod::Compare(o, _) => Some(o),
         }
     }
 }

@@ -4,8 +4,6 @@ use uuid::Uuid;
 
 use crate::error::Error;
 
-// use super::{DBDelete, DBInsert, DBModel, DBSelectAll, DBSelectOne, DBUpdate};
-
 pub trait DBModel: From<Row> {}
 
 pub trait DBQuery {
@@ -17,7 +15,7 @@ pub trait DBSubquery {
 }
 
 pub trait DBInsert {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<Row, Error>;
+    async fn query(&self, transaction: &Transaction) -> Result<Row, Error>;
 }
 
 pub trait DBSelectOne {
@@ -29,17 +27,16 @@ pub trait DBSelectAll {
 }
 
 pub trait DBUpdate {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<Option<Row>, Error>;
+    async fn query(&self, transaction: &Transaction) -> Result<Option<Row>, Error>;
 }
 
 pub trait DBDelete {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<bool, Error>;
+    async fn query(&self, transaction: &Transaction) -> Result<bool, Error>;
 }
 
 pub async fn insert<I: DBInsert>(conn: &mut Object, object: &I) -> Result<Uuid, Error> {
     let transaction = conn.transaction().await?;
 
-    // TODO: move towards this
     let row = object.query(&transaction).await?;
 
     transaction.commit().await?;
@@ -56,6 +53,15 @@ pub async fn select_one<S: DBSelectOne, M: DBModel>(
     let row_opt = object.query(conn).await?;
 
     Ok(row_opt.map(|r| M::from(r)))
+}
+
+pub async fn select_all<Q: DBSelectAll, M: DBModel>(
+    conn: &Object,
+    object: &Q,
+) -> Result<Vec<M>, Error> {
+    let rows = object.query(conn).await?;
+
+    Ok(rows.iter().map(|r| M::from(r.to_owned())).collect())
 }
 
 pub async fn update<U: DBUpdate, M: DBModel>(
@@ -79,13 +85,4 @@ pub async fn delete<D: DBDelete>(conn: &mut Object, object: &D) -> Result<bool, 
     transaction.commit().await?;
 
     Ok(suc)
-}
-
-pub async fn select_all<Q: DBSelectAll, M: DBModel>(
-    conn: &Object,
-    object: &Q,
-) -> Result<Vec<M>, Error> {
-    let rows = object.query(conn).await?;
-
-    Ok(rows.iter().map(|r| M::from(r.to_owned())).collect())
 }

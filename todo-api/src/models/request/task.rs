@@ -6,18 +6,14 @@ use uuid::Uuid;
 
 use crate::{
     error::Error,
-    storage::{
-        db::{DBDelete, DBInsert, DBQuery, DBSelectAll, DBSelectOne, DBSubquery, DBUpdate},
-        model::{TaskModel, TaskTagModel},
-    },
-    util::parameter_values,
+    models::db::{TaskModel, TaskTagModel, parameter_values},
+    storage::db::{DBDelete, DBInsert, DBQuery, DBSelectAll, DBSelectOne, DBSubquery, DBUpdate},
 };
 
 use super::{QueryMethod, UpdateMethod};
 
-const TIMESTAMP_NULL: &Option<DateTime<Local>> = &None;
-
 #[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(Default))]
 #[serde(rename_all(deserialize = "camelCase"))]
 pub struct TaskCreateRequest {
     title: Option<String>,
@@ -108,14 +104,14 @@ impl DBSubquery for TaskCreateRequest {
 }
 
 impl DBInsert for TaskCreateRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<Row, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<Row, Error> {
         // Insert Task
         let (statement, params) = self.get_query();
 
         let row: Row = transaction.query_one(&statement, &params).await?;
 
         // Insert Task Tags
-        if let Some(_) = self.tag_ids {
+        if self.tag_ids.is_some() {
             let task_id: Uuid = row.get("id");
 
             let (statement, params) = self.get_subquery(&task_id);
@@ -179,6 +175,7 @@ impl DBSelectOne for TaskRetrieveRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(Default))]
 #[serde(rename_all(deserialize = "camelCase"))]
 pub struct TaskUpdateRequest {
     task_id: Option<Uuid>,
@@ -220,90 +217,100 @@ impl TaskUpdateRequest {
 
 impl DBQuery for TaskUpdateRequest {
     fn get_query(&self) -> (String, Vec<&(dyn ToSql + Sync)>) {
-        let mut columns: Vec<&str> = vec![TaskModel::UPDATED];
+        let mut updates: Vec<String> = vec![format!("{}=$3", TaskModel::UPDATED)];
         let mut params: Vec<&(dyn ToSql + Sync)> = vec![
             self.task_id.as_ref().unwrap(),
             self.user_id.as_ref().unwrap(),
             &self.timestamp,
         ];
 
+        let mut n = params.len() + 1;
+
+        let mut update;
         if let Some(u) = &self.title {
-            columns.push(TaskModel::TITLE);
+            (update, n) = u.update_string(TaskModel::TITLE, n);
+            updates.push(update);
+
             if let Some(s) = u.get_param() {
                 params.push(s);
             }
         }
         if let Some(u) = &self.notes {
-            columns.push(TaskModel::NOTES);
+            (update, n) = u.update_string(TaskModel::NOTES, n);
+            updates.push(update);
+
             if let Some(s) = u.get_param() {
                 params.push(s);
             }
         }
         if let Some(u) = &self.start_date {
-            columns.push(TaskModel::START_DATE);
+            (update, n) = u.update_string(TaskModel::START_DATE, n);
+            updates.push(update);
+
             if let Some(d) = u.get_param() {
                 params.push(d);
             }
         }
         if let Some(u) = &self.start_time {
-            columns.push(TaskModel::START_TIME);
+            (update, n) = u.update_string(TaskModel::START_TIME, n);
+            updates.push(update);
+
             if let Some(t) = u.get_param() {
                 params.push(t);
             }
         }
         if let Some(u) = &self.deadline {
-            columns.push(TaskModel::DEADLINE);
+            (update, n) = u.update_string(TaskModel::DEADLINE, n);
+            updates.push(update);
+
             if let Some(d) = u.get_param() {
                 params.push(d);
             }
         }
 
         if let Some(b) = self.completed {
-            columns.push(TaskModel::COMPLETED);
             if b {
-                params.push(&self.timestamp);
+                updates.push(format!("{}=$3", TaskModel::COMPLETED));
             } else {
-                params.push(TIMESTAMP_NULL);
+                updates.push(format!("{} IS NULL", TaskModel::COMPLETED));
             }
         }
         if let Some(b) = self.logged {
-            columns.push(TaskModel::LOGGED);
             if b {
-                params.push(&self.timestamp);
+                updates.push(format!("{}=$3", TaskModel::LOGGED));
             } else {
-                params.push(TIMESTAMP_NULL);
+                updates.push(format!("{} IS NULL", TaskModel::LOGGED));
             }
         }
         if let Some(b) = self.trashed {
-            columns.push(TaskModel::TRASHED);
             if b {
-                params.push(&self.timestamp);
+                updates.push(format!("{}=$3", TaskModel::TRASHED));
             } else {
-                params.push(TIMESTAMP_NULL);
+                updates.push(format!("{} IS NULL", TaskModel::TRASHED));
             }
         }
 
         if let Some(u) = &self.area_id {
-            columns.push(TaskModel::AREA_ID);
+            (update, n) = u.update_string(TaskModel::AREA_ID, n);
+            updates.push(update);
+
             if let Some(i) = u.get_param() {
                 params.push(i);
             }
         }
         if let Some(u) = &self.project_id {
-            columns.push(TaskModel::PROJECT_ID);
+            (update, _) = u.update_string(TaskModel::PROJECT_ID, n);
+            updates.push(update);
+
             if let Some(i) = u.get_param() {
                 params.push(i);
             }
         }
 
         let statement = format!(
-            "UPDATE {} SET ({})=({}) WHERE {}=$1 AND {}=$2 RETURNING *",
+            "UPDATE {} SET {} WHERE {}=$1 AND {}=$2 RETURNING *",
             TaskModel::TABLE,
-            columns.join(","),
-            (0..columns.len()) // TODO: change this to used params.len
-                .map(|n| format!("${}", 3 + n))
-                .collect::<Vec<String>>()
-                .join(","),
+            updates.join(","),
             TaskModel::ID,
             TaskModel::USER_ID,
         );
@@ -346,7 +353,7 @@ impl DBSubquery for TaskUpdateRequest {
 }
 
 impl DBUpdate for TaskUpdateRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<Option<Row>, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<Option<Row>, Error> {
         // Update Task
         let (statement, params) = self.get_query();
 
@@ -406,7 +413,7 @@ impl DBQuery for TaskDeleteRequest {
 }
 
 impl DBDelete for TaskDeleteRequest {
-    async fn query<'a>(&self, transaction: &Transaction<'a>) -> Result<bool, Error> {
+    async fn query(&self, transaction: &Transaction<'_>) -> Result<bool, Error> {
         // Delete Task
         let (statement, params) = self.get_query();
 
@@ -421,6 +428,7 @@ impl DBDelete for TaskDeleteRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(Default))]
 #[serde(rename_all(deserialize = "camelCase"))]
 pub struct TaskQueryRequest {
     search_query: Option<String>,
@@ -594,12 +602,187 @@ impl DBSelectAll for TaskQueryRequest {
 }
 
 #[cfg(test)]
-mod tests {
-    // TODO: make tests
-    // use super::*;
+mod create_query {
+    use deadpool_postgres::Pool;
+    use dotenvy::dotenv;
+	use std::{env, sync::atomic::AtomicBool};
+	use futures::executor::block_on;
+	use std::sync::OnceLock;
+
+	// TODO: make tests
+	use crate::get_database_pool;
+
+    use super::*;
+
+    fn request_setup() -> TaskCreateRequest {
+        let mut request = TaskCreateRequest::default();
+        request.user_id = Some(Uuid::nil());
+
+        request
+    }
+
+	#[test]
+    fn blank() {
+        let request = request_setup();
+
+        let (query, params) = request.get_query();
+
+        assert_eq!(
+			query.as_str(),
+			"INSERT INTO data.tasks (user_id) VALUES ($1) RETURNING task_id AS id",
+        );
+        assert_eq!(params.len(), 1);
+    }
 
     #[test]
-    fn placeholder() {
-        unimplemented!()
+    fn title() {
+        let mut request = request_setup();
+        request.title = Some("Test Task".to_string());
+
+        let (query, params) = request.get_query();
+
+        assert_eq!(
+            query.as_str(),
+			"INSERT INTO data.tasks (user_id,task_title) VALUES ($1,$2) RETURNING task_id AS id",
+        );
+        assert_eq!(params.len(), 2);
     }
+
+    #[test]
+    fn notes() {
+        let mut request = request_setup();
+        request.notes = Some("Test Notes".to_string());
+
+        let (query, params) = request.get_query();
+
+        assert_eq!(
+            query.as_str(),
+			"INSERT INTO data.tasks (user_id,task_notes) VALUES ($1,$2) RETURNING task_id AS id",
+        );
+        assert_eq!(params.len(), 2);
+    }
+
+    #[test]
+    fn start_date() {
+        let date = Local::now().date_naive();
+
+        let mut request = request_setup();
+        request.start_date = Some(date);
+
+        let (query, params) = request.get_query();
+
+        assert_eq!(
+            query.as_str(),
+			"INSERT INTO data.tasks (user_id,start_date) VALUES ($1,$2) RETURNING task_id AS id",
+        );
+        assert_eq!(params.len(), 2);
+    }
+
+    #[test]
+    fn start_time() {
+        let now = Local::now();
+        let date = now.date_naive();
+        let time = now.time();
+
+        let mut request = request_setup();
+        request.start_date = Some(date);
+        request.start_time = Some(time);
+
+        let (query, params) = request.get_query();
+
+        assert_eq!(
+            query.as_str(),
+			"INSERT INTO data.tasks (user_id,start_date,start_time) VALUES ($1,$2,$3) RETURNING task_id AS id",
+        );
+        assert_eq!(params.len(), 3);
+    }
+
+    #[test]
+    fn deadline() {
+        let date = Local::now().date_naive();
+
+        let mut request = request_setup();
+        request.deadline = Some(date);
+
+        let (query, params) = request.get_query();
+
+        assert_eq!(
+            query.as_str(),
+			"INSERT INTO data.tasks (user_id,deadline) VALUES ($1,$2) RETURNING task_id AS id",
+        );
+        assert_eq!(params.len(), 2);
+    }
+
+    #[test]
+    fn area_id() {
+        let mut request = request_setup();
+        request.area_id = Some(Uuid::nil());
+
+        let (query, params) = request.get_query();
+
+        assert_eq!(
+            query.as_str(),
+			"INSERT INTO data.tasks (user_id,area_id) VALUES ($1,$2) RETURNING task_id AS id",
+        );
+        assert_eq!(params.len(), 2);
+    }
+
+    #[test]
+    fn project_id() {
+        let mut request = request_setup();
+        request.project_id = Some(Uuid::nil());
+
+        let (query, params) = request.get_query();
+
+        assert_eq!(
+            query.as_str(),
+            "INSERT INTO data.tasks (user_id,project_id) VALUES ($1,$2) RETURNING task_id AS id",
+        );
+        assert_eq!(params.len(), 2);
+    }
+}
+
+#[cfg(test)]
+mod retrieve_query {
+    use super::*;
+
+    fn request_setup() -> TaskRetrieveRequest {
+        let mut request = TaskRetrieveRequest::default();
+        request.user_id = Some(Uuid::nil());
+        request.task_id = Some(Uuid::nil());
+
+        request
+    }
+
+    #[test]
+    fn request() {
+        let request = request_setup();
+
+        let (query, params) = request.get_query();
+
+        assert_eq!(
+            query.as_str(),
+            "SELECT * FROM data.tasks WHERE task_id=$1 AND user_id=$2",
+        );
+        assert_eq!(params.len(), 2);
+    }
+}
+
+#[cfg(test)]
+mod update_query {
+	use super::*;
+
+	fn request_setup() -> TaskUpdateRequest {
+		let mut request = TaskUpdateRequest::default();
+		request.user_id = Some(Uuid::nil());
+
+		request
+	}
+
+	#[test]
+	fn title() {
+		let mut request = request_setup();
+
+
+	}
 }

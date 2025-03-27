@@ -1,17 +1,16 @@
+mod error;
+mod models;
 mod routes;
 mod storage;
 
-mod error;
-mod util;
-
-use axum::Extension;
+use axum::{Extension, Router};
 use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, PoolError};
 use dotenvy::dotenv;
 use error::Error;
 use std::{env, sync::Arc};
 use tokio_postgres::{Config, NoTls};
 
-use routes::api;
+use routes::{todo_api, user_api};
 
 // TODO: Get logging library/middleware
 
@@ -46,7 +45,11 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(format!("localhost:{port}"))
         .await
         .unwrap();
-    let router = api().layer(Extension(shared_state));
+	
+    let router = Router::new()
+		.nest("/user", user_api())
+        .nest("/api", todo_api().layer(Extension(shared_state)));
+
     axum::serve(listener, router).await.unwrap();
 }
 
