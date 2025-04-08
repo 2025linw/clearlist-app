@@ -403,10 +403,6 @@ pub async fn query_task_handler(
 
     // Get queried tasks
     let tasks: Vec<TaskModel> = rows.iter().map(|r| TaskModel::from(r.to_owned())).collect();
-    println!(
-        "Getting page {} with limit {} (offset = {})",
-        page, limit, offset
-    );
 
     // Return success response
     let task_responses: Vec<TaskModelResponse> = tasks.iter().map(|t| t.to_response()).collect();
@@ -420,3 +416,5 @@ pub async fn query_task_handler(
 
     Ok(Json(json_message))
 }
+
+// TODO: handler tests?

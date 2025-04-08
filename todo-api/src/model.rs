@@ -8,7 +8,5 @@ pub trait ToResponse {
     type Response;
 
     /// Converts type to Response
-    ///
-    /// NOTE: consumes on conversion
     fn to_response(&self) -> Self::Response;
 }

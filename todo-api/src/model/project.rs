@@ -13,7 +13,7 @@ pub struct ProjectModel {
     project_id: Uuid,
 
     project_title: Option<String>,
-    project_notes: Option<String>,
+    notes: Option<String>,
     start_date: Option<NaiveDate>,
     start_time: Option<NaiveTime>,
     deadline: Option<NaiveDate>,
@@ -35,7 +35,7 @@ impl ProjectModel {
     pub const ID: &str = "project_id";
 
     pub const TITLE: &str = "project_title";
-    pub const NOTES: &str = "project_notes";
+    pub const NOTES: &str = "notes";
     pub const START_DATE: &str = "start_date";
     pub const START_TIME: &str = "start_time";
     pub const DEADLINE: &str = "deadline";
@@ -56,7 +56,7 @@ impl From<Row> for ProjectModel {
         Self {
             project_id: value.get(Self::ID),
             project_title: value.get(Self::TITLE),
-            project_notes: value.get(Self::NOTES),
+            notes: value.get(Self::NOTES),
             start_date: value.get(Self::START_DATE),
             start_time: value.get(Self::START_TIME),
             deadline: value.get(Self::DEADLINE),
@@ -79,7 +79,7 @@ impl ToResponse for ProjectModel {
             id: self.project_id,
 
             title: self.project_title.to_owned().unwrap_or_default(),
-            notes: self.project_notes.to_owned().unwrap_or_default(),
+            notes: self.notes.to_owned().unwrap_or_default(),
             start_date: self.start_date,
             start_time: self.start_time,
             deadline: self.deadline,
@@ -88,8 +88,8 @@ impl ToResponse for ProjectModel {
             logged_on: self.logged_on,
             trashed_on: self.trashed_on,
 
-            tags: HashMap::default(),
             area_id: self.area_id,
+            tags: HashMap::default(),
 
             user_id: self.user_id,
             created_on: self.created_on,
@@ -113,10 +113,12 @@ pub struct ProjectModelResponse {
     logged_on: Option<DateTime<Local>>,
     trashed_on: Option<DateTime<Local>>,
 
-    tags: HashMap<Uuid, String>,
     area_id: Option<Uuid>,
+    tags: HashMap<Uuid, String>,
 
     user_id: Uuid,
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
 }
+
+// TODO: ToResponse test?

@@ -73,3 +73,5 @@ pub struct AreaModelResponse {
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
 }
+
+// TODO: ToResponse test?

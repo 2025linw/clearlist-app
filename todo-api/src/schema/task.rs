@@ -107,7 +107,7 @@ impl<'a, 'b> AddToQuery<'a, 'b> for UpdateTaskSchema {
                     builder.get_column(0).unwrap().to_owned(),
                 );
             } else {
-                builder.add_column(TaskModel::COMPLETED, &None::<DateTime<Local>>);
+                builder.add_column(TaskModel::COMPLETED, &None::<DateTime<Local>>); // TODO: do some ToSql fandangling to fix this
             }
         }
         if let Some(b) = self.logged {
@@ -173,7 +173,7 @@ impl<'a, 'b> AddToQuery<'a, 'b> for QueryTaskSchema {
                         cmp = PostgresCmp::IsNull;
                     }
                 }
-                QueryMethod::Match(_) => cmp = PostgresCmp::ILike,
+                QueryMethod::Match(_) => cmp = PostgresCmp::Like,
                 QueryMethod::Compare(_, c) => cmp = c.to_postgres_cmp(),
             }
             builder.add_condition(TaskModel::TITLE, cmp, q);
@@ -188,7 +188,7 @@ impl<'a, 'b> AddToQuery<'a, 'b> for QueryTaskSchema {
                         cmp = PostgresCmp::IsNull;
                     }
                 }
-                QueryMethod::Match(_) => cmp = PostgresCmp::ILike,
+                QueryMethod::Match(_) => cmp = PostgresCmp::Like,
                 QueryMethod::Compare(_, c) => cmp = c.to_postgres_cmp(),
             }
             builder.add_condition(TaskModel::NOTES, cmp, q);
@@ -339,7 +339,7 @@ mod create_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.tasks (user_id, task_title, task_notes) VALUES ($1, $2, $3)"
+            "INSERT INTO data.tasks (user_id, task_title, notes) VALUES ($1, $2, $3)"
         );
         assert_eq!(params.len(), 3);
     }
@@ -406,7 +406,7 @@ mod create_schema_test {
 
         assert_eq!(
             statement,
-            "INSERT INTO data.tasks (user_id, task_title, task_notes, start_date, start_time, deadline, area_id, project_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+            "INSERT INTO data.tasks (user_id, task_title, notes, start_date, start_time, deadline, area_id, project_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
         );
         assert_eq!(params.len(), 8);
     }
@@ -492,7 +492,7 @@ mod update_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.tasks SET task_title=$1, task_notes=$2 WHERE user_id = $3 AND task_id = $4"
+            "UPDATE data.tasks SET task_title=$1, notes=$2 WHERE user_id = $3 AND task_id = $4"
         );
         assert_eq!(params.len(), 4);
     }
@@ -590,7 +590,7 @@ mod update_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.tasks SET updated_on=$1, task_title=$2, task_notes=$3, start_date=$4, start_time=$5, deadline=$6, completed_on=$7, logged_on=$8, trashed_on=$9, area_id=$10, project_id=$11 WHERE user_id = $12 AND task_id = $13"
+            "UPDATE data.tasks SET updated_on=$1, task_title=$2, notes=$3, start_date=$4, start_time=$5, deadline=$6, completed_on=$7, logged_on=$8, trashed_on=$9, area_id=$10, project_id=$11 WHERE user_id = $12 AND task_id = $13"
         );
         assert_eq!(params.len(), 13);
     }
@@ -698,7 +698,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE task_title ILIKE %$1% AND task_notes ILIKE %$2% AND user_id = $3"
+            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3"
         );
         assert_eq!(params.len(), 3);
     }
@@ -830,10 +830,71 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE task_title ILIKE %$1% AND task_notes ILIKE %$2% AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on ISNULL AND logged_on NOTNULL AND trashed_on ISNULL AND area_id = $6 AND project_id = $7 AND user_id = $8"
+            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on ISNULL AND logged_on NOTNULL AND trashed_on ISNULL AND area_id = $6 AND project_id = $7 AND user_id = $8"
         );
         assert_eq!(params.len(), 8);
     }
+
+	#[test]
+	fn limit() {
+		let mut schema = QueryTaskSchema::default();
+        schema.title = Some(QueryMethod::Match("Test Title".to_string()));
+        schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
+
+        let mut builder = SQLQueryBuilder::new();
+        schema.add_to_query(&mut builder);
+        builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &ID);
+		builder.set_limit(25);
+
+        let (statement, params) = builder.build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 LIMIT 25"
+        );
+        assert_eq!(params.len(), 3);
+	}
+
+	#[test]
+	fn offset() {
+		let mut schema = QueryTaskSchema::default();
+        schema.title = Some(QueryMethod::Match("Test Title".to_string()));
+        schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
+
+        let mut builder = SQLQueryBuilder::new();
+        schema.add_to_query(&mut builder);
+        builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &ID);
+		builder.set_offset(50);
+
+        let (statement, params) = builder.build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 OFFSET 50"
+        );
+        assert_eq!(params.len(), 3);
+	}
+
+	#[test]
+	fn limit_offset() {
+		let mut schema = QueryTaskSchema::default();
+        schema.title = Some(QueryMethod::Match("Test Title".to_string()));
+        schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
+
+        let mut builder = SQLQueryBuilder::new();
+        schema.add_to_query(&mut builder);
+        builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &ID);
+		builder.set_limit(25);
+		builder.set_offset(50);
+
+        let (statement, params) = builder.build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 LIMIT 25 OFFSET 50"
+        );
+        assert_eq!(params.len(), 3);
+	}
 
     #[test]
     fn return_some() {
@@ -855,7 +916,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT task_id FROM data.tasks WHERE task_title ILIKE %$1% AND start_date < $2 AND deadline >= $3 AND completed_on NOTNULL AND project_id NOTNULL AND user_id = $4"
+            "SELECT task_id FROM data.tasks WHERE task_title LIKE %$1% AND start_date < $2 AND deadline >= $3 AND completed_on NOTNULL AND project_id NOTNULL AND user_id = $4"
         );
         assert_eq!(params.len(), 4);
     }
@@ -880,7 +941,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE task_title ILIKE %$1% AND start_date < $2 AND deadline >= $3 AND completed_on NOTNULL AND project_id NOTNULL AND user_id = $4"
+            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND start_date < $2 AND deadline >= $3 AND completed_on NOTNULL AND project_id NOTNULL AND user_id = $4"
         );
         assert_eq!(params.len(), 4);
     }

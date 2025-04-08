@@ -11,8 +11,9 @@ pub struct TagModel {
     tag_id: Uuid,
 
     tag_label: Option<String>,
-    tag_category: Option<String>,
-    tag_color: Option<String>,
+    color: Option<String>,
+
+    category: Option<String>,
 
     user_id: Uuid,
     created_on: DateTime<Local>,
@@ -25,8 +26,9 @@ impl TagModel {
     pub const ID: &str = "tag_id";
 
     pub const LABEL: &str = "tag_label";
-    pub const CATEGORY: &str = "tag_category";
-    pub const COLOR: &str = "tag_color";
+    pub const COLOR: &str = "color";
+
+    pub const CATEGORY: &str = "category";
 
     pub const USER_ID: &str = "user_id";
     pub const CREATED: &str = "created_on";
@@ -38,8 +40,8 @@ impl From<Row> for TagModel {
         Self {
             tag_id: value.get(Self::ID),
             tag_label: value.get(Self::LABEL),
-            tag_category: value.get(Self::CATEGORY),
-            tag_color: value.get(Self::COLOR),
+            color: value.get(Self::COLOR),
+            category: value.get(Self::CATEGORY),
             user_id: value.get(Self::USER_ID),
             created_on: value.get(Self::CREATED),
             updated_on: value.get(Self::UPDATED),
@@ -55,8 +57,9 @@ impl ToResponse for TagModel {
             id: self.tag_id,
 
             label: self.tag_label.to_owned().unwrap_or_default(),
-            category: self.tag_category.to_owned().unwrap_or_default(),
-            color: self.tag_color.to_owned().unwrap_or_default(),
+            color: self.color.to_owned().unwrap_or_default(),
+
+            category: self.category.to_owned().unwrap_or_default(),
 
             user_id: self.user_id,
             created_on: self.created_on,
@@ -71,10 +74,13 @@ pub struct TagModelResponse {
     id: Uuid,
 
     label: String,
-    category: String,
     color: String,
+
+    category: String,
 
     user_id: Uuid,
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
 }
+
+// TODO: ToResponse test?
