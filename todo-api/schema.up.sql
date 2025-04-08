@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS data.projects
 	project_id uuid DEFAULT gen_random_uuid(),
 
     project_title citext,
-    project_notes text,
+    notes text,
     start_date date,
 	start_time time(0),
 	deadline date,
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS data.tasks
 	task_id uuid DEFAULT gen_random_uuid(),
 
     task_title citext,
-    task_notes text,
+    notes text,
     start_date date,
 	start_time time(0),
 	deadline date,
@@ -139,8 +139,9 @@ CREATE TABLE IF NOT EXISTS data.tags
 	tag_id uuid DEFAULT gen_random_uuid(),
 
 	tag_label citext NOT NULL,
-	tag_category varchar(255),
-	tag_color varchar(7) CHECK (tag_color IS NULL OR tag_color ~* '^#[a-f0-9]{6}$'),
+	color varchar(7) CHECK (tag_color IS NULL OR tag_color ~* '^#[a-f0-9]{6}$'),
+
+	category varchar(255),
 
 	user_id uuid NOT NULL,
     created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
