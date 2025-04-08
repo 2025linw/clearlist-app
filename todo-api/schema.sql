@@ -22,7 +22,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO todo_app;
 
 
 -- Tables in auth schema
-CREATE TABLE auth.users
+CREATE TABLE IF NOT EXISTS auth.users
 (
 	user_id uuid DEFAULT gen_random_uuid(),
 
@@ -30,15 +30,15 @@ CREATE TABLE auth.users
 	password_hash text,
 	email varchar(320),
 
-	created_on timestamptz(0) DEFAULT now() NOT NULL,
-    updated_on timestamptz(0) DEFAULT now() NOT NULL,
+	created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
 	PRIMARY KEY (user_id)
 );
 
 
 -- Tables in data schema
-CREATE TABLE data.areas
+CREATE TABLE IF NOT EXISTS data.areas
 (
 	area_id	uuid DEFAULT gen_random_uuid(),
 
@@ -46,14 +46,14 @@ CREATE TABLE data.areas
 	icon_url text,
 
 	user_id uuid NOT NULL,
-    created_on timestamptz(0) DEFAULT now() NOT NULL,
-    updated_on timestamptz(0) DEFAULT now() NOT NULL,
+    created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
 	PRIMARY	KEY(area_id),
 	FOREIGN	KEY(user_id) REFERENCES auth.users(user_id)
 );
 
-CREATE TABLE data.projects
+CREATE TABLE IF NOT EXISTS data.projects
 (
 	project_id uuid DEFAULT gen_random_uuid(),
 
@@ -69,15 +69,15 @@ CREATE TABLE data.projects
     area_id uuid,
 
     user_id	uuid NOT NULL,
-	created_on timestamptz(0) DEFAULT now() NOT NULL,
-    updated_on timestamptz(0) DEFAULT now() NOT NULL,
+	created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
 	PRIMARY KEY(project_id),
     FOREIGN KEY(area_id) REFERENCES data.areas(area_id),
 	FOREIGN	KEY(user_id) REFERENCES auth.users(user_id)
 );
 
-CREATE TABLE data.tasks
+CREATE TABLE IF NOT EXISTS data.tasks
 (
 	task_id uuid DEFAULT gen_random_uuid(),
 
@@ -94,8 +94,8 @@ CREATE TABLE data.tasks
 	project_id uuid,
 
     user_id	uuid NOT NULL,
-	created_on timestamptz(0) DEFAULT now() NOT NULL,
-    updated_on timestamptz(0) DEFAULT now() NOT NULL,
+	created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
 	PRIMARY KEY(task_id),
 	FOREIGN KEY(area_id) REFERENCES data.areas(area_id),
@@ -103,7 +103,7 @@ CREATE TABLE data.tasks
 	FOREIGN	KEY(user_id) REFERENCES auth.users(user_id)
 );
 
-CREATE TABLE data.tags
+CREATE TABLE IF NOT EXISTS data.tags
 (
 	tag_id uuid DEFAULT gen_random_uuid(),
 
@@ -112,14 +112,14 @@ CREATE TABLE data.tags
 	tag_color varchar(7) CHECK (tag_color IS NULL OR tag_color ~* '^#[a-f0-9]{6}$'),
 
 	user_id uuid NOT NULL,
-    created_on timestamptz(0) DEFAULT now() NOT NULL,
-    updated_on timestamptz(0) DEFAULT now() NOT NULL,
+    created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
 	PRIMARY KEY(tag_id),
 	FOREIGN KEY(user_id) REFERENCES auth.users(user_id)
 );
 
-CREATE TABLE data.project_tags
+CREATE TABLE IF NOT EXISTS data.project_tags
 (
 	project_id uuid,
 	tag_id uuid,
@@ -129,7 +129,7 @@ CREATE TABLE data.project_tags
 	FOREIGN KEY(tag_id) REFERENCES data.tags(tag_id) ON DELETE CASCADE
 );
 
-CREATE TABLE data.task_tags
+CREATE TABLE IF NOT EXISTS data.task_tags
 (
 	task_id uuid,
 	tag_id uuid,
