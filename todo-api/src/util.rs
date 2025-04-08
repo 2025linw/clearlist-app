@@ -78,6 +78,9 @@ pub trait ToPostgresCmp {
 }
 
 /// SQL Query Builder
+///
+/// This may/should become its own crate
+/// (most likely for personal use only)
 #[derive(Default)]
 pub struct SQLQueryBuilder<'a> {
     table: String,
