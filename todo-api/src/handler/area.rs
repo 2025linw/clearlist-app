@@ -129,3 +129,5 @@ pub async fn query_area_handler(
 
     Ok(Json(json_message))
 }
+
+// TODO: handler tests?
