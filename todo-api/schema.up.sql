@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS auth.users
 
 	username varchar(50) NOT NULL,
 	password_hash text,
+    password_hash_salt text,
 	email varchar(320),
 
 	created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
