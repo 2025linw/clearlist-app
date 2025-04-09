@@ -1,57 +1,20 @@
+// New
 mod error;
-mod models;
-mod routes;
-mod storage;
+mod handler;
+mod model;
+mod route;
+mod schema;
+mod util;
 
-use axum::{Extension, Router};
-use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, PoolError};
-use dotenvy::dotenv;
-use error::Error;
 use std::{env, sync::Arc};
-use tokio_postgres::{Config, NoTls};
 
-use routes::{todo_api, user_api};
+use deadpool_postgres::{Object, Pool};
+use dotenvy::dotenv;
+use tokio::net::TcpListener;
 
-// TODO: Get logging library/middleware
-
-// Server Main
-#[tokio::main]
-async fn main() {
-    // Setup Environment Variables
-    dotenv().unwrap();
-
-    let port = env::var("SRV_PORT").unwrap().parse::<u16>().unwrap();
-
-    // Setup Database Connection Pool
-    let pool = match get_database_pool(
-        env::var("DB_HOST").unwrap(),
-        env::var("DB_PORT").unwrap().parse::<u16>().unwrap(),
-        env::var("DB_NAME").unwrap(),
-        env::var("DB_USER").unwrap(),
-        env::var("DB_PASS").unwrap(),
-    )
-    .await
-    {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("Error starting API server: {}", e);
-
-            panic!()
-        }
-    };
-
-    let shared_state = Arc::new(AppState::with_pool(pool));
-
-    let listener = tokio::net::TcpListener::bind(format!("localhost:{port}"))
-        .await
-        .unwrap();
-	
-    let router = Router::new()
-		.nest("/user", user_api())
-        .nest("/api", todo_api().layer(Extension(shared_state)));
-
-    axum::serve(listener, router).await.unwrap();
-}
+use error::Error;
+use route::create_api_router;
+use util::get_database_pool;
 
 pub struct AppState {
     db_pool: Pool,
@@ -68,21 +31,42 @@ impl AppState {
     }
 }
 
-pub async fn get_database_pool(
-    host: String,
-    port: u16,
-    database: String,
-    user: String,
-    pass: String,
-) -> Result<Pool, PoolError> {
-    let mut pg_config = Config::new();
-    pg_config.host(host).port(port);
-    pg_config.user(user).password(pass).dbname(database);
+// Server Main
+#[tokio::main]
+async fn main() {
+    // Get .env environment variables
+    dotenv().unwrap();
 
-    let manager = Manager::from_config(pg_config, NoTls, ManagerConfig::default());
+    let srv_port = env::var("SRV_PORT")
+        .expect("SRV_PORT must be set")
+        .parse::<u16>()
+        .expect("SRV_PORT must be a valid port number");
 
-    let pool = Pool::builder(manager).max_size(16).build().unwrap();
-    let _ = pool.get().await?;
+    // Setup Database Connection Pool
+    let (host, port, db_name, user, pass) = (
+        env::var("DB_HOST").expect("DB_HOST must be set"),
+        env::var("DB_PORT")
+            .expect("DB_PORT must be set")
+            .parse::<u16>()
+            .expect("DB_PORT must be a valid port number"),
+        env::var("DB_NAME").expect("DB_NAME must be set"),
+        env::var("DB_USER").expect("DB_USER must be set"),
+        env::var("DB_PASS").expect("DB_PASS must be set"),
+    );
+    let pool = match get_database_pool(host, port, db_name, user, pass).await {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Failed to connect to database: {}", e);
 
-    Ok(pool)
+            std::process::exit(1);
+        }
+    };
+
+    let app_state = Arc::new(AppState::with_pool(pool));
+    let router = create_api_router(app_state);
+
+    let url = format!("localhost:{srv_port}");
+    println!("Starting server at {}", url);
+    let listener = TcpListener::bind(url).await.unwrap();
+    axum::serve(listener, router).await.unwrap();
 }

@@ -1,7 +1,5 @@
-use axum::{
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
+use axum::{Json, http::StatusCode};
+use serde_json::json;
 
 // TODO: use thiserror
 
@@ -14,16 +12,64 @@ pub enum Error {
     Generic,
 }
 
-impl IntoResponse for Error {
-    fn into_response(self) -> Response {
+impl Error {
+    pub fn err_map(&self) -> (StatusCode, Json<serde_json::Value>) {
         match self {
-            Self::DatabasePool(s) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, s.to_string()).into_response()
+            Error::DatabasePool(pool_error) => {
+                eprintln!("Database Pool Error: {:#}", pool_error);
+
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({
+                        "status": "error",
+                        "message": "database connection error",
+                    })),
+                )
             }
-            Self::Database(s) => (StatusCode::INTERNAL_SERVER_ERROR, s.to_string()).into_response(),
-            Self::InvalidRequest(s) => (StatusCode::BAD_REQUEST, s).into_response(),
-            Self::Internal => (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
-            Self::Generic => (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+            Error::Database(error) => {
+                eprintln!("Database Error: {:#}", error);
+
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({
+                        "status": "error",
+                        "message": "database query error"
+                    })),
+                )
+            }
+            Error::InvalidRequest(s) => {
+                eprintln!("Error: {:#}", s);
+
+                (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({
+                        "status": "error",
+                        "message": "error in the request"
+                    })),
+                )
+            }
+            Error::Internal => {
+                eprintln!("Internal Error");
+
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({
+                        "status": "error",
+                        "message": "internal error occured",
+                    })),
+                )
+            }
+            Error::Generic => {
+                eprintln!("Generic Error");
+
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({
+                        "status": "error",
+                        "message": "generic error occured"
+                    })),
+                )
+            }
         }
     }
 }
