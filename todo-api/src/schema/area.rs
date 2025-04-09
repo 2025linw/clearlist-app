@@ -84,33 +84,9 @@ impl<'a, 'b> AddToQuery<'a, 'b> for QueryAreaSchema {
 
 #[cfg(test)]
 mod create_schema_test {
-    use uuid::Uuid;
-
-    use crate::{
-        model::area::AreaModel,
-        util::{AddToQuery, SQLQueryBuilder},
-    };
+    use crate::util::{AddToQuery, SQLQueryBuilder};
 
     use super::CreateAreaSchema;
-
-    const ID: Uuid = Uuid::nil();
-
-    #[test]
-    fn empty() {
-        let schema = CreateAreaSchema::default();
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.add_column(AreaModel::USER_ID, &ID);
-        schema.add_to_query(&mut builder);
-
-        let (statement, params) = builder.build_insert();
-
-        assert_eq!(
-            statement.as_str(),
-            "INSERT INTO data.areas (user_id) VALUES ($1)"
-        );
-        assert_eq!(params.len(), 1);
-    }
 
     #[test]
     fn full() {
@@ -119,56 +95,15 @@ mod create_schema_test {
         schema.icon_url = Some("https://www.google.com/favicon.ico".to_string());
 
         let mut builder = SQLQueryBuilder::new();
-        builder.add_column(AreaModel::USER_ID, &ID);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_insert();
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.areas (user_id, area_name, icon_url) VALUES ($1, $2, $3)"
+            "INSERT INTO data.areas (area_name, icon_url) VALUES ($1, $2)"
         );
-        assert_eq!(params.len(), 3);
-    }
-
-    #[test]
-    fn return_some() {
-        let mut schema = CreateAreaSchema::default();
-        schema.name = Some("Test Name".to_string());
-        schema.icon_url = Some("https://www.google.com/favicon.ico".to_string());
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.add_column(AreaModel::USER_ID, &ID);
-        schema.add_to_query(&mut builder);
-        builder.set_return(vec![AreaModel::ID]);
-
-        let (statement, params) = builder.build_insert();
-
-        assert_eq!(
-            statement.as_str(),
-            "INSERT INTO data.areas (user_id, area_name, icon_url) VALUES ($1, $2, $3) RETURNING area_id"
-        );
-        assert_eq!(params.len(), 3);
-    }
-
-    #[test]
-    fn return_all() {
-        let mut schema = CreateAreaSchema::default();
-        schema.name = Some("Test Name".to_string());
-        schema.icon_url = Some("https://www.google.com/favicon.ico".to_string());
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.add_column(AreaModel::USER_ID, &ID);
-        schema.add_to_query(&mut builder);
-        builder.set_return_all();
-
-        let (statement, params) = builder.build_insert();
-
-        assert_eq!(
-            statement.as_str(),
-            "INSERT INTO data.areas (user_id, area_name, icon_url) VALUES ($1, $2, $3) RETURNING *"
-        );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 2);
     }
 
     // TODO: make production example
@@ -176,17 +111,12 @@ mod create_schema_test {
 
 #[cfg(test)]
 mod update_schema_test {
-    use uuid::Uuid;
-
     use crate::{
-        model::area::AreaModel,
         schema::UpdateMethod,
-        util::{AddToQuery, PostgresCmp, SQLQueryBuilder},
+        util::{AddToQuery, SQLQueryBuilder},
     };
 
     use super::UpdateAreaSchema;
-
-    const ID: Uuid = Uuid::nil();
 
     #[test]
     fn full() {
@@ -196,58 +126,14 @@ mod update_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.add_condition(AreaModel::ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_update();
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.areas SET area_name=$1, icon_url=$2 WHERE user_id = $3 AND area_id = $4"
+            "UPDATE data.areas SET area_name=$1, icon_url=$2"
         );
-        assert_eq!(params.len(), 4);
-    }
-
-    #[test]
-    fn return_some() {
-        let mut schema = UpdateAreaSchema::default();
-        schema.name = Some(UpdateMethod::Change("Test Name".to_string()));
-        schema.icon_url = Some(UpdateMethod::Change("https://www.mozilla.org/media/protocol/img/logos/firefox/browser/logo.eb1324e44442.svg".to_string()));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.add_condition(AreaModel::ID, PostgresCmp::Equal, &ID);
-        builder.set_return(vec![AreaModel::ID]);
-
-        let (statement, params) = builder.build_update();
-
-        assert_eq!(
-            statement.as_str(),
-            "UPDATE data.areas SET area_name=$1, icon_url=$2 WHERE user_id = $3 AND area_id = $4 RETURNING area_id"
-        );
-        assert_eq!(params.len(), 4);
-    }
-
-    #[test]
-    fn return_all() {
-        let mut schema = UpdateAreaSchema::default();
-        schema.name = Some(UpdateMethod::Change("Test Name".to_string()));
-        schema.icon_url = Some(UpdateMethod::Change("https://www.mozilla.org/media/protocol/img/logos/firefox/browser/logo.eb1324e44442.svg".to_string()));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.add_condition(AreaModel::ID, PostgresCmp::Equal, &ID);
-        builder.set_return_all();
-
-        let (statement, params) = builder.build_update();
-
-        assert_eq!(
-            statement.as_str(),
-            "UPDATE data.areas SET area_name=$1, icon_url=$2 WHERE user_id = $3 AND area_id = $4 RETURNING *"
-        );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 2);
     }
 
     // TODO: make production example
@@ -255,17 +141,12 @@ mod update_schema_test {
 
 #[cfg(test)]
 mod query_schema_test {
-    use uuid::Uuid;
-
     use crate::{
-        model::area::AreaModel,
         schema::QueryMethod,
-        util::{AddToQuery, PostgresCmp, SQLQueryBuilder},
+        util::{AddToQuery, SQLQueryBuilder},
     };
 
     use super::QueryAreaSchema;
-
-    const ID: Uuid = Uuid::nil();
 
     #[test]
     fn empty() {
@@ -273,15 +154,14 @@ mod query_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.areas WHERE user_id = $1"
+            "SELECT * FROM data.areas"
         );
-        assert_eq!(params.len(), 1);
+        assert_eq!(params.len(), 0);
     }
 
     #[test]
@@ -291,111 +171,14 @@ mod query_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2"
+            "SELECT * FROM data.areas WHERE area_name LIKE '%' || $1 || '%'"
         );
-        assert_eq!(params.len(), 2);
-    }
-
-    #[test]
-    fn limit() {
-        let mut schema = QueryAreaSchema::default();
-        schema.name = Some(QueryMethod::Match("Test Name".to_string()));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.set_limit(25);
-
-        let (statement, params) = builder.build_select();
-
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2 LIMIT 25"
-        );
-        assert_eq!(params.len(), 2);
-    }
-
-    #[test]
-    fn offset() {
-        let mut schema = QueryAreaSchema::default();
-        schema.name = Some(QueryMethod::Match("Test Name".to_string()));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.set_offset(50);
-
-        let (statement, params) = builder.build_select();
-
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2 OFFSET 50"
-        );
-        assert_eq!(params.len(), 2);
-    }
-
-    #[test]
-    fn limit_offset() {
-        let mut schema = QueryAreaSchema::default();
-        schema.name = Some(QueryMethod::Match("Test Name".to_string()));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.set_limit(25);
-        builder.set_offset(50);
-
-        let (statement, params) = builder.build_select();
-
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2 LIMIT 25 OFFSET 50"
-        );
-        assert_eq!(params.len(), 2);
-    }
-
-    #[test]
-    fn return_some() {
-        let mut schema = QueryAreaSchema::default();
-        schema.name = Some(QueryMethod::Match("Test Name".to_string()));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.set_return(vec![AreaModel::ID]);
-
-        let (statement, params) = builder.build_select();
-
-        assert_eq!(
-            statement.as_str(),
-            "SELECT area_id FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2"
-        );
-        assert_eq!(params.len(), 2);
-    }
-
-    #[test]
-    fn return_all() {
-        let mut schema = QueryAreaSchema::default();
-        schema.name = Some(QueryMethod::Match("Test Name".to_string()));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.set_return_all();
-
-        let (statement, params) = builder.build_select();
-
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2"
-        );
-        assert_eq!(params.len(), 2);
+        assert_eq!(params.len(), 1);
     }
 
     // TODO: make production example

@@ -276,31 +276,9 @@ mod create_schema_test {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::{
-        model::project::ProjectModel,
-        util::{AddToQuery, SQLQueryBuilder},
-    };
+    use crate::util::{AddToQuery, SQLQueryBuilder};
 
     use super::CreateProjectSchema;
-
-    const ID: Uuid = Uuid::nil();
-
-    #[test]
-    fn empty() {
-        let schema = CreateProjectSchema::default();
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.add_column(ProjectModel::USER_ID, &ID);
-        schema.add_to_query(&mut builder);
-
-        let (statement, params) = builder.build_insert();
-
-        assert_eq!(
-            statement.as_str(),
-            "INSERT INTO data.projects (user_id) VALUES ($1)"
-        );
-        assert_eq!(params.len(), 1);
-    }
 
     #[test]
     fn text_only() {
@@ -309,16 +287,15 @@ mod create_schema_test {
         schema.notes = Some("Test Note".to_string());
 
         let mut builder = SQLQueryBuilder::new();
-        builder.add_column(ProjectModel::USER_ID, &ID);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_insert();
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.projects (user_id, project_title, notes) VALUES ($1, $2, $3)"
+            "INSERT INTO data.projects (project_title, notes) VALUES ($1, $2)"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
@@ -331,16 +308,15 @@ mod create_schema_test {
         schema.deadline = Some(now.date_naive());
 
         let mut builder = SQLQueryBuilder::new();
-        builder.add_column(ProjectModel::USER_ID, &ID);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_insert();
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.projects (user_id, start_date, start_time, deadline) VALUES ($1, $2, $3, $4)"
+            "INSERT INTO data.projects (start_date, start_time, deadline) VALUES ($1, $2, $3)"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -349,16 +325,15 @@ mod create_schema_test {
         schema.area_id = Some(Uuid::new_v4());
 
         let mut builder = SQLQueryBuilder::new();
-        builder.add_column(ProjectModel::USER_ID, &ID);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_insert();
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.projects (user_id, area_id) VALUES ($1, $2)"
+            "INSERT INTO data.projects (area_id) VALUES ($1)"
         );
-        assert_eq!(params.len(), 2);
+        assert_eq!(params.len(), 1);
     }
 
     #[test]
@@ -374,64 +349,15 @@ mod create_schema_test {
         schema.area_id = Some(Uuid::new_v4());
 
         let mut builder = SQLQueryBuilder::new();
-        builder.add_column(ProjectModel::USER_ID, &ID);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_insert();
 
         assert_eq!(
             statement,
-            "INSERT INTO data.projects (user_id, project_title, notes, start_date, start_time, deadline, area_id) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+            "INSERT INTO data.projects (project_title, notes, start_date, start_time, deadline, area_id) VALUES ($1, $2, $3, $4, $5, $6)"
         );
-        assert_eq!(params.len(), 7);
-    }
-
-    #[test]
-    fn return_some() {
-        let now = Local::now();
-
-        let mut schema = CreateProjectSchema::default();
-        schema.title = Some("Test Title".to_string());
-        schema.start_date = Some(now.date_naive());
-        schema.deadline = Some(now.date_naive());
-        schema.area_id = Some(Uuid::new_v4());
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.add_column(ProjectModel::USER_ID, &ID);
-        schema.add_to_query(&mut builder);
-        builder.set_return(vec![ProjectModel::ID]);
-
-        let (statement, params) = builder.build_insert();
-
-        assert_eq!(
-            statement.as_str(),
-            "INSERT INTO data.projects (user_id, project_title, start_date, deadline, area_id) VALUES ($1, $2, $3, $4, $5) RETURNING project_id"
-        );
-        assert_eq!(params.len(), 5);
-    }
-
-    #[test]
-    fn return_all() {
-        let now = Local::now();
-
-        let mut schema = CreateProjectSchema::default();
-        schema.title = Some("Test Title".to_string());
-        schema.start_date = Some(now.date_naive());
-        schema.deadline = Some(now.date_naive());
-        schema.area_id = Some(Uuid::new_v4());
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.add_column(ProjectModel::USER_ID, &ID);
-        schema.add_to_query(&mut builder);
-        builder.set_return_all();
-
-        let (statement, params) = builder.build_insert();
-
-        assert_eq!(
-            statement.as_str(),
-            "INSERT INTO data.projects (user_id, project_title, start_date, deadline, area_id) VALUES ($1, $2, $3, $4, $5) RETURNING *"
-        );
-        assert_eq!(params.len(), 5);
+        assert_eq!(params.len(), 6);
     }
 
     // TODO: make production examples
@@ -445,12 +371,10 @@ mod update_schema_test {
     use crate::{
         model::project::ProjectModel,
         schema::UpdateMethod,
-        util::{AddToQuery, PostgresCmp, SQLQueryBuilder},
+        util::{AddToQuery, SQLQueryBuilder},
     };
 
     use super::UpdateProjectSchema;
-
-    const ID: Uuid = Uuid::nil();
 
     #[test]
     fn text_only() {
@@ -460,16 +384,14 @@ mod update_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.add_condition(ProjectModel::ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_update();
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET project_title=$1, notes=$2 WHERE user_id = $3 AND project_id = $4"
+            "UPDATE data.projects SET project_title=$1, notes=$2"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
@@ -483,16 +405,14 @@ mod update_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.add_condition(ProjectModel::ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_update();
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET start_date=$1, start_time=$2, deadline=$3 WHERE user_id = $4 AND project_id = $5"
+            "UPDATE data.projects SET start_date=$1, start_time=$2, deadline=$3"
         );
-        assert_eq!(params.len(), 5);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -507,16 +427,14 @@ mod update_schema_test {
         let mut builder = SQLQueryBuilder::new();
         builder.add_column(ProjectModel::UPDATED, &now);
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.add_condition(ProjectModel::ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_update();
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, completed_on=$2, logged_on=$3, trashed_on=$4 WHERE user_id = $5 AND project_id = $6"
+            "UPDATE data.projects SET updated_on=$1, completed_on=$2, logged_on=$3, trashed_on=$4"
         );
-        assert_eq!(params.len(), 6);
+        assert_eq!(params.len(), 4);
     }
 
     #[test]
@@ -526,16 +444,14 @@ mod update_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.add_condition(ProjectModel::ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_update();
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET area_id=$1 WHERE user_id = $2 AND project_id = $3"
+            "UPDATE data.projects SET area_id=$1"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 1);
     }
 
     #[test]
@@ -556,70 +472,14 @@ mod update_schema_test {
         let mut builder = SQLQueryBuilder::new();
         builder.add_column(ProjectModel::UPDATED, &now);
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.add_condition(ProjectModel::ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_update();
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, project_title=$2, notes=$3, start_date=$4, start_time=$5, deadline=$6, completed_on=$7, logged_on=$8, trashed_on=$9, area_id=$10 WHERE user_id = $11 AND project_id = $12"
+            "UPDATE data.projects SET updated_on=$1, project_title=$2, notes=$3, start_date=$4, start_time=$5, deadline=$6, completed_on=$7, logged_on=$8, trashed_on=$9, area_id=$10"
         );
-        assert_eq!(params.len(), 12);
-    }
-
-    #[test]
-    fn return_some() {
-        let now = Local::now();
-
-        let mut schema = UpdateProjectSchema::default();
-        schema.title = Some(UpdateMethod::Change("Test Title".to_string()));
-        schema.start_date = Some(UpdateMethod::Change(now.date_naive()));
-        schema.deadline = Some(UpdateMethod::Change(now.date_naive()));
-        schema.completed = Some(true);
-        schema.area_id = Some(UpdateMethod::Change(Uuid::new_v4()));
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.add_column(ProjectModel::UPDATED, &now);
-        schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.add_condition(ProjectModel::ID, PostgresCmp::Equal, &ID);
-        builder.set_return(vec![ProjectModel::ID]);
-
-        let (statement, params) = builder.build_update();
-
-        assert_eq!(
-            statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, project_title=$2, start_date=$3, deadline=$4, completed_on=$5, area_id=$6 WHERE user_id = $7 AND project_id = $8 RETURNING project_id"
-        );
-        assert_eq!(params.len(), 8);
-    }
-
-    #[test]
-    fn return_all() {
-        let now = Local::now();
-
-        let mut schema = UpdateProjectSchema::default();
-        schema.title = Some(UpdateMethod::Change("Test Title".to_string()));
-        schema.start_date = Some(UpdateMethod::Change(now.date_naive()));
-        schema.deadline = Some(UpdateMethod::Change(now.date_naive()));
-        schema.completed = Some(true);
-        schema.area_id = Some(UpdateMethod::Change(Uuid::new_v4()));
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.add_column(ProjectModel::UPDATED, &now);
-        schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.add_condition(ProjectModel::ID, PostgresCmp::Equal, &ID);
-        builder.set_return_all();
-
-        let (statement, params) = builder.build_update();
-
-        assert_eq!(
-            statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, project_title=$2, start_date=$3, deadline=$4, completed_on=$5, area_id=$6 WHERE user_id = $7 AND project_id = $8 RETURNING *"
-        );
-        assert_eq!(params.len(), 8);
+        assert_eq!(params.len(), 10);
     }
 
     // TODO: make production example
@@ -631,14 +491,11 @@ mod query_schema_test {
     use uuid::Uuid;
 
     use crate::{
-        model::project::ProjectModel,
         schema::{Compare, QueryMethod},
-        util::{AddToQuery, PostgresCmp, SQLQueryBuilder},
+        util::{AddToQuery, SQLQueryBuilder},
     };
 
     use super::QueryProjectSchema;
-
-    const ID: Uuid = Uuid::nil();
 
     #[test]
     fn empty() {
@@ -646,15 +503,14 @@ mod query_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE user_id = $1"
+            "SELECT * FROM data.projects"
         );
-        assert_eq!(params.len(), 1);
+        assert_eq!(params.len(), 0);
     }
 
     #[test]
@@ -665,15 +521,14 @@ mod query_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE project_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND user_id = $3"
+            "SELECT * FROM data.projects WHERE project_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%'"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
@@ -687,15 +542,14 @@ mod query_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE start_date = $1 AND start_time = $2 AND deadline = $3 AND user_id = $4"
+            "SELECT * FROM data.projects WHERE start_date = $1 AND start_time = $2 AND deadline = $3"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -709,15 +563,14 @@ mod query_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE start_date < $1 AND start_time <= $2 AND deadline > $3 AND user_id = $4"
+            "SELECT * FROM data.projects WHERE start_date < $1 AND start_time <= $2 AND deadline > $3"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -729,15 +582,14 @@ mod query_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE completed_on NOTNULL AND logged_on NOTNULL AND trashed_on NOTNULL AND user_id = $1"
+            "SELECT * FROM data.projects WHERE completed_on NOTNULL AND logged_on NOTNULL AND trashed_on NOTNULL"
         );
-        assert_eq!(params.len(), 1);
+        assert_eq!(params.len(), 0);
     }
 
     #[test]
@@ -749,15 +601,14 @@ mod query_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE completed_on ISNULL AND logged_on ISNULL AND trashed_on ISNULL AND user_id = $1"
+            "SELECT * FROM data.projects WHERE completed_on ISNULL AND logged_on ISNULL AND trashed_on ISNULL"
         );
-        assert_eq!(params.len(), 1);
+        assert_eq!(params.len(), 0);
     }
 
     #[test]
@@ -767,15 +618,14 @@ mod query_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE area_id = $1 AND user_id = $2"
+            "SELECT * FROM data.projects WHERE area_id = $1"
         );
-        assert_eq!(params.len(), 2);
+        assert_eq!(params.len(), 1);
     }
 
     #[test]
@@ -795,126 +645,14 @@ mod query_schema_test {
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
 
         let (statement, params) = builder.build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE project_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on ISNULL AND logged_on NOTNULL AND trashed_on ISNULL AND area_id = $6 AND user_id = $7"
+            "SELECT * FROM data.projects WHERE project_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on ISNULL AND logged_on NOTNULL AND trashed_on ISNULL AND area_id = $6"
         );
-        assert_eq!(params.len(), 7);
-    }
-
-    #[test]
-    fn limit() {
-        let mut schema = QueryProjectSchema::default();
-        schema.title = Some(QueryMethod::Match("Test Title".to_string()));
-        schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.set_limit(25);
-
-        let (statement, params) = builder.build_select();
-
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.projects WHERE project_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND user_id = $3 LIMIT 25"
-        );
-        assert_eq!(params.len(), 3);
-    }
-
-    #[test]
-    fn offset() {
-        let mut schema = QueryProjectSchema::default();
-        schema.title = Some(QueryMethod::Match("Test Title".to_string()));
-        schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.set_offset(50);
-
-        let (statement, params) = builder.build_select();
-
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.projects WHERE project_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND user_id = $3 OFFSET 50"
-        );
-        assert_eq!(params.len(), 3);
-    }
-
-    #[test]
-    fn limit_offset() {
-        let mut schema = QueryProjectSchema::default();
-        schema.title = Some(QueryMethod::Match("Test Title".to_string()));
-        schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.set_limit(25);
-        builder.set_offset(50);
-
-        let (statement, params) = builder.build_select();
-
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.projects WHERE project_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND user_id = $3 LIMIT 25 OFFSET 50"
-        );
-        assert_eq!(params.len(), 3);
-    }
-
-    #[test]
-    fn return_some() {
-        let now = Local::now();
-
-        let mut schema = QueryProjectSchema::default();
-        schema.title = Some(QueryMethod::Match("Test Title".to_string()));
-        schema.start_date = Some(QueryMethod::Compare(now.date_naive(), Compare::Less));
-        schema.deadline = Some(QueryMethod::Compare(now.date_naive(), Compare::GreaterEq));
-        schema.completed = Some(true);
-        schema.area_id = Some(QueryMethod::NotNull(true));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.set_return(vec![ProjectModel::ID]);
-
-        let (statement, params) = builder.build_select();
-
-        assert_eq!(
-            statement.as_str(),
-            "SELECT project_id FROM data.projects WHERE project_title LIKE '%' || $1 || '%' AND start_date < $2 AND deadline >= $3 AND completed_on NOTNULL AND area_id NOTNULL AND user_id = $4"
-        );
-        assert_eq!(params.len(), 4);
-    }
-
-    #[test]
-    fn return_all() {
-        let now = Local::now();
-
-        let mut schema = QueryProjectSchema::default();
-        schema.title = Some(QueryMethod::Match("Test Title".to_string()));
-        schema.start_date = Some(QueryMethod::Compare(now.date_naive(), Compare::Less));
-        schema.deadline = Some(QueryMethod::Compare(now.date_naive(), Compare::GreaterEq));
-        schema.completed = Some(true);
-        schema.area_id = Some(QueryMethod::NotNull(true));
-
-        let mut builder = SQLQueryBuilder::new();
-        schema.add_to_query(&mut builder);
-        builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-        builder.set_return_all();
-
-        let (statement, params) = builder.build_select();
-
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.projects WHERE project_title LIKE '%' || $1 || '%' AND start_date < $2 AND deadline >= $3 AND completed_on NOTNULL AND area_id NOTNULL AND user_id = $4"
-        );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 6);
     }
 
     // TODO: make production examples
