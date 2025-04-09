@@ -15,7 +15,7 @@ use crate::{
     AppState,
     model::{
         ToResponse,
-        project::{ProjectModel, ProjectModelResponse},
+        project::{ProjectModel, ProjectResponseModel},
     },
     schema::{
         FilterOptions,
@@ -410,7 +410,7 @@ pub async fn query_project_handler(
         .collect();
 
     // Return success response
-    let project_responses: Vec<ProjectModelResponse> =
+    let project_responses: Vec<ProjectResponseModel> =
         projects.iter().map(|p| p.to_response()).collect();
     let json_message = json!({
         "status": "ok",

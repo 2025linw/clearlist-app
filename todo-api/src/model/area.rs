@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use super::ToResponse;
 
-/// Database Model
+/// Area Database Model
 #[derive(Debug, Deserialize)]
 pub struct AreaModel {
     area_id: Uuid,
@@ -45,7 +45,7 @@ impl From<Row> for AreaModel {
 }
 
 impl ToResponse for AreaModel {
-    type Response = AreaModelResponse;
+    type Response = AreaResponseModel;
 
     fn to_response(&self) -> Self::Response {
         Self::Response {
@@ -61,9 +61,9 @@ impl ToResponse for AreaModel {
     }
 }
 
-/// Response Model
+/// Area Response Model
 #[derive(Debug, Deserialize, Serialize)]
-pub struct AreaModelResponse {
+pub struct AreaResponseModel {
     id: Uuid,
 
     name: String,

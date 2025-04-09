@@ -15,7 +15,7 @@ use crate::{
     AppState,
     model::{
         ToResponse,
-        tag::{TagModel, TagModelResponse},
+        tag::{TagModel, TagResponseModel},
     },
     schema::{
         FilterOptions,
@@ -407,7 +407,7 @@ pub async fn query_tag_handler(
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
     // Return success response
-    let tag_responses: Vec<TagModelResponse> = tags.iter().map(|a| a.to_response()).collect();
+    let tag_responses: Vec<TagResponseModel> = tags.iter().map(|a| a.to_response()).collect();
     let json_message = json!({
         "status": "ok",
         "data": json!({

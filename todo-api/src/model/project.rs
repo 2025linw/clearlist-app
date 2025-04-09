@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use super::ToResponse;
 
-/// Database Model
+/// Project Database Model
 #[derive(Debug, Deserialize)]
 pub struct ProjectModel {
     project_id: Uuid,
@@ -72,7 +72,7 @@ impl From<Row> for ProjectModel {
 }
 
 impl ToResponse for ProjectModel {
-    type Response = ProjectModelResponse;
+    type Response = ProjectResponseModel;
 
     fn to_response(&self) -> Self::Response {
         Self::Response {
@@ -98,9 +98,9 @@ impl ToResponse for ProjectModel {
     }
 }
 
-/// Response Model
+/// Project Response Model
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ProjectModelResponse {
+pub struct ProjectResponseModel {
     id: Uuid,
 
     title: String,

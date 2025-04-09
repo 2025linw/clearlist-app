@@ -15,7 +15,7 @@ use crate::{
     AppState,
     model::{
         ToResponse,
-        area::{AreaModel, AreaModelResponse},
+        area::{AreaModel, AreaResponseModel},
     },
     schema::{
         FilterOptions,
@@ -407,7 +407,7 @@ pub async fn query_area_handler(
     let areas: Vec<AreaModel> = rows.iter().map(|r| AreaModel::from(r.to_owned())).collect();
 
     // Return success response
-    let area_responses: Vec<AreaModelResponse> = areas.iter().map(|a| a.to_response()).collect();
+    let area_responses: Vec<AreaResponseModel> = areas.iter().map(|a| a.to_response()).collect();
     let json_message = json!({
         "status": "ok",
         "data": json!({

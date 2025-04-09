@@ -75,7 +75,7 @@ impl From<Row> for TaskModel {
 }
 
 impl ToResponse for TaskModel {
-    type Response = TaskModelResponse;
+    type Response = TaskResponseModel;
 
     fn to_response(&self) -> Self::Response {
         Self::Response {
@@ -102,9 +102,9 @@ impl ToResponse for TaskModel {
     }
 }
 
-/// Response Model
+/// Task Response Model
 #[derive(Debug, Deserialize, Serialize)]
-pub struct TaskModelResponse {
+pub struct TaskResponseModel {
     id: Uuid,
 
     title: String,

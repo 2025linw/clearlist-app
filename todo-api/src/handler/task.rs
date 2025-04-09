@@ -15,7 +15,7 @@ use crate::{
     AppState,
     model::{
         ToResponse,
-        task::{TaskModel, TaskModelResponse},
+        task::{TaskModel, TaskResponseModel},
     },
     schema::{
         FilterOptions,
@@ -407,7 +407,7 @@ pub async fn query_task_handler(
     let tasks: Vec<TaskModel> = rows.iter().map(|r| TaskModel::from(r.to_owned())).collect();
 
     // Return success response
-    let task_responses: Vec<TaskModelResponse> = tasks.iter().map(|t| t.to_response()).collect();
+    let task_responses: Vec<TaskResponseModel> = tasks.iter().map(|t| t.to_response()).collect();
     let json_message = json!({
         "status": "ok",
         "data": json!({

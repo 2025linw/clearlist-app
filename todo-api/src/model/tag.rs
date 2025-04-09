@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use super::ToResponse;
 
-/// Database Model
+/// Tag Database Model
 #[derive(Debug, Deserialize)]
 pub struct TagModel {
     tag_id: Uuid,
@@ -50,7 +50,7 @@ impl From<Row> for TagModel {
 }
 
 impl ToResponse for TagModel {
-    type Response = TagModelResponse;
+    type Response = TagResponseModel;
 
     fn to_response(&self) -> Self::Response {
         Self::Response {
@@ -68,9 +68,9 @@ impl ToResponse for TagModel {
     }
 }
 
-/// Response Model
+/// Tag Response Model
 #[derive(Debug, Deserialize, Serialize)]
-pub struct TagModelResponse {
+pub struct TagResponseModel {
     id: Uuid,
 
     label: String,
