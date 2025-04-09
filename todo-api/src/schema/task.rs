@@ -698,7 +698,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3"
+            "SELECT * FROM data.tasks WHERE task_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND user_id = $3"
         );
         assert_eq!(params.len(), 3);
     }
@@ -830,7 +830,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on ISNULL AND logged_on NOTNULL AND trashed_on ISNULL AND area_id = $6 AND project_id = $7 AND user_id = $8"
+            "SELECT * FROM data.tasks WHERE task_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on ISNULL AND logged_on NOTNULL AND trashed_on ISNULL AND area_id = $6 AND project_id = $7 AND user_id = $8"
         );
         assert_eq!(params.len(), 8);
     }
@@ -850,7 +850,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 LIMIT 25"
+            "SELECT * FROM data.tasks WHERE task_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND user_id = $3 LIMIT 25"
         );
         assert_eq!(params.len(), 3);
     }
@@ -870,7 +870,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 OFFSET 50"
+            "SELECT * FROM data.tasks WHERE task_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND user_id = $3 OFFSET 50"
         );
         assert_eq!(params.len(), 3);
     }
@@ -891,7 +891,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 LIMIT 25 OFFSET 50"
+            "SELECT * FROM data.tasks WHERE task_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND user_id = $3 LIMIT 25 OFFSET 50"
         );
         assert_eq!(params.len(), 3);
     }
@@ -916,7 +916,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT task_id FROM data.tasks WHERE task_title LIKE %$1% AND start_date < $2 AND deadline >= $3 AND completed_on NOTNULL AND project_id NOTNULL AND user_id = $4"
+            "SELECT task_id FROM data.tasks WHERE task_title LIKE '%' || $1 || '%' AND start_date < $2 AND deadline >= $3 AND completed_on NOTNULL AND project_id NOTNULL AND user_id = $4"
         );
         assert_eq!(params.len(), 4);
     }
@@ -941,7 +941,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND start_date < $2 AND deadline >= $3 AND completed_on NOTNULL AND project_id NOTNULL AND user_id = $4"
+            "SELECT * FROM data.tasks WHERE task_title LIKE '%' || $1 || '%' AND start_date < $2 AND deadline >= $3 AND completed_on NOTNULL AND project_id NOTNULL AND user_id = $4"
         );
         assert_eq!(params.len(), 4);
     }

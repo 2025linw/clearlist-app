@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS data.tags
 	tag_id uuid DEFAULT gen_random_uuid(),
 
 	tag_label citext NOT NULL,
-	color varchar(7) CHECK (tag_color IS NULL OR tag_color ~* '^#[a-f0-9]{6}$'),
+	color varchar(7) CHECK (color IS NULL OR color ~* '^#[a-f0-9]{6}$'),
 
 	category varchar(255),
 
@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS data.project_tags
 	tag_id uuid,
 
 	PRIMARY KEY(project_id, tag_id),
-	FOREIGN KEY(project_id) REFERENCES data.projects(project_id) ON DELETE CASCADE, #
+	FOREIGN KEY(project_id) REFERENCES data.projects(project_id) ON DELETE CASCADE,
 	FOREIGN KEY(tag_id) REFERENCES data.tags(tag_id) ON DELETE CASCADE
 );
 

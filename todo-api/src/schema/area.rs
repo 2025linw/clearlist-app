@@ -297,7 +297,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.areas WHERE area_name LIKE %$1% AND user_id = $2"
+            "SELECT * FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2"
         );
         assert_eq!(params.len(), 2);
     }
@@ -316,7 +316,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.areas WHERE area_name LIKE %$1% AND user_id = $2 LIMIT 25"
+            "SELECT * FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2 LIMIT 25"
         );
         assert_eq!(params.len(), 2);
     }
@@ -335,7 +335,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.areas WHERE area_name LIKE %$1% AND user_id = $2 OFFSET 50"
+            "SELECT * FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2 OFFSET 50"
         );
         assert_eq!(params.len(), 2);
     }
@@ -355,7 +355,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.areas WHERE area_name LIKE %$1% AND user_id = $2 LIMIT 25 OFFSET 50"
+            "SELECT * FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2 LIMIT 25 OFFSET 50"
         );
         assert_eq!(params.len(), 2);
     }
@@ -374,7 +374,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT area_id FROM data.areas WHERE area_name LIKE %$1% AND user_id = $2"
+            "SELECT area_id FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2"
         );
         assert_eq!(params.len(), 2);
     }
@@ -393,7 +393,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.areas WHERE area_name LIKE %$1% AND user_id = $2"
+            "SELECT * FROM data.areas WHERE area_name LIKE '%' || $1 || '%' AND user_id = $2"
         );
         assert_eq!(params.len(), 2);
     }

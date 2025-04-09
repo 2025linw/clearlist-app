@@ -24,6 +24,8 @@ use crate::{
     util::{AddToQuery, PostgresCmp, SQLQueryBuilder, extract_user_id},
 };
 
+// TODO: convert everything to use `map_err` to allow for `?` operator to auto return
+
 pub async fn create_project_handler(
     State(data): State<Arc<AppState>>,
     jar: CookieJar,
@@ -328,7 +330,7 @@ pub async fn delete_project_handler(
     }
 
     // Get deleted project id
-    let task_id: Uuid = match row_opt {
+    let project_id: Uuid = match row_opt {
         Some(row) => row.get(ProjectModel::ID),
         None => {
             let json_message = json!({
@@ -344,7 +346,7 @@ pub async fn delete_project_handler(
     let json_message = json!({
         "status": "successful",
         "data": json!({
-            "task_id": task_id,
+            "project_id": project_id,
         }),
     });
 
@@ -408,13 +410,13 @@ pub async fn query_project_handler(
         .collect();
 
     // Return success response
-    let task_responses: Vec<ProjectModelResponse> =
-        projects.iter().map(|t| t.to_response()).collect();
+    let project_responses: Vec<ProjectModelResponse> =
+        projects.iter().map(|p| p.to_response()).collect();
     let json_message = json!({
         "status": "ok",
         "data": json!({
-            "count": task_responses.len(),
-            "projects": task_responses,
+            "count": project_responses.len(),
+            "projects": project_responses,
         }),
     });
 

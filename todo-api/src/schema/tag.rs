@@ -336,7 +336,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tags WHERE tag_label LIKE %$1% AND category LIKE %$2% AND user_id = $3"
+            "SELECT * FROM data.tags WHERE tag_label LIKE '%' || $1 || '%' AND category LIKE '%' || $2 || '%' AND user_id = $3"
         );
         assert_eq!(params.len(), 3);
     }
@@ -356,7 +356,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tags WHERE tag_label LIKE %$1% AND category LIKE %$2% AND user_id = $3 LIMIT 25"
+            "SELECT * FROM data.tags WHERE tag_label LIKE '%' || $1 || '%' AND category LIKE '%' || $2 || '%' AND user_id = $3 LIMIT 25"
         );
         assert_eq!(params.len(), 3);
     }
@@ -376,7 +376,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tags WHERE tag_label LIKE %$1% AND category LIKE %$2% AND user_id = $3 OFFSET 50"
+            "SELECT * FROM data.tags WHERE tag_label LIKE '%' || $1 || '%' AND category LIKE '%' || $2 || '%' AND user_id = $3 OFFSET 50"
         );
         assert_eq!(params.len(), 3);
     }
@@ -397,7 +397,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tags WHERE tag_label LIKE %$1% AND category LIKE %$2% AND user_id = $3 LIMIT 25 OFFSET 50"
+            "SELECT * FROM data.tags WHERE tag_label LIKE '%' || $1 || '%' AND category LIKE '%' || $2 || '%' AND user_id = $3 LIMIT 25 OFFSET 50"
         );
         assert_eq!(params.len(), 3);
     }
@@ -417,7 +417,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT tag_id FROM data.tags WHERE tag_label LIKE %$1% AND category LIKE %$2% AND user_id = $3"
+            "SELECT tag_id FROM data.tags WHERE tag_label LIKE '%' || $1 || '%' AND category LIKE '%' || $2 || '%' AND user_id = $3"
         );
         assert_eq!(params.len(), 3);
     }
@@ -437,7 +437,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tags WHERE tag_label LIKE %$1% AND category LIKE %$2% AND user_id = $3"
+            "SELECT * FROM data.tags WHERE tag_label LIKE '%' || $1 || '%' AND category LIKE '%' || $2 || '%' AND user_id = $3"
         );
         assert_eq!(params.len(), 3);
     }

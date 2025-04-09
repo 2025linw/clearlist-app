@@ -80,7 +80,7 @@ VALUES
 INSERT INTO data.tasks -- Task 0
 (
     task_id,
-	task_notes,
+	notes,
 
 	user_id
 )
@@ -96,7 +96,7 @@ INSERT INTO data.tasks -- Task A
 (
     task_id,
     task_title,
-    task_notes,
+    notes,
 
     start_date,
     start_time,
@@ -176,7 +176,7 @@ INSERT INTO data.tasks -- Task B
 (
     task_id,
 	task_title,
-	task_notes,
+	notes,
 
 	user_id,
 	completed_on,
@@ -270,7 +270,7 @@ VALUES
 INSERT INTO data.projects -- Project 0
 (
     project_id,
-	project_notes,
+	notes,
 
 	user_id
 )
@@ -286,7 +286,7 @@ INSERT INTO data.projects -- Project A
 (
     project_id,
 	project_title,
-    project_notes,
+    notes,
 
     start_date,
     start_time,
@@ -366,7 +366,7 @@ INSERT INTO data.projects -- Project B
 (
     project_id,
 	project_title,
-	project_notes,
+	notes,
 
 	user_id,
 	completed_on,
@@ -459,7 +459,7 @@ INSERT INTO data.projects -- Project C
 (
     project_id,
 	project_title,
-	project_notes,
+	notes,
 
 	user_id
 )
@@ -475,7 +475,7 @@ INSERT INTO data.tasks -- Task C
 (
     task_id,
 	task_title,
-	task_notes,
+	notes,
 
 	project_id,
 
@@ -559,7 +559,7 @@ INSERT INTO data.projects -- Project D
 (
     project_id,
 	project_title,
-	project_notes,
+	notes,
 
 	area_id,
 
@@ -579,7 +579,7 @@ INSERT INTO data.tasks -- Task D
 (
     task_id,
 	task_title,
-	task_notes,
+	notes,
 
 	project_id,
 
@@ -650,7 +650,7 @@ INSERT INTO data.tasks -- Task E
 (
     task_id,
 	task_title,
-	task_notes,
+	notes,
 
 	area_id,
 
@@ -706,7 +706,7 @@ INSERT INTO data.projects -- Project E
 (
     project_id,
 	project_title,
-	project_notes,
+	notes,
 
 	area_id,
 
@@ -762,7 +762,7 @@ INSERT INTO data.projects -- Project F
 (
     project_id,
 	project_title,
-	project_notes,
+	notes,
 
 	area_id,
 
@@ -782,7 +782,7 @@ INSERT INTO data.tasks -- Task F
 (
     task_id,
 	task_title,
-	task_notes,
+	notes,
 
 	project_id,
 
@@ -841,9 +841,9 @@ INSERT INTO data.tags
 (
     tag_id,
 	tag_label,
-	tag_category,
+	category,
 
-	tag_color,
+	color,
 
 	user_id
 )
@@ -994,7 +994,7 @@ INSERT INTO data.tasks -- Task G
 (
     task_id,
 	task_title,
-	task_notes,
+	notes,
 
 	user_id
 )
@@ -1028,22 +1028,22 @@ INSERT INTO data.task_tags
 VALUES
 (
 	(SELECT	task_id FROM data.tasks WHERE task_title='Task G1'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Low' AND tag_category='Priority')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Low' AND category='Priority')
 ),
 (
 	(SELECT	task_id FROM data.tasks WHERE task_title='Task G2'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Mid' AND tag_category='Priority')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Mid' AND category='Priority')
 ),
 (
 	(SELECT	task_id FROM data.tasks WHERE task_title='Task G3'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='High' AND tag_category='Priority')
+	(SELECT tag_id FROM data.tags WHERE tag_label='High' AND category='Priority')
 );
 
 INSERT INTO data.tasks -- Task H
 (
     task_id,
 	task_title,
-	task_notes,
+	notes,
 
 	user_id
 )
@@ -1091,30 +1091,30 @@ INSERT INTO data.task_tags
 VALUES
 (
 	(SELECT	task_id FROM data.tasks WHERE task_title='Task H1'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Class 1' AND tag_category='School')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Class 1' AND category='School')
 ),
 (
 	(SELECT	task_id FROM data.tasks WHERE task_title='Task H2'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Class 2' AND tag_category='School')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Class 2' AND category='School')
 ),
 (
 	(SELECT	task_id FROM data.tasks WHERE task_title='Task H3'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Class 3' AND tag_category='School')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Class 3' AND category='School')
 ),
 (
 	(SELECT	task_id FROM data.tasks WHERE task_title='Task H4'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Class 4' AND tag_category='School')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Class 4' AND category='School')
 ),
 (
 	(SELECT	task_id FROM data.tasks WHERE task_title='Task H5'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Class 5' AND tag_category='School')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Class 5' AND category='School')
 );
 
 INSERT INTO data.tasks -- Task I
 (
     task_id,
 	task_title,
-	task_notes,
+	notes,
 
 	user_id
 )
@@ -1155,27 +1155,27 @@ INSERT INTO data.task_tags
 VALUES
 (
 	(SELECT task_id FROM data.tasks WHERE task_title='Task I1'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Backlog' AND tag_category='Scrum')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Backlog' AND category='Scrum')
 ),
 (
 	(SELECT task_id FROM data.tasks WHERE task_title='Task I1'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Important' AND tag_category IS NULL)
+	(SELECT tag_id FROM data.tags WHERE tag_label='Important' AND category IS NULL)
 ),
 (
 	(SELECT task_id FROM data.tasks WHERE task_title='Task I2'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='To-do' AND tag_category='Scrum')
+	(SELECT tag_id FROM data.tags WHERE tag_label='To-do' AND category='Scrum')
 ),
 (
 	(SELECT task_id FROM data.tasks WHERE task_title='Task I2'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Urgent' AND tag_category IS NULL)
+	(SELECT tag_id FROM data.tags WHERE tag_label='Urgent' AND category IS NULL)
 ),
 (
 	(SELECT task_id FROM data.tasks WHERE task_title='Task I3'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='In-progress' AND tag_category='Scrum')
+	(SELECT tag_id FROM data.tags WHERE tag_label='In-progress' AND category='Scrum')
 ),
 (
 	(SELECT task_id FROM data.tasks WHERE task_title='Task I4'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Done' AND tag_category='Scrum')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Done' AND category='Scrum')
 );
 
 
@@ -1184,7 +1184,7 @@ INSERT INTO data.projects -- Project G
 (
     project_id,
 	project_title,
-	project_notes,
+	notes,
 
 	user_id
 )
@@ -1218,30 +1218,30 @@ INSERT INTO data.project_tags
 VALUES
 (
 	(SELECT project_id FROM data.projects WHERE project_title='Project G1'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Low' AND tag_category='Priority')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Low' AND category='Priority')
 ),
 (
 	(SELECT project_id FROM data.projects WHERE project_title='Project G2'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Important' AND tag_category IS NULL)
+	(SELECT tag_id FROM data.tags WHERE tag_label='Important' AND category IS NULL)
 ),
 (
 	(SELECT project_id FROM data.projects WHERE project_title='Project G2'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Mid' AND tag_category='Priority')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Mid' AND category='Priority')
 ),
 (
 	(SELECT project_id FROM data.projects WHERE project_title='Project G3'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Urgent' AND tag_category IS NULL)
+	(SELECT tag_id FROM data.tags WHERE tag_label='Urgent' AND category IS NULL)
 ),
 (
 	(SELECT project_id FROM data.projects WHERE project_title='Project G3'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='High' AND tag_category='Priority')
+	(SELECT tag_id FROM data.tags WHERE tag_label='High' AND category='Priority')
 );
 
 INSERT INTO data.projects -- Project H
 (
     project_id,
 	project_title,
-	project_notes,
+	notes,
 
 	user_id
 )
@@ -1289,21 +1289,21 @@ INSERT INTO data.project_tags
 VALUES
 (
 	(SELECT project_id FROM data.projects WHERE project_title='Project H1'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Class 1' AND tag_category='School')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Class 1' AND category='School')
 ),
 (
 	(SELECT project_id FROM data.projects WHERE project_title='Project H2'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Class 2' AND tag_category='School')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Class 2' AND category='School')
 ),
 (
 	(SELECT project_id FROM data.projects WHERE project_title='Project H3'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Class 3' AND tag_category='School')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Class 3' AND category='School')
 ),
 (
 	(SELECT project_id FROM data.projects WHERE project_title='Project H4'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Class 4' AND tag_category='School')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Class 4' AND category='School')
 ),
 (
 	(SELECT project_id FROM data.projects WHERE project_title='Project H5'),
-	(SELECT tag_id FROM data.tags WHERE tag_label='Class 5' AND tag_category='School')
+	(SELECT tag_id FROM data.tags WHERE tag_label='Class 5' AND category='School')
 );

@@ -182,12 +182,12 @@ impl<'a> SQLQueryBuilder<'a> {
                     PostgresCmp::IsNull => write!(query, "{} ISNULL", col).unwrap(),
                     PostgresCmp::NotNull => write!(query, "{} NOTNULL", col).unwrap(),
                     PostgresCmp::Like => {
-                        write!(query, "{} LIKE %${}%", col, param_n).unwrap();
+                        write!(query, "{} LIKE '%' || ${} || '%'", col, param_n).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::ILike => {
-                        write!(query, "{} ILIKE %${}%", col, param_n).unwrap();
+                        write!(query, "{} ILIKE '%' || ${} || '%'", col, param_n).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
@@ -304,12 +304,12 @@ impl<'a> SQLQueryBuilder<'a> {
                     PostgresCmp::IsNull => write!(query, "{} ISNULL", col).unwrap(),
                     PostgresCmp::NotNull => write!(query, "{} NOTNULL", col).unwrap(),
                     PostgresCmp::Like => {
-                        write!(query, "{} LIKE %${}%", col, param_n).unwrap();
+                        write!(query, "{} LIKE '%' || ${} || '%'", col, param_n).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::ILike => {
-                        write!(query, "{} ILIKE %${}%", col, param_n).unwrap();
+                        write!(query, "{} ILIKE '%' || ${} || '%'", col, param_n).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
@@ -362,12 +362,12 @@ impl<'a> SQLQueryBuilder<'a> {
                     PostgresCmp::IsNull => write!(query, "{} ISNULL", col).unwrap(),
                     PostgresCmp::NotNull => write!(query, "{} NOTNULL", col).unwrap(),
                     PostgresCmp::Like => {
-                        write!(query, "{} LIKE %${}%", col, param_n).unwrap();
+                        write!(query, "{} LIKE '%' || ${} || '%'", col, param_n).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::ILike => {
-                        write!(query, "{} ILIKE %${}%", col, param_n).unwrap();
+                        write!(query, "{} ILIKE '%' || ${} || '%'", col, param_n).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
