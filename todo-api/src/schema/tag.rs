@@ -191,10 +191,7 @@ mod query_schema_test {
 
         let (statement, params) = builder.build_select();
 
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.tags"
-        );
+        assert_eq!(statement.as_str(), "SELECT * FROM data.tags");
         assert_eq!(params.len(), 0);
     }
 

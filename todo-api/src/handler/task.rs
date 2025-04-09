@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use crate::{
     AppState,
+    error::Error,
     model::{
         ToResponse,
         task::{TaskModel, TaskResponseModel},
@@ -32,32 +33,14 @@ pub async fn create_task_handler(
     Json(body): Json<CreateTaskSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error getting user id: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
     // Get connection from pool and then start transaction
-    let mut conn = data.get_conn().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving connection from pool: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
-    let transaction = conn.transaction().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error starting transaction from connection: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let transaction = conn
+        .transaction()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Build SQL query
     let mut query_builder = SQLQueryBuilder::new();
@@ -71,24 +54,13 @@ pub async fn create_task_handler(
     let row = transaction
         .query_one(&statement, &params)
         .await
-        .map_err(|e| {
-            let json_message = json!({
-                "status": "error",
-                "message": format!("Error inserting task to database: {:#}", e),
-            });
-
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-        })?;
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Commit transaction
-    if let Err(e) = transaction.commit().await {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error commiting transaction to database: {:#?}", e),
-        });
-
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json_message)));
-    }
+    transaction
+        .commit()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Get created task
     let task = TaskModel::from(row);
@@ -110,24 +82,10 @@ pub async fn retrieve_task_handler(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error getting user id: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
     // Get connection from pool
-    let conn = data.get_conn().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving connection from pool: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
 
     // Build SQL query
     let mut query_builder = SQLQueryBuilder::new();
@@ -139,14 +97,10 @@ pub async fn retrieve_task_handler(
     let (statement, params) = query_builder.build_select();
 
     // Retrieve task from database
-    let row_opt = conn.query_opt(&statement, &params).await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving task from database: {:#}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let row_opt = conn
+        .query_opt(&statement, &params)
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Get retrieved task
     let task = match row_opt {
@@ -179,32 +133,14 @@ pub async fn update_task_handler(
     Json(body): Json<UpdateTaskSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error getting user id: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
     // Get connection from pool and then start transaction
-    let mut conn = data.get_conn().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving connection from pool: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
-    let transaction = conn.transaction().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error starting transaction from connection: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let transaction = conn
+        .transaction()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Build SQL query
     let timestamp = Local::now();
@@ -221,24 +157,13 @@ pub async fn update_task_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| {
-            let json_message = json!({
-                "status": "error",
-                "message": format!("error updating task in database: {:#}", e),
-            });
-
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-        })?;
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Commit transaction
-    if let Err(e) = transaction.commit().await {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("error commiting transaction to database: {:#}", e),
-        });
-
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json_message)));
-    }
+    transaction
+        .commit()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Get updated task
     let task = match row_opt {
@@ -270,32 +195,14 @@ pub async fn delete_task_handler(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error getting user id: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
     // Get connection from pool and then start transaction
-    let mut conn = data.get_conn().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving connection from pool: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
-    let transaction = conn.transaction().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error starting transaction from connection: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let transaction = conn
+        .transaction()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Build SQL query
     let mut query_builder = SQLQueryBuilder::new();
@@ -310,24 +217,13 @@ pub async fn delete_task_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| {
-            let json_message = json!({
-                "status": "error",
-                "message": format!("error deleting task from database: {:#}", e),
-            });
-
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-        })?;
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Commit transaction
-    if let Err(e) = transaction.commit().await {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("error commiting transaction to database: {:#}", e),
-        });
-
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json_message)));
-    }
+    transaction
+        .commit()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Get deleted task id
     let task_id: Uuid = match row_opt {
@@ -365,24 +261,10 @@ pub async fn query_task_handler(
     let offset = (page - 1) * limit;
 
     // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error getting user id: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
     // Get connection from pool
-    let conn = data.get_conn().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving connection from pool: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
 
     // Build SQL query
     let mut query_builder = SQLQueryBuilder::new();
@@ -394,14 +276,10 @@ pub async fn query_task_handler(
     let (statement, params) = query_builder.build_select();
 
     // Query tasks in database
-    let rows = conn.query(&statement, &params).await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("error querying tasks in database: {:#}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let rows = conn
+        .query(&statement, &params)
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Get queried tasks
     let tasks: Vec<TaskModel> = rows.iter().map(|r| TaskModel::from(r.to_owned())).collect();

@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use crate::{
     AppState,
+    error::Error,
     model::{
         ToResponse,
         project::{ProjectModel, ProjectResponseModel},
@@ -32,32 +33,14 @@ pub async fn create_project_handler(
     Json(body): Json<CreateProjectSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error getting user id: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
     // Get connection from pool and then start transaction
-    let mut conn = data.get_conn().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving connection from pool: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
-    let transaction = conn.transaction().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error starting transaction from connection: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let transaction = conn
+        .transaction()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Build SQL query
     let mut query_builder = SQLQueryBuilder::new();
@@ -71,24 +54,13 @@ pub async fn create_project_handler(
     let row = transaction
         .query_one(&statement, &params)
         .await
-        .map_err(|e| {
-            let json_message = json!({
-                "status": "error",
-                "message": format!("Error inserting project to database: {:#}", e),
-            });
-
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-        })?;
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Commit transaction
-    if let Err(e) = transaction.commit().await {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error commiting transaction to database: {:#?}", e),
-        });
-
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json_message)));
-    }
+    transaction
+        .commit()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Get created project
     let project = ProjectModel::from(row);
@@ -110,24 +82,10 @@ pub async fn retrieve_project_handler(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error getting user id: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
     // Get connection from pool
-    let conn = data.get_conn().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving connection from pool: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
 
     // Build SQL query
     let mut query_builder = SQLQueryBuilder::new();
@@ -139,14 +97,10 @@ pub async fn retrieve_project_handler(
     let (statement, params) = query_builder.build_select();
 
     // Retrieve project from database
-    let row_opt = conn.query_opt(&statement, &params).await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving project from database: {:#}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let row_opt = conn
+        .query_opt(&statement, &params)
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Get retrieved project
     let project = match row_opt {
@@ -179,32 +133,14 @@ pub async fn update_project_handler(
     Json(body): Json<UpdateProjectSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error getting user id: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
     // Get connection from pool and then start transaction
-    let mut conn = data.get_conn().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving connection from pool: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
-    let transaction = conn.transaction().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error starting transaction from connection: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let transaction = conn
+        .transaction()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Build SQL query
     let timestamp = Local::now();
@@ -221,24 +157,13 @@ pub async fn update_project_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| {
-            let json_message = json!({
-                "status": "error",
-                "message": format!("error updating project in database: {:#}", e),
-            });
-
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-        })?;
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Commit transaction
-    if let Err(e) = transaction.commit().await {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("error commiting transaction to database: {:#}", e),
-        });
-
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json_message)));
-    }
+    transaction
+        .commit()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Get updated project
     let project = match row_opt {
@@ -270,32 +195,14 @@ pub async fn delete_project_handler(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error getting user id: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
     // Get connection from pool and then start transaction
-    let mut conn = data.get_conn().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving connection from pool: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
-    let transaction = conn.transaction().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error starting transaction from connection: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let transaction = conn
+        .transaction()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Build SQL query
     let mut query_builder = SQLQueryBuilder::new();
@@ -320,14 +227,10 @@ pub async fn delete_project_handler(
         })?;
 
     // Commit transaction
-    if let Err(e) = transaction.commit().await {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("error commiting transaction to database: {:#}", e),
-        });
-
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json_message)));
-    }
+    transaction
+        .commit()
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Get deleted project id
     let project_id: Uuid = match row_opt {
@@ -365,24 +268,10 @@ pub async fn query_project_handler(
     let offset = (page - 1) * limit;
 
     // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error getting user id: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
     // Get connection from pool
-    let conn = data.get_conn().await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("Error retrieving connection from pool: {:?}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
 
     // Build SQL query
     let mut query_builder = SQLQueryBuilder::new();
@@ -394,14 +283,10 @@ pub async fn query_project_handler(
     let (statement, params) = query_builder.build_select();
 
     // Query projects in database
-    let rows = conn.query(&statement, &params).await.map_err(|e| {
-        let json_message = json!({
-            "status": "error",
-            "message": format!("error querying projects in database: {:#}", e),
-        });
-
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json_message))
-    })?;
+    let rows = conn
+        .query(&statement, &params)
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
 
     // Get queried projects
     let projects: Vec<ProjectModel> = rows

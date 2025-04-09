@@ -447,10 +447,7 @@ mod update_schema_test {
 
         let (statement, params) = builder.build_update();
 
-        assert_eq!(
-            statement.as_str(),
-            "UPDATE data.projects SET area_id=$1"
-        );
+        assert_eq!(statement.as_str(), "UPDATE data.projects SET area_id=$1");
         assert_eq!(params.len(), 1);
     }
 
@@ -506,10 +503,7 @@ mod query_schema_test {
 
         let (statement, params) = builder.build_select();
 
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.projects"
-        );
+        assert_eq!(statement.as_str(), "SELECT * FROM data.projects");
         assert_eq!(params.len(), 0);
     }
 
