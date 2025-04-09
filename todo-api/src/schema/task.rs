@@ -835,16 +835,16 @@ mod query_schema_test {
         assert_eq!(params.len(), 8);
     }
 
-	#[test]
-	fn limit() {
-		let mut schema = QueryTaskSchema::default();
+    #[test]
+    fn limit() {
+        let mut schema = QueryTaskSchema::default();
         schema.title = Some(QueryMethod::Match("Test Title".to_string()));
         schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
         builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &ID);
-		builder.set_limit(25);
+        builder.set_limit(25);
 
         let (statement, params) = builder.build_select();
 
@@ -853,18 +853,18 @@ mod query_schema_test {
             "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 LIMIT 25"
         );
         assert_eq!(params.len(), 3);
-	}
+    }
 
-	#[test]
-	fn offset() {
-		let mut schema = QueryTaskSchema::default();
+    #[test]
+    fn offset() {
+        let mut schema = QueryTaskSchema::default();
         schema.title = Some(QueryMethod::Match("Test Title".to_string()));
         schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
         builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &ID);
-		builder.set_offset(50);
+        builder.set_offset(50);
 
         let (statement, params) = builder.build_select();
 
@@ -873,19 +873,19 @@ mod query_schema_test {
             "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 OFFSET 50"
         );
         assert_eq!(params.len(), 3);
-	}
+    }
 
-	#[test]
-	fn limit_offset() {
-		let mut schema = QueryTaskSchema::default();
+    #[test]
+    fn limit_offset() {
+        let mut schema = QueryTaskSchema::default();
         schema.title = Some(QueryMethod::Match("Test Title".to_string()));
         schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
         builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &ID);
-		builder.set_limit(25);
-		builder.set_offset(50);
+        builder.set_limit(25);
+        builder.set_offset(50);
 
         let (statement, params) = builder.build_select();
 
@@ -894,7 +894,7 @@ mod query_schema_test {
             "SELECT * FROM data.tasks WHERE task_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 LIMIT 25 OFFSET 50"
         );
         assert_eq!(params.len(), 3);
-	}
+    }
 
     #[test]
     fn return_some() {

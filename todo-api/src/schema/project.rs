@@ -806,16 +806,16 @@ mod query_schema_test {
         assert_eq!(params.len(), 7);
     }
 
-	#[test]
-	fn limit() {
-		let mut schema = QueryProjectSchema::default();
+    #[test]
+    fn limit() {
+        let mut schema = QueryProjectSchema::default();
         schema.title = Some(QueryMethod::Match("Test Title".to_string()));
         schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
         builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-		builder.set_limit(25);
+        builder.set_limit(25);
 
         let (statement, params) = builder.build_select();
 
@@ -824,18 +824,18 @@ mod query_schema_test {
             "SELECT * FROM data.projects WHERE project_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 LIMIT 25"
         );
         assert_eq!(params.len(), 3);
-	}
+    }
 
-	#[test]
-	fn offset() {
-		let mut schema = QueryProjectSchema::default();
+    #[test]
+    fn offset() {
+        let mut schema = QueryProjectSchema::default();
         schema.title = Some(QueryMethod::Match("Test Title".to_string()));
         schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
         builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-		builder.set_offset(50);
+        builder.set_offset(50);
 
         let (statement, params) = builder.build_select();
 
@@ -844,19 +844,19 @@ mod query_schema_test {
             "SELECT * FROM data.projects WHERE project_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 OFFSET 50"
         );
         assert_eq!(params.len(), 3);
-	}
+    }
 
-	#[test]
-	fn limit_offset() {
-		let mut schema = QueryProjectSchema::default();
+    #[test]
+    fn limit_offset() {
+        let mut schema = QueryProjectSchema::default();
         schema.title = Some(QueryMethod::Match("Test Title".to_string()));
         schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
         builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &ID);
-		builder.set_limit(25);
-		builder.set_offset(50);
+        builder.set_limit(25);
+        builder.set_offset(50);
 
         let (statement, params) = builder.build_select();
 
@@ -865,7 +865,7 @@ mod query_schema_test {
             "SELECT * FROM data.projects WHERE project_title LIKE %$1% AND notes LIKE %$2% AND user_id = $3 LIMIT 25 OFFSET 50"
         );
         assert_eq!(params.len(), 3);
-	}
+    }
 
     #[test]
     fn return_some() {
