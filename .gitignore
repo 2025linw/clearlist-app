@@ -1,8 +1,11 @@
-# Settings Files
+# DevEnv Config Files
 **/.vscode
 
-# For security reasons
+# Environment Files
 **/.env
 
 # Log files
 **/*.log
+
+# MacOS Files
+**/.DS_Store

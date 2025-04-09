@@ -1,7 +1,9 @@
 
 # Todo List Application
 
-This project is meant to explore creating backend web servers in Rust and how to use React Native to create an UI frontend for variety of devices
+Todo List application that supports both web UI and mobile UIs.
+
+This project was used to explore and learn Rust offerings for backend web servers and React Native for the frontend to support variety of platforms.
 
 The backend utilizes:
 
