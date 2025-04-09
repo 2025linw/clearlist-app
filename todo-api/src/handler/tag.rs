@@ -25,8 +25,6 @@ use crate::{
     util::{AddToQuery, PostgresCmp, SQLQueryBuilder, extract_user_id},
 };
 
-// TODO: convert everything to use `map_err` to allow for `?` operator to auto return
-
 pub async fn create_tag_handler(
     State(data): State<Arc<AppState>>,
     jar: CookieJar,
