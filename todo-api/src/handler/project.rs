@@ -42,7 +42,7 @@ pub async fn create_project_handler(
         .map_err(|e| Error::from(e).err_map())?;
 
     // Create project
-    let mut query_builder = SQLQueryBuilder::new();
+    let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
     query_builder.add_column(ProjectModel::USER_ID, &user_id);
     body.add_to_query(&mut query_builder);
     query_builder.set_return(vec![ProjectModel::ID]);
@@ -59,8 +59,7 @@ pub async fn create_project_handler(
     // Add tags
     if let Some(ref v) = body.tag_ids {
         for tag in v {
-            let mut query_builder = SQLQueryBuilder::new();
-            query_builder.set_table(ProjectTagModel::TABLE);
+            let mut query_builder = SQLQueryBuilder::new(ProjectTagModel::TABLE);
             query_builder.add_column(ProjectTagModel::PROJECT_ID, &project_id);
             query_builder.add_column(ProjectTagModel::TAG_ID, tag);
 
@@ -84,8 +83,7 @@ pub async fn create_project_handler(
         .map_err(|e| Error::from(e).err_map())?;
 
     // Get created project
-    let mut query_builder = SQLQueryBuilder::new();
-    query_builder.set_table(ProjectModel::TABLE);
+    let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
     query_builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(ProjectModel::ID, PostgresCmp::Equal, &project_id);
     query_builder.set_return_all();
@@ -100,8 +98,8 @@ pub async fn create_project_handler(
     let project = ProjectModel::from(row);
 
     // Get related tags
-    let mut query_builder = SQLQueryBuilder::new();
-    query_builder.set_table(TagModel::TABLE).add_join(
+    let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
+    query_builder.add_join(
         Join::Inner,
         ProjectTagModel::TABLE,
         ProjectTagModel::TAG_ID,
@@ -141,8 +139,7 @@ pub async fn retrieve_project_handler(
     let conn = data.get_conn().await.map_err(|e| e.err_map())?;
 
     // Retrieve project
-    let mut query_builder = SQLQueryBuilder::new();
-    query_builder.set_table(ProjectModel::TABLE);
+    let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
     query_builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(ProjectModel::ID, PostgresCmp::Equal, &id);
     query_builder.set_return_all();
@@ -167,8 +164,8 @@ pub async fn retrieve_project_handler(
     };
 
     // Get related tags
-    let mut query_builder = SQLQueryBuilder::new();
-    query_builder.set_table(TagModel::TABLE).add_join(
+    let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
+    query_builder.add_join(
         Join::Inner,
         ProjectTagModel::TABLE,
         ProjectTagModel::TAG_ID,
@@ -211,7 +208,7 @@ pub async fn update_project_handler(
 
     // Update project
     let timestamp = Local::now();
-    let mut query_builder = SQLQueryBuilder::new();
+    let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
     query_builder.add_column(ProjectModel::UPDATED, &timestamp);
     body.add_to_query(&mut query_builder);
     query_builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &user_id);
@@ -236,8 +233,7 @@ pub async fn update_project_handler(
 
     // Update tags (first delete existing tags)
     if let Some(ref v) = body.tag_ids {
-        let mut query_builder = SQLQueryBuilder::new();
-        query_builder.set_table(ProjectTagModel::TABLE);
+        let mut query_builder = SQLQueryBuilder::new(ProjectTagModel::TABLE);
         query_builder.add_condition(ProjectTagModel::PROJECT_ID, PostgresCmp::Equal, &id);
 
         let (statement, params) = query_builder.build_delete();
@@ -248,8 +244,7 @@ pub async fn update_project_handler(
             .map_err(|e| Error::from(e).err_map())?;
 
         for tag in v {
-            let mut query_builder = SQLQueryBuilder::new();
-            query_builder.set_table(ProjectTagModel::TABLE);
+            let mut query_builder = SQLQueryBuilder::new(ProjectTagModel::TABLE);
             query_builder.add_column(ProjectTagModel::PROJECT_ID, &id);
             query_builder.add_column(ProjectTagModel::TAG_ID, tag);
 
@@ -273,8 +268,7 @@ pub async fn update_project_handler(
         .map_err(|e| Error::from(e).err_map())?;
 
     // Get updated project
-    let mut query_builder = SQLQueryBuilder::new();
-    query_builder.set_table(ProjectModel::TABLE);
+    let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
     query_builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(ProjectModel::ID, PostgresCmp::Equal, &id);
     query_builder.set_return_all();
@@ -289,8 +283,8 @@ pub async fn update_project_handler(
     let project = ProjectModel::from(row);
 
     // Get related tags
-    let mut query_builder = SQLQueryBuilder::new();
-    query_builder.set_table(TagModel::TABLE).add_join(
+    let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
+    query_builder.add_join(
         Join::Inner,
         ProjectTagModel::TABLE,
         ProjectTagModel::TAG_ID,
@@ -331,8 +325,7 @@ pub async fn delete_project_handler(
         .map_err(|e| Error::from(e).err_map())?;
 
     // Delete project
-    let mut query_builder = SQLQueryBuilder::new();
-    query_builder.set_table(ProjectModel::TABLE);
+    let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
     query_builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(ProjectModel::ID, PostgresCmp::Equal, &id);
     query_builder.set_return(vec![ProjectModel::ID]);
@@ -380,7 +373,7 @@ pub async fn query_project_handler(
     let offset = (page - 1) * limit;
 
     // Query projects
-    let mut query_builder = SQLQueryBuilder::new();
+    let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
     body.add_to_query(&mut query_builder);
     query_builder.add_condition(ProjectModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.set_limit(limit);
@@ -402,9 +395,8 @@ pub async fn query_project_handler(
     if let Some(ref v) = body.tag_ids {
         let num_tags = v.len() as i64;
 
-        let mut query_builder = SQLQueryBuilder::new();
+        let mut query_builder = SQLQueryBuilder::new(ProjectTagModel::TABLE);
         query_builder.set_return(vec![ProjectTagModel::PROJECT_ID]);
-        query_builder.set_table(ProjectTagModel::TABLE);
         query_builder.add_condition(ProjectTagModel::TAG_ID, PostgresCmp::In, v);
         query_builder.set_group_by(vec![ProjectTagModel::PROJECT_ID]);
         query_builder.set_having(
@@ -431,8 +423,8 @@ pub async fn query_project_handler(
     // Get related tags
     let mut project_responses: Vec<ProjectResponseModel> = Vec::new();
     for project in projects {
-        let mut query_builder = SQLQueryBuilder::new();
-        query_builder.set_table(TagModel::TABLE).add_join(
+        let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
+        query_builder.add_join(
             Join::Inner,
             ProjectTagModel::TABLE,
             ProjectTagModel::TAG_ID,

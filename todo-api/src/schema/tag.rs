@@ -19,8 +19,6 @@ pub struct CreateTagSchema {
 
 impl<'a, 'b> AddToQuery<'a, 'b> for CreateTagSchema {
     fn add_to_query(&'a self, builder: &'b mut SQLQueryBuilder<'a>) {
-        builder.set_table(TagModel::TABLE);
-
         if let Some(ref s) = self.label {
             builder.add_column(TagModel::LABEL, s);
         }
@@ -46,8 +44,6 @@ pub struct UpdateTagSchema {
 
 impl<'a, 'b> AddToQuery<'a, 'b> for UpdateTagSchema {
     fn add_to_query(&'a self, builder: &'b mut SQLQueryBuilder<'a>) {
-        builder.set_table(TagModel::TABLE);
-
         if let Some(ref u) = self.label {
             if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {
                 builder.add_column(TagModel::LABEL, u);
@@ -78,8 +74,6 @@ pub struct QueryTagSchema {
 
 impl<'a, 'b> AddToQuery<'a, 'b> for QueryTagSchema {
     fn add_to_query(&'a self, builder: &'b mut SQLQueryBuilder<'a>) {
-        builder.set_table(TagModel::TABLE);
-
         if let Some(ref q) = self.label {
             let cmp;
             match q {
@@ -116,7 +110,7 @@ impl<'a, 'b> AddToQuery<'a, 'b> for QueryTagSchema {
 
 #[cfg(test)]
 mod create_schema_test {
-    use crate::util::{AddToQuery, SQLQueryBuilder};
+    use crate::{model::tag::TagModel, util::{AddToQuery, SQLQueryBuilder}};
 
     use super::CreateTagSchema;
 
@@ -127,7 +121,7 @@ mod create_schema_test {
         schema.color = Some("#2f78ed".to_string());
         schema.category = Some("Priority".to_string());
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(TagModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_insert();
@@ -145,8 +139,7 @@ mod create_schema_test {
 #[cfg(test)]
 mod update_schema_test {
     use crate::{
-        schema::UpdateMethod,
-        util::{AddToQuery, SQLQueryBuilder},
+        model::tag::TagModel, schema::UpdateMethod, util::{AddToQuery, SQLQueryBuilder}
     };
 
     use super::UpdateTagSchema;
@@ -158,7 +151,7 @@ mod update_schema_test {
         schema.color = Some(UpdateMethod::Change("#2f78ed".to_string()));
         schema.category = Some(UpdateMethod::Change("Priority".to_string()));
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(TagModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_update();
@@ -176,8 +169,7 @@ mod update_schema_test {
 #[cfg(test)]
 mod query_schema_test {
     use crate::{
-        schema::QueryMethod,
-        util::{AddToQuery, SQLQueryBuilder},
+        model::tag::TagModel, schema::QueryMethod, util::{AddToQuery, SQLQueryBuilder}
     };
 
     use super::QueryTagSchema;
@@ -186,7 +178,7 @@ mod query_schema_test {
     fn empty() {
         let schema = QueryTagSchema::default();
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(TagModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();
@@ -201,7 +193,7 @@ mod query_schema_test {
         schema.label = Some(QueryMethod::Match("Test Label".to_string()));
         schema.category = Some(QueryMethod::Match("Priority".to_string()));
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(TagModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();

@@ -20,13 +20,11 @@ pub struct CreateProjectSchema {
     deadline: Option<NaiveDate>,
 
     area_id: Option<Uuid>,
-    pub(crate) tag_ids: Option<Vec<Uuid>>,  // TODO: is there a way that this can not be pub?
+    pub(crate) tag_ids: Option<Vec<Uuid>>, // TODO: is there a way that this can not be pub?
 }
 
 impl<'a, 'b> AddToQuery<'a, 'b> for CreateProjectSchema {
     fn add_to_query(&'a self, builder: &'b mut SQLQueryBuilder<'a>) {
-        builder.set_table(ProjectModel::TABLE);
-
         if let Some(ref s) = self.title {
             builder.add_column(ProjectModel::TITLE, s);
         }
@@ -69,8 +67,6 @@ pub struct UpdateProjectSchema {
 
 impl<'a, 'b> AddToQuery<'a, 'b> for UpdateProjectSchema {
     fn add_to_query(&'a self, builder: &'b mut SQLQueryBuilder<'a>) {
-        builder.set_table(ProjectModel::TABLE);
-
         if let Some(ref u) = self.title {
             if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {
                 builder.add_column(ProjectModel::TITLE, u);
@@ -156,8 +152,6 @@ pub struct QueryProjectSchema {
 
 impl<'a, 'b> AddToQuery<'a, 'b> for QueryProjectSchema {
     fn add_to_query(&'a self, builder: &'b mut SQLQueryBuilder<'a>) {
-        builder.set_table(ProjectModel::TABLE);
-
         if let Some(ref q) = self.title {
             let cmp;
             match q {
@@ -267,7 +261,7 @@ mod create_schema_test {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::util::{AddToQuery, SQLQueryBuilder};
+    use crate::{model::project::ProjectModel, util::{AddToQuery, SQLQueryBuilder}};
 
     use super::CreateProjectSchema;
 
@@ -277,7 +271,7 @@ mod create_schema_test {
         schema.title = Some("Test Title".to_string());
         schema.notes = Some("Test Note".to_string());
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_insert();
@@ -298,7 +292,7 @@ mod create_schema_test {
         schema.start_time = Some(now.time());
         schema.deadline = Some(now.date_naive());
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_insert();
@@ -315,7 +309,7 @@ mod create_schema_test {
         let mut schema = CreateProjectSchema::default();
         schema.area_id = Some(Uuid::new_v4());
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_insert();
@@ -339,7 +333,7 @@ mod create_schema_test {
         schema.deadline = Some(now.date_naive());
         schema.area_id = Some(Uuid::new_v4());
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_insert();
@@ -373,7 +367,7 @@ mod update_schema_test {
         schema.title = Some(UpdateMethod::Change("Test Title".to_string()));
         schema.notes = Some(UpdateMethod::Change("Test Note".to_string()));
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_update();
@@ -394,7 +388,7 @@ mod update_schema_test {
         schema.start_time = Some(UpdateMethod::Change(now.time()));
         schema.deadline = Some(UpdateMethod::Change(now.date_naive()));
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_update();
@@ -415,7 +409,7 @@ mod update_schema_test {
         schema.logged = Some(true);
         schema.trashed = Some(true);
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         builder.add_column(ProjectModel::UPDATED, &now);
         schema.add_to_query(&mut builder);
 
@@ -433,7 +427,7 @@ mod update_schema_test {
         let mut schema = UpdateProjectSchema::default();
         schema.area_id = Some(UpdateMethod::Change(Uuid::new_v4()));
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_update();
@@ -457,7 +451,7 @@ mod update_schema_test {
         schema.trashed = Some(true);
         schema.area_id = Some(UpdateMethod::Change(Uuid::new_v4()));
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         builder.add_column(ProjectModel::UPDATED, &now);
         schema.add_to_query(&mut builder);
 
@@ -479,8 +473,7 @@ mod query_schema_test {
     use uuid::Uuid;
 
     use crate::{
-        schema::{Compare, QueryMethod},
-        util::{AddToQuery, SQLQueryBuilder},
+        model::project::ProjectModel, schema::{Compare, QueryMethod}, util::{AddToQuery, SQLQueryBuilder}
     };
 
     use super::QueryProjectSchema;
@@ -489,7 +482,7 @@ mod query_schema_test {
     fn empty() {
         let schema = QueryProjectSchema::default();
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();
@@ -504,7 +497,7 @@ mod query_schema_test {
         schema.title = Some(QueryMethod::Match("Test Title".to_string()));
         schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();
@@ -525,7 +518,7 @@ mod query_schema_test {
         schema.start_time = Some(QueryMethod::Match(now.time()));
         schema.deadline = Some(QueryMethod::Match(now.date_naive()));
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();
@@ -546,7 +539,7 @@ mod query_schema_test {
         schema.start_time = Some(QueryMethod::Compare(now.time(), Compare::LessEq));
         schema.deadline = Some(QueryMethod::Compare(now.date_naive(), Compare::Greater));
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();
@@ -565,7 +558,7 @@ mod query_schema_test {
         schema.logged = Some(true);
         schema.trashed = Some(true);
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();
@@ -584,7 +577,7 @@ mod query_schema_test {
         schema.logged = Some(false);
         schema.trashed = Some(false);
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();
@@ -601,7 +594,7 @@ mod query_schema_test {
         let mut schema = QueryProjectSchema::default();
         schema.area_id = Some(Uuid::new_v4());
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();
@@ -628,7 +621,7 @@ mod query_schema_test {
         schema.trashed = Some(false);
         schema.area_id = Some(Uuid::new_v4());
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();

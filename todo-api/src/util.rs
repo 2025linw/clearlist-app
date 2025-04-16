@@ -103,8 +103,11 @@ pub struct SQLQueryBuilder<'a> {
 }
 
 impl<'a> SQLQueryBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(table_name: &str) -> Self {
+        Self {
+            table: table_name.to_string(),
+            ..Default::default()
+        }
     }
 
     /// Get element at a given index in columns
@@ -113,13 +116,6 @@ impl<'a> SQLQueryBuilder<'a> {
             Some((_, val)) => Some(val.to_owned()),
             None => None,
         }
-    }
-
-    /// Set table to query on
-    pub fn set_table(&mut self, table_name: &str) -> &mut Self {
-        self.table = table_name.to_string();
-
-        self
     }
 
     /// Add tables to join
@@ -524,8 +520,6 @@ pub trait AddToQuery<'a, 'b> {
 
 #[cfg(test)]
 mod select_builder_tests {
-    use tokio_postgres::types::ToSql;
-
     use crate::util::Join;
 
     use super::{NULL, PostgresCmp, SQLQueryBuilder};
@@ -533,17 +527,8 @@ mod select_builder_tests {
     // TEST: as ISNULL and NOTNULL to tests
 
     #[test]
-    #[should_panic]
-    fn no_title() {
-        let builder = SQLQueryBuilder::new();
-
-        builder.build_select();
-    }
-
-    #[test]
     fn empty() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let builder = SQLQueryBuilder::new("table");
 
         let (statement, params) = builder.build_select();
 
@@ -553,8 +538,7 @@ mod select_builder_tests {
 
     #[test]
     fn one_column() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.set_return(vec!["col_1"]);
 
@@ -566,8 +550,7 @@ mod select_builder_tests {
 
     #[test]
     fn many_columns() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.set_return(vec!["col_1", "col_2", "col_3"]);
 
@@ -579,8 +562,7 @@ mod select_builder_tests {
 
     #[test]
     fn all_columns() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.set_return_all();
 
@@ -592,11 +574,10 @@ mod select_builder_tests {
 
     #[test]
     fn one_condition() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
-        let val_1 = 10;
-        builder.add_condition("col_1", PostgresCmp::Less, &val_1 as &(dyn ToSql + Sync));
+        let val_1: i32 = 10;
+        builder.add_condition("col_1", PostgresCmp::Less, &val_1);
 
         let (statement, params) = builder.build_select();
 
@@ -606,13 +587,12 @@ mod select_builder_tests {
 
     #[test]
     fn many_conditions() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
-        let val_1 = 10;
-        let val_2 = 35;
-        builder.add_condition("col_1", PostgresCmp::Less, &val_1 as &(dyn ToSql + Sync));
-        builder.add_condition("col_2", PostgresCmp::Equal, &val_2 as &(dyn ToSql + Sync));
+        let val_1: i32 = 10;
+        let val_2: i32 = 35;
+        builder.add_condition("col_1", PostgresCmp::Less, &val_1);
+        builder.add_condition("col_2", PostgresCmp::Equal, &val_2);
         builder.add_condition("col_3", PostgresCmp::IsNull, &NULL);
 
         let (statement, params) = builder.build_select();
@@ -626,17 +606,16 @@ mod select_builder_tests {
 
     #[test]
     fn columns_and_conditions() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.set_return(vec!["col_1"]);
 
-        let val_1 = 10;
-        let val_2 = 35;
-        let val_3 = 150;
-        builder.add_condition("col_1", PostgresCmp::Less, &val_1 as &(dyn ToSql + Sync));
-        builder.add_condition("col_2", PostgresCmp::Equal, &val_2 as &(dyn ToSql + Sync));
-        builder.add_condition("col_3", PostgresCmp::Greater, &val_3 as &(dyn ToSql + Sync));
+        let val_1: i32 = 10;
+        let val_2: i32 = 35;
+        let val_3: i32 = 150;
+        builder.add_condition("col_1", PostgresCmp::Less, &val_1);
+        builder.add_condition("col_2", PostgresCmp::Equal, &val_2);
+        builder.add_condition("col_3", PostgresCmp::Greater, &val_3);
 
         let (statement, params) = builder.build_select();
 
@@ -649,8 +628,7 @@ mod select_builder_tests {
 
     #[test]
     fn inner_join() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.add_join(Join::Inner, "table2", "col_1");
 
@@ -665,8 +643,7 @@ mod select_builder_tests {
 
     #[test]
     fn left_join() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.add_join(Join::Left, "table2", "col_1");
 
@@ -681,8 +658,7 @@ mod select_builder_tests {
 
     #[test]
     fn right_join() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.add_join(Join::Right, "table2", "col_1");
 
@@ -697,8 +673,7 @@ mod select_builder_tests {
 
     #[test]
     fn full_join() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.add_join(Join::Full, "table2", "col_1");
 
@@ -713,8 +688,7 @@ mod select_builder_tests {
 
     #[test]
     fn multi_join() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.add_join(Join::Inner, "table2", "col_1");
         builder.add_join(Join::Inner, "table3", "col_2");
@@ -730,12 +704,27 @@ mod select_builder_tests {
 
     #[test]
     fn group_by() {
-        // TEST
+        let mut builder = SQLQueryBuilder::new("table");
+
+        builder.set_group_by(vec!["col_1"]);
+
+        let (statement, params) = builder.build_select();
+
+        assert_eq!(statement.as_str(), "SELECT * FROM table GROUP BY col_1",);
+        assert_eq!(params.len(), 0);
     }
 
     #[test]
     fn having() {
-        // TEST
+        let mut builder = SQLQueryBuilder::new("table");
+
+        let val_1: i32 = 10;
+        builder.set_having("COUNT(col_1)", PostgresCmp::Equal, &val_1);
+
+        let (statement, params) = builder.build_select();
+
+        assert_eq!(statement.as_str(), "SELECT * FROM table HAVING COUNT(col_1) = $1",);
+        assert_eq!(params.len(), 1);
     }
 }
 
@@ -745,28 +734,17 @@ mod insert_builder_tests {
 
     #[test]
     #[should_panic]
-    fn no_title() {
-        let builder = SQLQueryBuilder::new();
-
-        builder.build_insert();
-    }
-
-    #[test]
-    #[should_panic]
     fn empty() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let builder = SQLQueryBuilder::new("table");
 
         builder.build_insert();
     }
 
     #[test]
     fn one_column() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = String::from("Sample data");
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
 
         let (statement, params) = builder.build_insert();
@@ -777,13 +755,11 @@ mod insert_builder_tests {
 
     #[test]
     fn many_columns() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = uuid::Uuid::new_v4();
         let col_2 = String::from("Sample Data");
         let col_3 = chrono::Local::now().date_naive();
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
         builder.add_column("col_2", &col_2);
         builder.add_column("col_3", &col_3);
@@ -799,11 +775,9 @@ mod insert_builder_tests {
 
     #[test]
     fn return_one_column() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = String::from("Sample data");
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
 
         builder.set_return(vec!["col_1"]);
@@ -819,13 +793,11 @@ mod insert_builder_tests {
 
     #[test]
     fn return_many_columns() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = uuid::Uuid::new_v4();
         let col_2 = String::from("Sample Data");
         let col_3 = chrono::Local::now().date_naive();
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
         builder.add_column("col_2", &col_2);
         builder.add_column("col_3", &col_3);
@@ -843,13 +815,11 @@ mod insert_builder_tests {
 
     #[test]
     fn return_all_columns() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = uuid::Uuid::new_v4();
         let col_2 = String::from("Sample Data");
         let col_3 = chrono::Local::now().date_naive();
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
         builder.add_column("col_2", &col_2);
         builder.add_column("col_3", &col_3);
@@ -868,8 +838,6 @@ mod insert_builder_tests {
 
 #[cfg(test)]
 mod update_builder_tests {
-    use tokio_postgres::types::ToSql;
-
     use super::{PostgresCmp, SQLQueryBuilder};
 
     // TEST: as ISNULL and NOTNULL to tests
@@ -877,27 +845,16 @@ mod update_builder_tests {
     #[test]
     #[should_panic]
     fn no_title() {
-        let builder = SQLQueryBuilder::new();
-
-        builder.build_update();
-    }
-
-    #[test]
-    #[should_panic]
-    fn empty() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let builder = SQLQueryBuilder::new("table");
 
         builder.build_update();
     }
 
     #[test]
     fn one_column() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = String::from("Sample Data");
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
 
         let (statement, params) = builder.build_update();
@@ -908,13 +865,11 @@ mod update_builder_tests {
 
     #[test]
     fn many_columns() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = uuid::Uuid::new_v4();
         let col_2 = String::from("Sample Data");
         let col_3 = chrono::Local::now().date_naive();
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
         builder.add_column("col_2", &col_2);
         builder.add_column("col_3", &col_3);
@@ -930,15 +885,13 @@ mod update_builder_tests {
 
     #[test]
     fn one_condition() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = String::from("Sample Data");
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
 
-        let val_1 = 150;
-        builder.add_condition("col_2", PostgresCmp::Less, &val_1 as &(dyn ToSql + Sync));
+        let val_1: i32 = 150;
+        builder.add_condition("col_2", PostgresCmp::Less, &val_1);
 
         let (statement, params) = builder.build_update();
 
@@ -951,17 +904,15 @@ mod update_builder_tests {
 
     #[test]
     fn many_conditions() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = String::from("Sample Data");
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
 
-        let val_1 = 150;
-        let val_2 = 14;
-        builder.add_condition("col_2", PostgresCmp::Less, &val_1 as &(dyn ToSql + Sync));
-        builder.add_condition("col_3", PostgresCmp::Equal, &val_2 as &(dyn ToSql + Sync));
+        let val_1: i32 = 150;
+        let val_2: i32 = 14;
+        builder.add_condition("col_2", PostgresCmp::Less, &val_1);
+        builder.add_condition("col_3", PostgresCmp::Equal, &val_2);
 
         let (statement, params) = builder.build_update();
 
@@ -974,21 +925,19 @@ mod update_builder_tests {
 
     #[test]
     fn columns_and_conditions() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = uuid::Uuid::new_v4();
         let col_2 = String::from("Sample Data");
         let col_3 = chrono::Local::now().date_naive();
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
         builder.add_column("col_2", &col_2);
         builder.add_column("col_3", &col_3);
 
-        let val_1 = 150;
-        let val_2 = 14;
-        builder.add_condition("col_2", PostgresCmp::Less, &val_1 as &(dyn ToSql + Sync));
-        builder.add_condition("col_3", PostgresCmp::Equal, &val_2 as &(dyn ToSql + Sync));
+        let val_1: i32 = 150;
+        let val_2: i32 = 14;
+        builder.add_condition("col_2", PostgresCmp::Less, &val_1);
+        builder.add_condition("col_3", PostgresCmp::Equal, &val_2);
 
         let (statement, params) = builder.build_update();
 
@@ -1001,11 +950,9 @@ mod update_builder_tests {
 
     #[test]
     fn return_one_column() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = String::from("Sample Data");
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
 
         builder.set_return(vec!["col_1"]);
@@ -1021,11 +968,9 @@ mod update_builder_tests {
 
     #[test]
     fn return_many_columns() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = String::from("Sample Data");
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
 
         builder.set_return(vec!["col_1", "col_2", "col_3"]);
@@ -1041,15 +986,13 @@ mod update_builder_tests {
 
     #[test]
     fn return_all_columns() {
+        let mut builder = SQLQueryBuilder::new("table");
+
         let col_1 = String::from("Sample Data");
-
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
-
         builder.add_column("col_1", &col_1);
 
-        let val_1 = 150;
-        builder.add_condition("col_2", PostgresCmp::Less, &val_1 as &(dyn ToSql + Sync));
+        let val_1: i32 = 150;
+        builder.add_condition("col_2", PostgresCmp::Less, &val_1);
 
         builder.set_return_all();
 
@@ -1065,24 +1008,13 @@ mod update_builder_tests {
 
 #[cfg(test)]
 mod delete_builder_tests {
-    use tokio_postgres::types::ToSql;
-
     use super::{PostgresCmp, SQLQueryBuilder};
 
     // TEST: as ISNULL and NOTNULL to tests
 
     #[test]
-    #[should_panic]
-    fn no_title() {
-        let builder = SQLQueryBuilder::new();
-
-        builder.build_delete();
-    }
-
-    #[test]
     fn empty() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let builder = SQLQueryBuilder::new("table");
 
         let (statement, params) = builder.build_delete();
 
@@ -1092,11 +1024,10 @@ mod delete_builder_tests {
 
     #[test]
     fn one_condition() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
-        let val_1 = 150;
-        builder.add_condition("col_2", PostgresCmp::Less, &val_1 as &(dyn ToSql + Sync));
+        let val_1: i32 = 150;
+        builder.add_condition("col_2", PostgresCmp::Less, &val_1);
 
         let (statement, params) = builder.build_delete();
 
@@ -1106,13 +1037,12 @@ mod delete_builder_tests {
 
     #[test]
     fn many_conditions() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
-        let val_1 = 150;
-        let val_2 = 18;
-        builder.add_condition("col_2", PostgresCmp::Less, &val_1 as &(dyn ToSql + Sync));
-        builder.add_condition("col_3", PostgresCmp::Equal, &val_2 as &(dyn ToSql + Sync));
+        let val_1: i32 = 150;
+        let val_2: i32 = 18;
+        builder.add_condition("col_2", PostgresCmp::Less, &val_1);
+        builder.add_condition("col_3", PostgresCmp::Equal, &val_2);
 
         let (statement, params) = builder.build_delete();
 
@@ -1125,8 +1055,7 @@ mod delete_builder_tests {
 
     #[test]
     fn return_one_column() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.set_return(vec!["col_1"]);
 
@@ -1138,8 +1067,7 @@ mod delete_builder_tests {
 
     #[test]
     fn return_many_columns() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.set_return(vec!["col_1", "col_2"]);
 
@@ -1154,8 +1082,7 @@ mod delete_builder_tests {
 
     #[test]
     fn return_all_columns() {
-        let mut builder = SQLQueryBuilder::new();
-        builder.set_table("table");
+        let mut builder = SQLQueryBuilder::new("table");
 
         builder.set_return_all();
 
