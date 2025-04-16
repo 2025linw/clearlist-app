@@ -41,8 +41,9 @@ pub fn extract_user_id(cookies: &CookieJar) -> Result<Uuid, Error> {
 }
 
 pub const NULL: Option<String> = None;
+// TODO: create NullValue as a struct that implements ToSql
 
-// TODO: make something to convert into sql query string, ie `column = $1`, etc
+// TODO: move this to SQL Builder Crate
 pub enum PostgresCmp {
     Equal,
     NotEqual,
@@ -54,6 +55,8 @@ pub enum PostgresCmp {
     NotNull,
     Like,
     ILike,
+    In,
+    NotIn,
 }
 
 impl PostgresCmp {
@@ -65,16 +68,21 @@ impl PostgresCmp {
             PostgresCmp::LessEq => "<=",
             PostgresCmp::Greater => ">",
             PostgresCmp::GreaterEq => ">=",
-            PostgresCmp::IsNull => "ISNULL",
-            PostgresCmp::NotNull => "NOTNULL",
-            PostgresCmp::Like => "LIKE",
-            PostgresCmp::ILike => "ILIKE",
+            _ => panic!(),
         }
     }
 }
 
 pub trait ToPostgresCmp {
     fn to_postgres_cmp(&self) -> PostgresCmp;
+}
+
+/// Postgres joins
+pub enum Join {
+    Inner,
+    Left,
+    Right,
+    Full,
 }
 
 /// SQL Query Builder
@@ -84,9 +92,11 @@ pub trait ToPostgresCmp {
 #[derive(Default)]
 pub struct SQLQueryBuilder<'a> {
     table: String,
+    join_tables: Vec<(Join, String, String)>,
     columns: Vec<(String, &'a (dyn ToSql + Sync))>,
     conditions: Vec<(String, PostgresCmp, &'a (dyn ToSql + Sync))>,
-    _placeholder: Vec<String>,
+    group_by: Vec<String>,
+    having: Vec<(String, PostgresCmp, &'a (dyn ToSql + Sync))>,
     limit: Option<usize>,
     offset: Option<usize>,
     return_columns: Vec<String>,
@@ -98,21 +108,33 @@ impl<'a> SQLQueryBuilder<'a> {
     }
 
     /// Get element at a given index in columns
-    pub fn get_column(&self, index: usize) -> Option<&&'a (dyn ToSql + Sync)> {
+    pub fn get_column(&self, index: usize) -> Option<&'a (dyn ToSql + Sync)> {
         match self.columns.get(index) {
-            Some((_, val)) => Some(val),
+            Some((_, val)) => Some(val.to_owned()),
             None => None,
         }
     }
 
     /// Set table to query on
-    pub fn set_table(&mut self, table_name: &str) {
+    pub fn set_table(&mut self, table_name: &str) -> &mut Self {
         self.table = table_name.to_string();
+
+        self
+    }
+
+    /// Add tables to join
+    pub fn add_join(&mut self, join_type: Join, table_name: &str, join_column: &str) -> &mut Self {
+        self.join_tables
+            .push((join_type, table_name.to_string(), join_column.to_string()));
+
+        self
     }
 
     /// Add value for a given column
-    pub fn add_column(&mut self, column: &str, value: &'a (dyn ToSql + Sync)) {
+    pub fn add_column(&mut self, column: &str, value: &'a (dyn ToSql + Sync)) -> &mut Self {
         self.columns.push((column.to_string(), value));
+
+        self
     }
 
     /// Adds a condition to query
@@ -121,31 +143,70 @@ impl<'a> SQLQueryBuilder<'a> {
     /// However, a value must be included.
     ///
     /// A `NULL` value is provided in the crate for this purpose.
-    pub fn add_condition(&mut self, column: &str, cmp: PostgresCmp, value: &'a (dyn ToSql + Sync)) {
+    pub fn add_condition(
+        &mut self,
+        column: &str,
+        cmp: PostgresCmp,
+        value: &'a (dyn ToSql + Sync),
+    ) -> &mut Self {
         self.conditions.push((column.to_string(), cmp, value));
+
+        self
+    }
+
+    pub fn set_group_by(&mut self, columns: Vec<&str>) -> &mut Self {
+        self.group_by.clear();
+        self.group_by.extend(columns.iter().map(|s| s.to_string()));
+
+        self
+    }
+
+    pub fn set_having(
+        &mut self,
+        item: &str,
+        cmp: PostgresCmp,
+        value: &'a (dyn ToSql + Sync),
+    ) -> &mut Self {
+        self.having.push((item.to_string(), cmp, value));
+
+        self
     }
 
     /// Set limit for query
-    pub fn set_limit(&mut self, limit: usize) {
+    pub fn set_limit(&mut self, limit: usize) -> &mut Self {
         self.limit = Some(limit);
+
+        self
     }
 
     /// Set offset for query
-    pub fn set_offset(&mut self, offset: usize) {
+    pub fn set_offset(&mut self, offset: usize) -> &mut Self {
         self.offset = Some(offset);
+
+        self
     }
 
     /// Set query to return columns given
-    pub fn set_return(&mut self, columns: Vec<&str>) {
-        self.return_columns = columns.iter().map(|s| s.to_string()).collect();
+    pub fn set_return(&mut self, columns: Vec<&str>) -> &mut Self {
+        self.return_columns.clear();
+        self.return_columns
+            .extend(columns.iter().map(|s| s.to_string()));
+
+        self
     }
 
     /// Sets query to return all columns
-    pub fn set_return_all(&mut self) {
+    ///
+    /// It is not necessary to call this on `SELECT` however, it doesn't change query response
+    pub fn set_return_all(&mut self) -> &mut Self {
         self.return_columns.clear();
         self.return_columns.push("*".to_string());
-    }
 
+        self
+    }
+}
+
+impl<'a> SQLQueryBuilder<'a> {
     /// Builds an SQL SELECT query
     ///
     /// Consumes query builder after use
@@ -169,6 +230,18 @@ impl<'a> SQLQueryBuilder<'a> {
         query.push_str(" FROM ");
         query.push_str(&self.table);
 
+        // Add any joins
+        for (join_type, table, col) in self.join_tables {
+            match join_type {
+                Join::Inner => write!(query, " INNER JOIN").unwrap(),
+                Join::Left => write!(query, " LEFT JOIN").unwrap(),
+                Join::Right => write!(query, " RIGHT JOIN").unwrap(),
+                Join::Full => write!(query, " FULL JOIN").unwrap(),
+            }
+
+            write!(query, " {} USING ({})", table, col).unwrap();
+        }
+
         // Add any conditions to select
         if !self.conditions.is_empty() {
             query.push_str(" WHERE ");
@@ -179,8 +252,8 @@ impl<'a> SQLQueryBuilder<'a> {
                 }
 
                 match cmp {
-                    PostgresCmp::IsNull => write!(query, "{} ISNULL", col).unwrap(),
-                    PostgresCmp::NotNull => write!(query, "{} NOTNULL", col).unwrap(),
+                    PostgresCmp::IsNull => write!(query, "{} IS NULL", col).unwrap(),
+                    PostgresCmp::NotNull => write!(query, "{} NOT NULL", col).unwrap(),
                     PostgresCmp::Like => {
                         write!(query, "{} LIKE '%' || ${} || '%'", col, param_n).unwrap();
                         param_n += 1;
@@ -191,12 +264,43 @@ impl<'a> SQLQueryBuilder<'a> {
                         param_n += 1;
                         params.push(val.to_owned());
                     }
+                    PostgresCmp::In => {
+                        write!(query, "{} = ANY(${})", col, param_n).unwrap();
+                        param_n += 1;
+                        params.push(val.to_owned());
+                    }
+                    PostgresCmp::NotIn => {
+                        write!(query, "{} != ALL(${})", col, param_n).unwrap();
+                        param_n += 1;
+                        params.push(val.to_owned());
+                    }
                     _ => {
                         write!(query, "{} {} ${}", col, cmp.as_sql_cmp(), param_n).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                 }
+            }
+        }
+
+        // Add group by
+        if !self.group_by.is_empty() {
+            query.push_str(" GROUP BY ");
+            query.push_str(&self.group_by.join(", "));
+        }
+
+        // Add having
+        if !self.having.is_empty() {
+            query.push_str(" HAVING ");
+
+            for (n, (item, cmp, val)) in self.having.iter().enumerate() {
+                if n > 0 {
+                    query.push_str(" AND ");
+                }
+
+                write!(query, "{} {} ${}", item, cmp.as_sql_cmp(), param_n).unwrap();
+                param_n += 1;
+                params.push(val.to_owned());
             }
         }
 
@@ -301,8 +405,8 @@ impl<'a> SQLQueryBuilder<'a> {
                 }
 
                 match cmp {
-                    PostgresCmp::IsNull => write!(query, "{} ISNULL", col).unwrap(),
-                    PostgresCmp::NotNull => write!(query, "{} NOTNULL", col).unwrap(),
+                    PostgresCmp::IsNull => write!(query, "{} IS NULL", col).unwrap(),
+                    PostgresCmp::NotNull => write!(query, "{} NOT NULL", col).unwrap(),
                     PostgresCmp::Like => {
                         write!(query, "{} LIKE '%' || ${} || '%'", col, param_n).unwrap();
                         param_n += 1;
@@ -310,6 +414,16 @@ impl<'a> SQLQueryBuilder<'a> {
                     }
                     PostgresCmp::ILike => {
                         write!(query, "{} ILIKE '%' || ${} || '%'", col, param_n).unwrap();
+                        param_n += 1;
+                        params.push(val.to_owned());
+                    }
+                    PostgresCmp::In => {
+                        write!(query, "{} = ANY(${})", col, param_n).unwrap();
+                        param_n += 1;
+                        params.push(val.to_owned());
+                    }
+                    PostgresCmp::NotIn => {
+                        write!(query, "{} != ALL(${})", col, param_n).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
@@ -359,8 +473,8 @@ impl<'a> SQLQueryBuilder<'a> {
                 }
 
                 match cmp {
-                    PostgresCmp::IsNull => write!(query, "{} ISNULL", col).unwrap(),
-                    PostgresCmp::NotNull => write!(query, "{} NOTNULL", col).unwrap(),
+                    PostgresCmp::IsNull => write!(query, "{} IS NULL", col).unwrap(),
+                    PostgresCmp::NotNull => write!(query, "{} NOT NULL", col).unwrap(),
                     PostgresCmp::Like => {
                         write!(query, "{} LIKE '%' || ${} || '%'", col, param_n).unwrap();
                         param_n += 1;
@@ -371,8 +485,18 @@ impl<'a> SQLQueryBuilder<'a> {
                         param_n += 1;
                         params.push(val.to_owned());
                     }
+                    PostgresCmp::In => {
+                        write!(query, "{} = ANY(${})", col, param_n).unwrap();
+                        param_n += 1;
+                        params.push(val.to_owned());
+                    }
+                    PostgresCmp::NotIn => {
+                        write!(query, "{} != ALL(${})", col, param_n).unwrap();
+                        param_n += 1;
+                        params.push(val.to_owned());
+                    }
                     _ => {
-                        write!(query, "{} {} ${}", col, cmp.as_sql_cmp(), n + 1).unwrap();
+                        write!(query, "{} {} ${}", col, cmp.as_sql_cmp(), param_n).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
@@ -402,9 +526,11 @@ pub trait AddToQuery<'a, 'b> {
 mod select_builder_tests {
     use tokio_postgres::types::ToSql;
 
+    use crate::util::Join;
+
     use super::{NULL, PostgresCmp, SQLQueryBuilder};
 
-    // TODO: as ISNULL and NOTNULL to tests
+    // TEST: as ISNULL and NOTNULL to tests
 
     #[test]
     #[should_panic]
@@ -493,7 +619,7 @@ mod select_builder_tests {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM table WHERE col_1 < $1 AND col_2 = $2 AND col_3 ISNULL"
+            "SELECT * FROM table WHERE col_1 < $1 AND col_2 = $2 AND col_3 IS NULL"
         );
         assert_eq!(params.len(), 2);
     }
@@ -519,6 +645,97 @@ mod select_builder_tests {
             "SELECT col_1 FROM table WHERE col_1 < $1 AND col_2 = $2 AND col_3 > $3"
         );
         assert_eq!(params.len(), 3);
+    }
+
+    #[test]
+    fn inner_join() {
+        let mut builder = SQLQueryBuilder::new();
+        builder.set_table("table");
+
+        builder.add_join(Join::Inner, "table2", "col_1");
+
+        let (statement, params) = builder.build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM table INNER JOIN table2 USING (col_1)"
+        );
+        assert_eq!(params.len(), 0,);
+    }
+
+    #[test]
+    fn left_join() {
+        let mut builder = SQLQueryBuilder::new();
+        builder.set_table("table");
+
+        builder.add_join(Join::Left, "table2", "col_1");
+
+        let (statement, params) = builder.build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM table LEFT JOIN table2 USING (col_1)"
+        );
+        assert_eq!(params.len(), 0,);
+    }
+
+    #[test]
+    fn right_join() {
+        let mut builder = SQLQueryBuilder::new();
+        builder.set_table("table");
+
+        builder.add_join(Join::Right, "table2", "col_1");
+
+        let (statement, params) = builder.build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM table RIGHT JOIN table2 USING (col_1)"
+        );
+        assert_eq!(params.len(), 0,);
+    }
+
+    #[test]
+    fn full_join() {
+        let mut builder = SQLQueryBuilder::new();
+        builder.set_table("table");
+
+        builder.add_join(Join::Full, "table2", "col_1");
+
+        let (statement, params) = builder.build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM table FULL JOIN table2 USING (col_1)"
+        );
+        assert_eq!(params.len(), 0,);
+    }
+
+    #[test]
+    fn multi_join() {
+        let mut builder = SQLQueryBuilder::new();
+        builder.set_table("table");
+
+        builder.add_join(Join::Inner, "table2", "col_1");
+        builder.add_join(Join::Inner, "table3", "col_2");
+
+        let (statement, params) = builder.build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM table INNER JOIN table2 USING (col_1) INNER JOIN table3 USING (col_2)"
+        );
+        assert_eq!(params.len(), 0,);
+    }
+
+    #[test]
+    fn group_by() {
+        // TEST
+    }
+
+    #[test]
+    fn having() {
+        // TEST
     }
 }
 
@@ -655,7 +872,7 @@ mod update_builder_tests {
 
     use super::{PostgresCmp, SQLQueryBuilder};
 
-    // TODO: as ISNULL and NOTNULL to tests
+    // TEST: as ISNULL and NOTNULL to tests
 
     #[test]
     #[should_panic]
@@ -852,7 +1069,7 @@ mod delete_builder_tests {
 
     use super::{PostgresCmp, SQLQueryBuilder};
 
-    // TODO: as ISNULL and NOTNULL to tests
+    // TEST: as ISNULL and NOTNULL to tests
 
     #[test]
     #[should_panic]

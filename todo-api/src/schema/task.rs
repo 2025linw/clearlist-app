@@ -21,6 +21,7 @@ pub struct CreateTaskSchema {
 
     area_id: Option<Uuid>,
     project_id: Option<Uuid>,
+    pub(crate) tag_ids: Option<Vec<Uuid>>, // TODO: is there a way that this can not be pub?
 }
 
 impl<'a, 'b> AddToQuery<'a, 'b> for CreateTaskSchema {
@@ -68,6 +69,7 @@ pub struct UpdateTaskSchema {
 
     area_id: Option<UpdateMethod<Uuid>>,
     project_id: Option<UpdateMethod<Uuid>>,
+    pub(crate) tag_ids: Option<Vec<Uuid>>, // TODO: is there a way that this can not be pub?
 }
 
 impl<'a, 'b> AddToQuery<'a, 'b> for UpdateTaskSchema {
@@ -107,12 +109,12 @@ impl<'a, 'b> AddToQuery<'a, 'b> for UpdateTaskSchema {
                     builder.get_column(0).unwrap().to_owned(),
                 );
             } else {
-                builder.add_column(TaskModel::COMPLETED, &None::<DateTime<Local>>); // TODO: do some ToSql fandangling to fix this
+                builder.add_column(TaskModel::COMPLETED, &None::<DateTime<Local>>);
             }
         }
         if let Some(b) = self.logged {
             if b {
-                builder.add_column(TaskModel::LOGGED, builder.get_column(0).unwrap().to_owned())
+                builder.add_column(TaskModel::LOGGED, builder.get_column(0).unwrap().to_owned());
             } else {
                 builder.add_column(TaskModel::LOGGED, &None::<DateTime<Local>>);
             }
@@ -122,7 +124,7 @@ impl<'a, 'b> AddToQuery<'a, 'b> for UpdateTaskSchema {
                 builder.add_column(
                     TaskModel::TRASHED,
                     builder.get_column(0).unwrap().to_owned(),
-                )
+                );
             } else {
                 builder.add_column(TaskModel::TRASHED, &None::<DateTime<Local>>);
             }
@@ -155,8 +157,9 @@ pub struct QueryTaskSchema {
     logged: Option<bool>,
     trashed: Option<bool>,
 
-    area_id: Option<QueryMethod<Uuid>>,
-    project_id: Option<QueryMethod<Uuid>>,
+    area_id: Option<Uuid>,
+    project_id: Option<Uuid>,
+    pub(crate) tag_ids: Option<Vec<Uuid>>, // TODO: is there a way that this can not be pub?
 }
 
 impl<'a, 'b> AddToQuery<'a, 'b> for QueryTaskSchema {
@@ -261,35 +264,11 @@ impl<'a, 'b> AddToQuery<'a, 'b> for QueryTaskSchema {
             }
         }
 
-        if let Some(ref q) = self.area_id {
-            let cmp;
-            match q {
-                QueryMethod::NotNull(b) => {
-                    if *b {
-                        cmp = PostgresCmp::NotNull;
-                    } else {
-                        cmp = PostgresCmp::IsNull;
-                    }
-                }
-                QueryMethod::Match(_) => cmp = PostgresCmp::Equal,
-                QueryMethod::Compare(_, c) => cmp = c.to_postgres_cmp(),
-            }
-            builder.add_condition(TaskModel::AREA_ID, cmp, q);
+        if let Some(ref i) = self.area_id {
+            builder.add_condition(TaskModel::AREA_ID, PostgresCmp::Equal, i);
         }
-        if let Some(ref q) = self.project_id {
-            let cmp;
-            match q {
-                QueryMethod::NotNull(b) => {
-                    if *b {
-                        cmp = PostgresCmp::NotNull;
-                    } else {
-                        cmp = PostgresCmp::IsNull;
-                    }
-                }
-                QueryMethod::Match(_) => cmp = PostgresCmp::Equal,
-                QueryMethod::Compare(_, c) => cmp = c.to_postgres_cmp(),
-            }
-            builder.add_condition(TaskModel::PROJECT_ID, cmp, q);
+        if let Some(ref i) = self.project_id {
+            builder.add_condition(TaskModel::PROJECT_ID, PostgresCmp::Equal, i);
         }
     }
 }
@@ -385,7 +364,7 @@ mod create_schema_test {
         assert_eq!(params.len(), 7);
     }
 
-    // TODO: make production example
+    // TEST: make production example
 }
 
 #[cfg(test)]
@@ -509,7 +488,7 @@ mod update_schema_test {
         assert_eq!(params.len(), 11);
     }
 
-    // TODO: make production example
+    // TEST: make production example
 }
 
 #[cfg(test)]
@@ -611,7 +590,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE completed_on NOTNULL AND logged_on NOTNULL AND trashed_on NOTNULL"
+            "SELECT * FROM data.tasks WHERE completed_on NOT NULL AND logged_on NOT NULL AND trashed_on NOT NULL"
         );
         assert_eq!(params.len(), 0);
     }
@@ -630,7 +609,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE completed_on ISNULL AND logged_on ISNULL AND trashed_on ISNULL"
+            "SELECT * FROM data.tasks WHERE completed_on IS NULL AND logged_on IS NULL AND trashed_on IS NULL"
         );
         assert_eq!(params.len(), 0);
     }
@@ -638,8 +617,8 @@ mod query_schema_test {
     #[test]
     fn id_only() {
         let mut schema = QueryTaskSchema::default();
-        schema.area_id = Some(QueryMethod::Match(Uuid::new_v4()));
-        schema.project_id = Some(QueryMethod::Match(Uuid::new_v4()));
+        schema.area_id = Some(Uuid::new_v4());
+        schema.project_id = Some(Uuid::new_v4());
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
@@ -666,8 +645,8 @@ mod query_schema_test {
         schema.completed = Some(false);
         schema.logged = Some(true);
         schema.trashed = Some(false);
-        schema.area_id = Some(QueryMethod::Match(Uuid::new_v4()));
-        schema.project_id = Some(QueryMethod::Match(Uuid::new_v4()));
+        schema.area_id = Some(Uuid::new_v4());
+        schema.project_id = Some(Uuid::new_v4());
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
@@ -676,10 +655,10 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE task_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on ISNULL AND logged_on NOTNULL AND trashed_on ISNULL AND area_id = $6 AND project_id = $7"
+            "SELECT * FROM data.tasks WHERE task_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on IS NULL AND logged_on NOT NULL AND trashed_on IS NULL AND area_id = $6 AND project_id = $7"
         );
         assert_eq!(params.len(), 7);
     }
 
-    // TODO: make production examples
+    // TEST: make production example
 }

@@ -44,7 +44,7 @@ impl<T: ToSql> ToSql for UpdateMethod<T> {
         match *self {
             Self::Remove(true) => Ok(IsNull::Yes),
             Self::Change(ref o) => o.to_sql(ty, out),
-            Self::Remove(false) => panic!(), // TODO: Don't panic here...
+            Self::Remove(false) => panic!(), // FIX: don't panic here...
         }
     }
 
@@ -57,8 +57,6 @@ impl<T: ToSql> ToSql for UpdateMethod<T> {
 
     to_sql_checked!();
 }
-
-// TODO: make a comparison flag just for schemas: CompareFlag
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub enum Compare {
@@ -101,7 +99,7 @@ where
     {
         match *self {
             Self::Match(ref o) | Self::Compare(ref o, _) => o.to_sql(ty, out),
-            _ => panic!(), // TODO: don't panic here, error back to caller
+            _ => panic!(), // FIX: don't panic here, error back to caller
         }
     }
 
@@ -115,4 +113,4 @@ where
     to_sql_checked!();
 }
 
-// TODO: ToPostgresCmp test?
+// TEST: ToPostgresCmp test?

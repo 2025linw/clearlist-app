@@ -30,17 +30,17 @@ pub async fn create_area_handler(
     jar: CookieJar,
     Json(body): Json<CreateAreaSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    // Get cookie for user id
+    // Get user id
     let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
-    // Get connection from pool and then start transaction
+    // Get database connection and start transaction
     let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
     let transaction = conn
         .transaction()
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Build SQL query
+    // Create area
     let mut query_builder = SQLQueryBuilder::new();
     query_builder.add_column(AreaModel::USER_ID, &user_id);
     body.add_to_query(&mut query_builder);
@@ -48,7 +48,6 @@ pub async fn create_area_handler(
 
     let (statement, params) = query_builder.build_insert();
 
-    // Insert area into database
     let row = transaction
         .query_one(&statement, &params)
         .await
@@ -60,18 +59,17 @@ pub async fn create_area_handler(
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Get created area
     let area = AreaModel::from(row);
 
-    // Return success response
-    let json_message = json!({
-        "status": "ok",
-        "data": {
-            "area": area.to_response(),
-        },
-    });
-
-    Ok(Json(json_message))
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({
+            "status": "ok",
+            "data": {
+                "area": area.to_response(),
+            },
+        })),
+    ))
 }
 
 pub async fn retrieve_area_handler(
@@ -79,13 +77,13 @@ pub async fn retrieve_area_handler(
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    // Get cookie for user id
+    // Get user id
     let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
-    // Get connection from pool
+    // Get database connection
     let conn = data.get_conn().await.map_err(|e| e.err_map())?;
 
-    // Build SQL query
+    // Retrieve area
     let mut query_builder = SQLQueryBuilder::new();
     query_builder.set_table(AreaModel::TABLE);
     query_builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &user_id);
@@ -94,13 +92,11 @@ pub async fn retrieve_area_handler(
 
     let (statement, params) = query_builder.build_select();
 
-    // Retrieve area from database
     let row_opt = conn
         .query_opt(&statement, &params)
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Get retrieved area
     let area = match row_opt {
         Some(row) => AreaModel::from(row),
         None => {
@@ -113,15 +109,12 @@ pub async fn retrieve_area_handler(
         }
     };
 
-    // Return success response
-    let json_message = json!({
+    Ok(Json(json!({
         "status": "success",
         "data": json!({
             "area": area.to_response(),
         }),
-    });
-
-    Ok(Json(json_message))
+    })))
 }
 
 pub async fn update_area_handler(
@@ -130,17 +123,17 @@ pub async fn update_area_handler(
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateAreaSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    // Get cookie for user id
+    // Get user id
     let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
-    // Get connection from pool and then start transaction
+    // Get database connection and start transaction
     let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
     let transaction = conn
         .transaction()
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Build SQL query
+    // Update area
     let timestamp = Local::now();
     let mut query_builder = SQLQueryBuilder::new();
     query_builder.add_column(AreaModel::UPDATED, &timestamp);
@@ -151,11 +144,19 @@ pub async fn update_area_handler(
 
     let (statement, params) = query_builder.build_update();
 
-    // Update area in database
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
         .map_err(|e| Error::from(e).err_map())?;
+
+    if row_opt.is_none() {
+        let json_message = json!({
+            "status": "unsuccessful",
+            "message": format!("area not found"),
+        });
+
+        return Err((StatusCode::NOT_FOUND, Json(json_message)));
+    }
 
     // Commit transaction
     transaction
@@ -164,27 +165,14 @@ pub async fn update_area_handler(
         .map_err(|e| Error::from(e).err_map())?;
 
     // Get updated area
-    let area = match row_opt {
-        Some(row) => AreaModel::from(row),
-        None => {
-            let json_message = json!({
-                "status": "unsuccessful",
-                "message": format!("area not found"),
-            });
+    let area = AreaModel::from(row_opt.unwrap());
 
-            return Err((StatusCode::NOT_FOUND, Json(json_message)));
-        }
-    };
-
-    // Return success response
-    let json_message = json!({
+    Ok(Json(json!({
         "status": "success",
         "data": json!({
             "area": area.to_response(),
         }),
-    });
-
-    Ok(Json(json_message))
+    })))
 }
 
 pub async fn delete_area_handler(
@@ -192,17 +180,17 @@ pub async fn delete_area_handler(
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    // Get cookie for user id
+    // Get user id
     let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
-    // Get connection from pool and then start transaction
+    // Get database connection and start transaction
     let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
     let transaction = conn
         .transaction()
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Build SQL query
+    // Delete area
     let mut query_builder = SQLQueryBuilder::new();
     query_builder.set_table(AreaModel::TABLE);
     query_builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &user_id);
@@ -211,7 +199,6 @@ pub async fn delete_area_handler(
 
     let (statement, params) = query_builder.build_delete();
 
-    // Delete area in database
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
@@ -223,28 +210,16 @@ pub async fn delete_area_handler(
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Get deleted area id
-    let area_id: Uuid = match row_opt {
-        Some(row) => row.get(AreaModel::ID),
-        None => {
-            let json_message = json!({
-                "status": "unsuccessful",
-                "message": format!("area not found"),
-            });
+    if row_opt.is_none() {
+        let json_message = json!({
+            "status": "unsuccessful",
+            "message": format!("area not found"),
+        });
 
-            return Err((StatusCode::NOT_FOUND, Json(json_message)));
-        }
-    };
+        return Err((StatusCode::NOT_FOUND, Json(json_message)));
+    }
 
-    // Return success message
-    let json_message = json!({
-        "status": "successful",
-        "data": json!({
-            "area_id": area_id,
-        }),
-    });
-
-    Ok(Json(json_message))
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn query_area_handler(
@@ -253,18 +228,18 @@ pub async fn query_area_handler(
     Query(opts): Query<FilterOptions>,
     Json(body): Json<QueryAreaSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    // Get user id
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+
+    // Get database connection
+    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+
     // Get pagination info
     let page = opts.page.unwrap_or(1);
     let limit = opts.limit.unwrap_or(25);
     let offset = (page - 1) * limit;
 
-    // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
-
-    // Get connection from pool
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
-
-    // Build SQL query
+    // Query areas
     let mut query_builder = SQLQueryBuilder::new();
     body.add_to_query(&mut query_builder);
     query_builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &user_id);
@@ -273,26 +248,22 @@ pub async fn query_area_handler(
 
     let (statement, params) = query_builder.build_select();
 
-    // Query areas in database
     let rows = conn
         .query(&statement, &params)
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Get queried areas
     let areas: Vec<AreaModel> = rows.iter().map(|r| AreaModel::from(r.to_owned())).collect();
 
-    // Return success response
     let area_responses: Vec<AreaResponseModel> = areas.iter().map(|a| a.to_response()).collect();
-    let json_message = json!({
+
+    Ok(Json(json!({
         "status": "ok",
         "data": json!({
             "count": area_responses.len(),
             "areas": area_responses,
         }),
-    });
-
-    Ok(Json(json_message))
+    })))
 }
 
-// TODO: handler tests?
+// TEST: handler tests?
