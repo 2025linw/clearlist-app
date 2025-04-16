@@ -99,11 +99,7 @@ pub async fn create_project_handler(
 
     // Get related tags
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
-    query_builder.add_join(
-        Join::Inner,
-        ProjectTagModel::TABLE,
-        ProjectTagModel::TAG_ID,
-    );
+    query_builder.add_join(Join::Inner, ProjectTagModel::TABLE, ProjectTagModel::TAG_ID);
     query_builder.add_condition(ProjectTagModel::PROJECT_ID, PostgresCmp::Equal, &project_id);
     query_builder.set_return_all();
 
@@ -165,11 +161,7 @@ pub async fn retrieve_project_handler(
 
     // Get related tags
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
-    query_builder.add_join(
-        Join::Inner,
-        ProjectTagModel::TABLE,
-        ProjectTagModel::TAG_ID,
-    );
+    query_builder.add_join(Join::Inner, ProjectTagModel::TABLE, ProjectTagModel::TAG_ID);
     query_builder.add_condition(ProjectTagModel::PROJECT_ID, PostgresCmp::Equal, &id);
     query_builder.set_return_all();
 
@@ -284,11 +276,7 @@ pub async fn update_project_handler(
 
     // Get related tags
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
-    query_builder.add_join(
-        Join::Inner,
-        ProjectTagModel::TABLE,
-        ProjectTagModel::TAG_ID,
-    );
+    query_builder.add_join(Join::Inner, ProjectTagModel::TABLE, ProjectTagModel::TAG_ID);
     query_builder.add_condition(ProjectTagModel::PROJECT_ID, PostgresCmp::Equal, &id);
     query_builder.set_return_all();
 
@@ -424,11 +412,7 @@ pub async fn query_project_handler(
     let mut project_responses: Vec<ProjectResponseModel> = Vec::new();
     for project in projects {
         let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
-        query_builder.add_join(
-            Join::Inner,
-            ProjectTagModel::TABLE,
-            ProjectTagModel::TAG_ID,
-        );
+        query_builder.add_join(Join::Inner, ProjectTagModel::TABLE, ProjectTagModel::TAG_ID);
         query_builder.add_condition(
             ProjectTagModel::PROJECT_ID,
             PostgresCmp::Equal,

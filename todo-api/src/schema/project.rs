@@ -261,7 +261,10 @@ mod create_schema_test {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::{model::project::ProjectModel, util::{AddToQuery, SQLQueryBuilder}};
+    use crate::{
+        model::project::ProjectModel,
+        util::{AddToQuery, SQLQueryBuilder},
+    };
 
     use super::CreateProjectSchema;
 
@@ -473,7 +476,9 @@ mod query_schema_test {
     use uuid::Uuid;
 
     use crate::{
-        model::project::ProjectModel, schema::{Compare, QueryMethod}, util::{AddToQuery, SQLQueryBuilder}
+        model::project::ProjectModel,
+        schema::{Compare, QueryMethod},
+        util::{AddToQuery, SQLQueryBuilder},
     };
 
     use super::QueryProjectSchema;

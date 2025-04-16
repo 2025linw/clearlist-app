@@ -78,7 +78,10 @@ impl<'a, 'b> AddToQuery<'a, 'b> for QueryAreaSchema {
 
 #[cfg(test)]
 mod create_schema_test {
-    use crate::{model::area::AreaModel, util::{AddToQuery, SQLQueryBuilder}};
+    use crate::{
+        model::area::AreaModel,
+        util::{AddToQuery, SQLQueryBuilder},
+    };
 
     use super::CreateAreaSchema;
 
@@ -106,7 +109,9 @@ mod create_schema_test {
 #[cfg(test)]
 mod update_schema_test {
     use crate::{
-        model::area::AreaModel, schema::UpdateMethod, util::{AddToQuery, SQLQueryBuilder}
+        model::area::AreaModel,
+        schema::UpdateMethod,
+        util::{AddToQuery, SQLQueryBuilder},
     };
 
     use super::UpdateAreaSchema;
@@ -135,7 +140,9 @@ mod update_schema_test {
 #[cfg(test)]
 mod query_schema_test {
     use crate::{
-        model::area::AreaModel, schema::QueryMethod, util::{AddToQuery, SQLQueryBuilder}
+        model::area::AreaModel,
+        schema::QueryMethod,
+        util::{AddToQuery, SQLQueryBuilder},
     };
 
     use super::QueryAreaSchema;

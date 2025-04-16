@@ -272,7 +272,10 @@ mod create_schema_test {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::{model::task::TaskModel, util::{AddToQuery, SQLQueryBuilder}};
+    use crate::{
+        model::task::TaskModel,
+        util::{AddToQuery, SQLQueryBuilder},
+    };
 
     use super::CreateTaskSchema;
 
@@ -491,7 +494,9 @@ mod query_schema_test {
     use uuid::Uuid;
 
     use crate::{
-        model::task::TaskModel, schema::{Compare, QueryMethod}, util::{AddToQuery, SQLQueryBuilder}
+        model::task::TaskModel,
+        schema::{Compare, QueryMethod},
+        util::{AddToQuery, SQLQueryBuilder},
     };
 
     use super::QueryTaskSchema;

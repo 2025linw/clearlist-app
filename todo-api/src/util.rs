@@ -723,7 +723,10 @@ mod select_builder_tests {
 
         let (statement, params) = builder.build_select();
 
-        assert_eq!(statement.as_str(), "SELECT * FROM table HAVING COUNT(col_1) = $1",);
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM table HAVING COUNT(col_1) = $1",
+        );
         assert_eq!(params.len(), 1);
     }
 }

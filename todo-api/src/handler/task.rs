@@ -99,11 +99,7 @@ pub async fn create_task_handler(
 
     // Get related tags
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
-    query_builder.add_join(
-        Join::Inner,
-        TaskTagModel::TABLE,
-        TaskTagModel::TAG_ID,
-    );
+    query_builder.add_join(Join::Inner, TaskTagModel::TABLE, TaskTagModel::TAG_ID);
     query_builder.add_condition(TaskTagModel::TASK_ID, PostgresCmp::Equal, &task_id);
     query_builder.set_return_all();
 
@@ -165,11 +161,7 @@ pub async fn retrieve_task_handler(
 
     // Get related tags
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
-    query_builder.add_join(
-        Join::Inner,
-        TaskTagModel::TABLE,
-        TaskTagModel::TAG_ID,
-    );
+    query_builder.add_join(Join::Inner, TaskTagModel::TABLE, TaskTagModel::TAG_ID);
     query_builder.add_condition(TaskTagModel::TASK_ID, PostgresCmp::Equal, &id);
     query_builder.set_return_all();
 
@@ -284,11 +276,7 @@ pub async fn update_task_handler(
 
     // Get related tags
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
-    query_builder.add_join(
-        Join::Inner,
-        TaskTagModel::TABLE,
-        TaskTagModel::TAG_ID,
-    );
+    query_builder.add_join(Join::Inner, TaskTagModel::TABLE, TaskTagModel::TAG_ID);
     query_builder.add_condition(TaskTagModel::TASK_ID, PostgresCmp::Equal, &id);
     query_builder.set_return_all();
 
@@ -421,11 +409,7 @@ pub async fn query_task_handler(
     let mut task_responses: Vec<TaskResponseModel> = Vec::new();
     for task in tasks {
         let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
-        query_builder.add_join(
-            Join::Inner,
-            TaskTagModel::TABLE,
-            TaskTagModel::TAG_ID,
-        );
+        query_builder.add_join(Join::Inner, TaskTagModel::TABLE, TaskTagModel::TAG_ID);
         query_builder.add_condition(TaskTagModel::TASK_ID, PostgresCmp::Equal, task.task_id());
         query_builder.set_return_all();
 
