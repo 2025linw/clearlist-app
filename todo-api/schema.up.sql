@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS auth.users
 (
 	user_id uuid DEFAULT gen_random_uuid(),
 
-	username varchar(50) NOT NULL,
+	username varchar(50) NOT NULL UNIQUE,
 	password_hash text,
     password_hash_salt text,
 	email varchar(320),
