@@ -106,7 +106,7 @@ mod create_schema_test {
         assert_eq!(params.len(), 2);
     }
 
-    // TODO: make production example
+    // TEST: make production example
 }
 
 #[cfg(test)]
@@ -136,7 +136,7 @@ mod update_schema_test {
         assert_eq!(params.len(), 2);
     }
 
-    // TODO: make production example
+    // TEST: make production example
 }
 
 #[cfg(test)]
@@ -178,5 +178,5 @@ mod query_schema_test {
         assert_eq!(params.len(), 1);
     }
 
-    // TODO: make production example
+    // TEST: make production example
 }

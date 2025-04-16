@@ -1,11 +1,12 @@
-use std::collections::HashMap;
-
 use chrono::{DateTime, Local, NaiveDate, NaiveTime};
 use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 use uuid::Uuid;
 
-use super::ToResponse;
+use super::{
+    ToResponse,
+    tag::{TagModel, TagResponseModel},
+};
 
 /// Task Database Model
 #[derive(Debug, Deserialize)]
@@ -53,6 +54,12 @@ impl TaskModel {
     pub const UPDATED: &str = "updated_on";
 }
 
+impl TaskModel {
+    pub fn task_id(&self) -> &Uuid {
+        &self.task_id
+    }
+}
+
 impl From<Row> for TaskModel {
     fn from(value: Row) -> Self {
         Self {
@@ -93,7 +100,7 @@ impl ToResponse for TaskModel {
 
             area_id: self.area_id,
             project_id: self.project_id,
-            tags: HashMap::default(),
+            tags: Vec::new(),
 
             user_id: self.user_id,
             created_on: self.created_on,
@@ -119,11 +126,27 @@ pub struct TaskResponseModel {
 
     area_id: Option<Uuid>,
     project_id: Option<Uuid>,
-    tags: HashMap<Uuid, String>,
+    tags: Vec<TagResponseModel>,
 
     user_id: Uuid,
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
 }
 
-// TODO: ToResponse test?
+impl TaskResponseModel {
+    pub fn add_tags(&mut self, tags: Vec<TagModel>) -> &Self {
+        self.tags.extend(tags.iter().map(|t| t.to_response()));
+
+        self
+    }
+}
+
+pub struct TaskTagModel {}
+
+impl TaskTagModel {
+    pub const TABLE: &str = "data.task_tags";
+    pub const TASK_ID: &str = "task_id";
+    pub const TAG_ID: &str = "tag_id";
+}
+
+// TEST: ToResponse test?

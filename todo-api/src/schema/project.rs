@@ -20,6 +20,7 @@ pub struct CreateProjectSchema {
     deadline: Option<NaiveDate>,
 
     area_id: Option<Uuid>,
+    pub(crate) tag_ids: Option<Vec<Uuid>>,  // TODO: is there a way that this can not be pub?
 }
 
 impl<'a, 'b> AddToQuery<'a, 'b> for CreateProjectSchema {
@@ -63,6 +64,7 @@ pub struct UpdateProjectSchema {
     trashed: Option<bool>,
 
     area_id: Option<UpdateMethod<Uuid>>,
+    pub(crate) tag_ids: Option<Vec<Uuid>>, // TODO: is there a way that this can not be pub?
 }
 
 impl<'a, 'b> AddToQuery<'a, 'b> for UpdateProjectSchema {
@@ -102,7 +104,7 @@ impl<'a, 'b> AddToQuery<'a, 'b> for UpdateProjectSchema {
                     builder.get_column(0).unwrap().to_owned(),
                 );
             } else {
-                builder.add_column(ProjectModel::COMPLETED, &None::<DateTime<Local>>); // TODO: do some ToSql fandangling to fix this
+                builder.add_column(ProjectModel::COMPLETED, &None::<DateTime<Local>>);
             }
         }
         if let Some(b) = self.logged {
@@ -110,7 +112,7 @@ impl<'a, 'b> AddToQuery<'a, 'b> for UpdateProjectSchema {
                 builder.add_column(
                     ProjectModel::LOGGED,
                     builder.get_column(0).unwrap().to_owned(),
-                )
+                );
             } else {
                 builder.add_column(ProjectModel::LOGGED, &None::<DateTime<Local>>);
             }
@@ -120,7 +122,7 @@ impl<'a, 'b> AddToQuery<'a, 'b> for UpdateProjectSchema {
                 builder.add_column(
                     ProjectModel::TRASHED,
                     builder.get_column(0).unwrap().to_owned(),
-                )
+                );
             } else {
                 builder.add_column(ProjectModel::TRASHED, &None::<DateTime<Local>>);
             }
@@ -148,7 +150,8 @@ pub struct QueryProjectSchema {
     logged: Option<bool>,
     trashed: Option<bool>,
 
-    area_id: Option<QueryMethod<Uuid>>,
+    area_id: Option<Uuid>,
+    pub(crate) tag_ids: Option<Vec<Uuid>>, // TODO: is there a way that this can not be pub?
 }
 
 impl<'a, 'b> AddToQuery<'a, 'b> for QueryProjectSchema {
@@ -253,20 +256,8 @@ impl<'a, 'b> AddToQuery<'a, 'b> for QueryProjectSchema {
             }
         }
 
-        if let Some(ref q) = self.area_id {
-            let cmp;
-            match q {
-                QueryMethod::NotNull(b) => {
-                    if *b {
-                        cmp = PostgresCmp::NotNull;
-                    } else {
-                        cmp = PostgresCmp::IsNull;
-                    }
-                }
-                QueryMethod::Match(_) => cmp = PostgresCmp::Equal,
-                QueryMethod::Compare(_, c) => cmp = c.to_postgres_cmp(),
-            }
-            builder.add_condition(ProjectModel::AREA_ID, cmp, q);
+        if let Some(ref i) = self.area_id {
+            builder.add_condition(ProjectModel::AREA_ID, PostgresCmp::Equal, i);
         }
     }
 }
@@ -360,7 +351,7 @@ mod create_schema_test {
         assert_eq!(params.len(), 6);
     }
 
-    // TODO: make production examples
+    // TEST: make production example
 }
 
 #[cfg(test)]
@@ -479,7 +470,7 @@ mod update_schema_test {
         assert_eq!(params.len(), 10);
     }
 
-    // TODO: make production example
+    // TEST: make production example
 }
 
 #[cfg(test)]
@@ -581,7 +572,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE completed_on NOTNULL AND logged_on NOTNULL AND trashed_on NOTNULL"
+            "SELECT * FROM data.projects WHERE completed_on NOT NULL AND logged_on NOT NULL AND trashed_on NOT NULL"
         );
         assert_eq!(params.len(), 0);
     }
@@ -600,7 +591,7 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE completed_on ISNULL AND logged_on ISNULL AND trashed_on ISNULL"
+            "SELECT * FROM data.projects WHERE completed_on IS NULL AND logged_on IS NULL AND trashed_on IS NULL"
         );
         assert_eq!(params.len(), 0);
     }
@@ -608,7 +599,7 @@ mod query_schema_test {
     #[test]
     fn id_only() {
         let mut schema = QueryProjectSchema::default();
-        schema.area_id = Some(QueryMethod::Match(Uuid::new_v4()));
+        schema.area_id = Some(Uuid::new_v4());
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
@@ -635,7 +626,7 @@ mod query_schema_test {
         schema.completed = Some(false);
         schema.logged = Some(true);
         schema.trashed = Some(false);
-        schema.area_id = Some(QueryMethod::Match(Uuid::new_v4()));
+        schema.area_id = Some(Uuid::new_v4());
 
         let mut builder = SQLQueryBuilder::new();
         schema.add_to_query(&mut builder);
@@ -644,10 +635,10 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE project_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on ISNULL AND logged_on NOTNULL AND trashed_on ISNULL AND area_id = $6"
+            "SELECT * FROM data.projects WHERE project_title LIKE '%' || $1 || '%' AND notes LIKE '%' || $2 || '%' AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on IS NULL AND logged_on NOT NULL AND trashed_on IS NULL AND area_id = $6"
         );
         assert_eq!(params.len(), 6);
     }
 
-    // TODO: make production examples
+    // TEST: make production example
 }

@@ -16,13 +16,14 @@ use crate::{
     error::Error,
     model::{
         ToResponse,
-        task::{TaskModel, TaskResponseModel},
+        tag::TagModel,
+        task::{TaskModel, TaskResponseModel, TaskTagModel},
     },
     schema::{
         FilterOptions,
         task::{CreateTaskSchema, QueryTaskSchema, UpdateTaskSchema},
     },
-    util::{AddToQuery, PostgresCmp, SQLQueryBuilder, extract_user_id},
+    util::{AddToQuery, Join, PostgresCmp, SQLQueryBuilder, extract_user_id},
 };
 
 pub async fn create_task_handler(
@@ -30,29 +31,51 @@ pub async fn create_task_handler(
     jar: CookieJar,
     Json(body): Json<CreateTaskSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    // Get cookie for user id
+    // Get user id
     let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
-    // Get connection from pool and then start transaction
+    // Get database connection and start transaction
     let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
     let transaction = conn
         .transaction()
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Build SQL query
+    // Create task
     let mut query_builder = SQLQueryBuilder::new();
     query_builder.add_column(TaskModel::USER_ID, &user_id);
     body.add_to_query(&mut query_builder);
-    query_builder.set_return_all();
+    query_builder.set_return(vec![TaskModel::ID]);
 
     let (statement, params) = query_builder.build_insert();
 
-    // Insert task into database
     let row = transaction
         .query_one(&statement, &params)
         .await
         .map_err(|e| Error::from(e).err_map())?;
+
+    let task_id: Uuid = row.get(TaskModel::ID);
+
+    // Add tags
+    if let Some(ref v) = body.tag_ids {
+        for tag in v {
+            let mut query_builder = SQLQueryBuilder::new();
+            query_builder.set_table(TaskTagModel::TABLE);
+            query_builder.add_column(TaskTagModel::TASK_ID, &task_id);
+            query_builder.add_column(TaskTagModel::TAG_ID, tag);
+
+            let (statement, params) = query_builder.build_insert();
+
+            if transaction
+                .execute(&statement, &params)
+                .await
+                .map_err(|e| Error::from(e).err_map())?
+                != 1
+            {
+                return Err(Error::Internal.err_map());
+            }
+        }
+    }
 
     // Commit transaction
     transaction
@@ -61,17 +84,49 @@ pub async fn create_task_handler(
         .map_err(|e| Error::from(e).err_map())?;
 
     // Get created task
+    let mut query_builder = SQLQueryBuilder::new();
+    query_builder.set_table(TaskModel::TABLE);
+    query_builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &user_id);
+    query_builder.add_condition(TaskModel::ID, PostgresCmp::Equal, &task_id);
+    query_builder.set_return_all();
+
+    let (statement, params) = query_builder.build_select();
+
+    let row = conn
+        .query_one(&statement, &params)
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
+
     let task = TaskModel::from(row);
 
-    // Return success response
-    let json_response = json!({
-        "status": "success",
-        "data": json!({
-            "task": task.to_response(),
-        }),
-    });
+    // Get related tags
+    let mut query_builder = SQLQueryBuilder::new();
+    query_builder.set_table(TagModel::TABLE).add_join(
+        Join::Inner,
+        TaskTagModel::TABLE,
+        TaskTagModel::TAG_ID,
+    );
+    query_builder.add_condition(TaskTagModel::TASK_ID, PostgresCmp::Equal, &task_id);
+    query_builder.set_return_all();
 
-    Ok(Json(json_response))
+    let (statement, params) = query_builder.build_select();
+
+    let rows = conn
+        .query(&statement, &params)
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
+
+    let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
+
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "task": task.to_response().add_tags(tags),
+            }),
+        })),
+    ))
 }
 
 pub async fn retrieve_task_handler(
@@ -79,13 +134,13 @@ pub async fn retrieve_task_handler(
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    // Get cookie for user id
+    // Get user id
     let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
-    // Get connection from pool
+    // Get database connection
     let conn = data.get_conn().await.map_err(|e| e.err_map())?;
 
-    // Build SQL query
+    // Retrieve task
     let mut query_builder = SQLQueryBuilder::new();
     query_builder.set_table(TaskModel::TABLE);
     query_builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &user_id);
@@ -94,18 +149,16 @@ pub async fn retrieve_task_handler(
 
     let (statement, params) = query_builder.build_select();
 
-    // Retrieve task from database
     let row_opt = conn
         .query_opt(&statement, &params)
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Get retrieved task
     let task = match row_opt {
         Some(row) => TaskModel::from(row),
         None => {
             let json_message = json!({
-                "status": "unsuccessful",
+                "status": "not found",
                 "message": format!("task not found"),
             });
 
@@ -113,15 +166,31 @@ pub async fn retrieve_task_handler(
         }
     };
 
-    // Return success response
-    let json_response = json!({
+    // Get related tags
+    let mut query_builder = SQLQueryBuilder::new();
+    query_builder.set_table(TagModel::TABLE).add_join(
+        Join::Inner,
+        TaskTagModel::TABLE,
+        TaskTagModel::TAG_ID,
+    );
+    query_builder.add_condition(TaskTagModel::TASK_ID, PostgresCmp::Equal, &id);
+    query_builder.set_return_all();
+
+    let (statement, params) = query_builder.build_select();
+
+    let rows = conn
+        .query(&statement, &params)
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
+
+    let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
+
+    Ok(Json(json!({
         "status": "success",
         "data": json!({
-            "task": task.to_response(),
+            "task": task.to_response().add_tags(tags),
         }),
-    });
-
-    Ok(Json(json_response))
+    })))
 }
 
 pub async fn update_task_handler(
@@ -130,32 +199,72 @@ pub async fn update_task_handler(
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateTaskSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    // Get cookie for user id
+    // Get user id
     let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
-    // Get connection from pool and then start transaction
+    // Get database connection and start transaction
     let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
     let transaction = conn
         .transaction()
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Build SQL query
+    // Update task
     let timestamp = Local::now();
     let mut query_builder = SQLQueryBuilder::new();
     query_builder.add_column(TaskModel::UPDATED, &timestamp);
     body.add_to_query(&mut query_builder);
     query_builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(TaskModel::ID, PostgresCmp::Equal, &id);
-    query_builder.set_return_all();
+    query_builder.set_return(vec![TaskModel::ID]);
 
     let (statement, params) = query_builder.build_update();
 
-    // Update task in database
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
         .map_err(|e| Error::from(e).err_map())?;
+
+    if row_opt.is_none() {
+        let json_message = json!({
+            "status": "not found",
+            "message": format!("task not found"),
+        });
+
+        return Err((StatusCode::NOT_FOUND, Json(json_message)));
+    }
+
+    // Update tags (first delete existing tags)
+    if let Some(ref v) = body.tag_ids {
+        let mut query_builder = SQLQueryBuilder::new();
+        query_builder.set_table(TaskTagModel::TABLE);
+        query_builder.add_condition(TaskTagModel::TASK_ID, PostgresCmp::Equal, &id);
+
+        let (statement, params) = query_builder.build_delete();
+
+        transaction
+            .execute(&statement, &params)
+            .await
+            .map_err(|e| Error::from(e).err_map())?;
+
+        for tag in v {
+            let mut query_builder = SQLQueryBuilder::new();
+            query_builder.set_table(TaskTagModel::TABLE);
+            query_builder.add_column(TaskTagModel::TASK_ID, &id);
+            query_builder.add_column(TaskTagModel::TAG_ID, tag);
+
+            let (statement, params) = query_builder.build_insert();
+
+            if transaction
+                .execute(&statement, &params)
+                .await
+                .map_err(|e| Error::from(e).err_map())?
+                != 1
+            {
+                return Err(Error::Internal.err_map());
+            }
+        }
+    }
 
     // Commit transaction
     transaction
@@ -164,27 +273,46 @@ pub async fn update_task_handler(
         .map_err(|e| Error::from(e).err_map())?;
 
     // Get updated task
-    let task = match row_opt {
-        Some(row) => TaskModel::from(row),
-        None => {
-            let json_message = json!({
-                "status": "unsuccessful",
-                "message": format!("task not found"),
-            });
+    let mut query_builder = SQLQueryBuilder::new();
+    query_builder.set_table(TaskModel::TABLE);
+    query_builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &user_id);
+    query_builder.add_condition(TaskModel::ID, PostgresCmp::Equal, &id);
+    query_builder.set_return_all();
 
-            return Err((StatusCode::NOT_FOUND, Json(json_message)));
-        }
-    };
+    let (statement, params) = query_builder.build_select();
 
-    // Return success response
-    let json_message = json!({
+    let row = conn
+        .query_one(&statement, &params)
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
+
+    let task = TaskModel::from(row);
+
+    // Get related tags
+    let mut query_builder = SQLQueryBuilder::new();
+    query_builder.set_table(TagModel::TABLE).add_join(
+        Join::Inner,
+        TaskTagModel::TABLE,
+        TaskTagModel::TAG_ID,
+    );
+    query_builder.add_condition(TaskTagModel::TASK_ID, PostgresCmp::Equal, &id);
+    query_builder.set_return_all();
+
+    let (statement, params) = query_builder.build_select();
+
+    let rows = conn
+        .query(&statement, &params)
+        .await
+        .map_err(|e| Error::from(e).err_map())?;
+
+    let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
+
+    Ok(Json(json!({
         "status": "success",
         "data": json!({
-            "task": task.to_response(),
+            "task": task.to_response().add_tags(tags),
         }),
-    });
-
-    Ok(Json(json_message))
+    })))
 }
 
 pub async fn delete_task_handler(
@@ -192,17 +320,17 @@ pub async fn delete_task_handler(
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    // Get cookie for user id
+    // Get user id
     let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
 
-    // Get connection from pool and then start transaction
+    // Get database connection and start transaction
     let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
     let transaction = conn
         .transaction()
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Build SQL query
+    // Delete task
     let mut query_builder = SQLQueryBuilder::new();
     query_builder.set_table(TaskModel::TABLE);
     query_builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &user_id);
@@ -211,7 +339,6 @@ pub async fn delete_task_handler(
 
     let (statement, params) = query_builder.build_delete();
 
-    // Delete task in database
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
@@ -223,28 +350,16 @@ pub async fn delete_task_handler(
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Get deleted task id
-    let task_id: Uuid = match row_opt {
-        Some(row) => row.get(TaskModel::ID),
-        None => {
-            let json_message = json!({
-                "status": "unsuccessful",
-                "message": format!("task not found"),
-            });
+    if row_opt.is_none() {
+        let json_message = json!({
+            "status": "not found",
+            "message": format!("task not found"),
+        });
 
-            return Err((StatusCode::NOT_FOUND, Json(json_message)));
-        }
-    };
+        return Err((StatusCode::NOT_FOUND, Json(json_message)));
+    }
 
-    // Return success message
-    let json_message = json!({
-        "status": "successful",
-        "data": json!({
-            "task_id": task_id,
-        }),
-    });
-
-    Ok(Json(json_message))
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn query_task_handler(
@@ -253,18 +368,18 @@ pub async fn query_task_handler(
     Query(opts): Query<FilterOptions>,
     Json(body): Json<QueryTaskSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    // Get user id
+    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+
+    // Get database connection
+    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+
     // Get pagination info
     let page = opts.page.unwrap_or(1);
     let limit = opts.limit.unwrap_or(25);
     let offset = (page - 1) * limit;
 
-    // Get cookie for user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
-
-    // Get connection from pool
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
-
-    // Build SQL query
+    // Query tasks
     let mut query_builder = SQLQueryBuilder::new();
     body.add_to_query(&mut query_builder);
     query_builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &user_id);
@@ -273,26 +388,77 @@ pub async fn query_task_handler(
 
     let (statement, params) = query_builder.build_select();
 
-    // Query tasks in database
     let rows = conn
         .query(&statement, &params)
         .await
         .map_err(|e| Error::from(e).err_map())?;
 
-    // Get queried tasks
-    let tasks: Vec<TaskModel> = rows.iter().map(|r| TaskModel::from(r.to_owned())).collect();
+    let mut tasks: Vec<TaskModel> = rows.iter().map(|r| TaskModel::from(r.to_owned())).collect();
 
-    // Return success response
-    let task_responses: Vec<TaskResponseModel> = tasks.iter().map(|t| t.to_response()).collect();
-    let json_message = json!({
+    // Filter tasks by tags
+    if let Some(ref v) = body.tag_ids {
+        let num_tags = v.len() as i64;
+
+        let mut query_builder = SQLQueryBuilder::new();
+        query_builder.set_return(vec![TaskTagModel::TASK_ID]);
+        query_builder.set_table(TaskTagModel::TABLE);
+        query_builder.add_condition(TaskTagModel::TAG_ID, PostgresCmp::In, v);
+        query_builder.set_group_by(vec![TaskTagModel::TASK_ID]);
+        query_builder.set_having(
+            format!("COUNT(DISTINCT {})", TaskTagModel::TAG_ID).as_str(),
+            PostgresCmp::Equal,
+            &num_tags,
+        );
+
+        let (statement, params) = query_builder.build_select();
+
+        let rows = conn
+            .query(&statement, &params)
+            .await
+            .map_err(|e| Error::from(e).err_map())?;
+
+        let task_ids: Vec<Uuid> = rows
+            .iter()
+            .map(|r| r.get::<&str, Uuid>(TaskTagModel::TASK_ID))
+            .collect();
+
+        tasks.retain(|t| task_ids.contains(t.task_id()));
+    }
+
+    // Get related tags
+    let mut task_responses: Vec<TaskResponseModel> = Vec::new();
+    for task in tasks {
+        let mut query_builder = SQLQueryBuilder::new();
+        query_builder.set_table(TagModel::TABLE).add_join(
+            Join::Inner,
+            TaskTagModel::TABLE,
+            TaskTagModel::TAG_ID,
+        );
+        query_builder.add_condition(TaskTagModel::TASK_ID, PostgresCmp::Equal, task.task_id());
+        query_builder.set_return_all();
+
+        let (statement, params) = query_builder.build_select();
+
+        let rows = conn
+            .query(&statement, &params)
+            .await
+            .map_err(|e| Error::from(e).err_map())?;
+
+        let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
+
+        let mut task_response = task.to_response();
+        task_response.add_tags(tags);
+
+        task_responses.push(task_response);
+    }
+
+    Ok(Json(json!({
         "status": "ok",
         "data": json!({
             "count": task_responses.len(),
             "tasks": task_responses,
         }),
-    });
-
-    Ok(Json(json_message))
+    })))
 }
 
-// TODO: handler tests?
+// TEST: handler tests?
