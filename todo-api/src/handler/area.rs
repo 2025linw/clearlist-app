@@ -41,7 +41,7 @@ pub async fn create_area_handler(
         .map_err(|e| Error::from(e).err_map())?;
 
     // Create area
-    let mut query_builder = SQLQueryBuilder::new();
+    let mut query_builder = SQLQueryBuilder::new(AreaModel::TABLE);
     query_builder.add_column(AreaModel::USER_ID, &user_id);
     body.add_to_query(&mut query_builder);
     query_builder.set_return_all();
@@ -84,8 +84,7 @@ pub async fn retrieve_area_handler(
     let conn = data.get_conn().await.map_err(|e| e.err_map())?;
 
     // Retrieve area
-    let mut query_builder = SQLQueryBuilder::new();
-    query_builder.set_table(AreaModel::TABLE);
+    let mut query_builder = SQLQueryBuilder::new(AreaModel::TABLE);
     query_builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(AreaModel::ID, PostgresCmp::Equal, &id);
     query_builder.set_return_all();
@@ -135,7 +134,7 @@ pub async fn update_area_handler(
 
     // Update area
     let timestamp = Local::now();
-    let mut query_builder = SQLQueryBuilder::new();
+    let mut query_builder = SQLQueryBuilder::new(AreaModel::TABLE);
     query_builder.add_column(AreaModel::UPDATED, &timestamp);
     body.add_to_query(&mut query_builder);
     query_builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &user_id);
@@ -191,8 +190,7 @@ pub async fn delete_area_handler(
         .map_err(|e| Error::from(e).err_map())?;
 
     // Delete area
-    let mut query_builder = SQLQueryBuilder::new();
-    query_builder.set_table(AreaModel::TABLE);
+    let mut query_builder = SQLQueryBuilder::new(AreaModel::TABLE);
     query_builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(AreaModel::ID, PostgresCmp::Equal, &id);
     query_builder.set_return(vec![AreaModel::ID]);
@@ -240,7 +238,7 @@ pub async fn query_area_handler(
     let offset = (page - 1) * limit;
 
     // Query areas
-    let mut query_builder = SQLQueryBuilder::new();
+    let mut query_builder = SQLQueryBuilder::new(AreaModel::TABLE);
     body.add_to_query(&mut query_builder);
     query_builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.set_limit(limit);

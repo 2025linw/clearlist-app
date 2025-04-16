@@ -41,7 +41,7 @@ pub async fn create_tag_handler(
         .map_err(|e| Error::from(e).err_map())?;
 
     // Create tag
-    let mut query_builder = SQLQueryBuilder::new();
+    let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
     query_builder.add_column(TagModel::USER_ID, &user_id);
     body.add_to_query(&mut query_builder);
     query_builder.set_return_all();
@@ -84,8 +84,7 @@ pub async fn retrieve_tag_handler(
     let conn = data.get_conn().await.map_err(|e| e.err_map())?;
 
     // Retrieve tag
-    let mut query_builder = SQLQueryBuilder::new();
-    query_builder.set_table(TagModel::TABLE);
+    let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
     query_builder.add_condition(TagModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(TagModel::ID, PostgresCmp::Equal, &id);
     query_builder.set_return_all();
@@ -136,7 +135,7 @@ pub async fn update_tag_handler(
 
     // Update tag
     let timestamp = Local::now();
-    let mut query_builder = SQLQueryBuilder::new();
+    let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
     query_builder.add_column(TagModel::UPDATED, &timestamp);
     body.add_to_query(&mut query_builder);
     query_builder.add_condition(TagModel::USER_ID, PostgresCmp::Equal, &user_id);
@@ -192,8 +191,7 @@ pub async fn delete_tag_handler(
         .map_err(|e| Error::from(e).err_map())?;
 
     // Delete tag
-    let mut query_builder = SQLQueryBuilder::new();
-    query_builder.set_table(TagModel::TABLE);
+    let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
     query_builder.add_condition(TagModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(TagModel::ID, PostgresCmp::Equal, &id);
     query_builder.set_return(vec![TagModel::ID]);
@@ -241,7 +239,7 @@ pub async fn query_tag_handler(
     let offset = (page - 1) * limit;
 
     // Query tags
-    let mut query_builder = SQLQueryBuilder::new();
+    let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
     body.add_to_query(&mut query_builder);
     query_builder.add_condition(TagModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.set_limit(limit);

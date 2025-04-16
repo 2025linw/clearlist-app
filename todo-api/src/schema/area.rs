@@ -17,8 +17,6 @@ pub struct CreateAreaSchema {
 
 impl<'a, 'b> AddToQuery<'a, 'b> for CreateAreaSchema {
     fn add_to_query(&'a self, builder: &'b mut SQLQueryBuilder<'a>) {
-        builder.set_table(AreaModel::TABLE);
-
         if let Some(ref s) = self.name {
             builder.add_column(AreaModel::NAME, s);
         }
@@ -38,8 +36,6 @@ pub struct UpdateAreaSchema {
 
 impl<'a, 'b> AddToQuery<'a, 'b> for UpdateAreaSchema {
     fn add_to_query(&'a self, builder: &'b mut SQLQueryBuilder<'a>) {
-        builder.set_table(AreaModel::TABLE);
-
         if let Some(ref u) = self.name {
             if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {
                 builder.add_column(AreaModel::NAME, u);
@@ -62,8 +58,6 @@ pub struct QueryAreaSchema {
 
 impl<'a, 'b> AddToQuery<'a, 'b> for QueryAreaSchema {
     fn add_to_query(&'a self, builder: &'b mut SQLQueryBuilder<'a>) {
-        builder.set_table(AreaModel::TABLE);
-
         if let Some(ref q) = self.name {
             let cmp;
             match q {
@@ -84,7 +78,7 @@ impl<'a, 'b> AddToQuery<'a, 'b> for QueryAreaSchema {
 
 #[cfg(test)]
 mod create_schema_test {
-    use crate::util::{AddToQuery, SQLQueryBuilder};
+    use crate::{model::area::AreaModel, util::{AddToQuery, SQLQueryBuilder}};
 
     use super::CreateAreaSchema;
 
@@ -94,7 +88,7 @@ mod create_schema_test {
         schema.name = Some("Test Name".to_string());
         schema.icon_url = Some("https://www.google.com/favicon.ico".to_string());
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(AreaModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_insert();
@@ -112,8 +106,7 @@ mod create_schema_test {
 #[cfg(test)]
 mod update_schema_test {
     use crate::{
-        schema::UpdateMethod,
-        util::{AddToQuery, SQLQueryBuilder},
+        model::area::AreaModel, schema::UpdateMethod, util::{AddToQuery, SQLQueryBuilder}
     };
 
     use super::UpdateAreaSchema;
@@ -124,7 +117,7 @@ mod update_schema_test {
         schema.name = Some(UpdateMethod::Change("Test Name".to_string()));
         schema.icon_url = Some(UpdateMethod::Change("https://www.mozilla.org/media/protocol/img/logos/firefox/browser/logo.eb1324e44442.svg".to_string()));
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(AreaModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_update();
@@ -142,8 +135,7 @@ mod update_schema_test {
 #[cfg(test)]
 mod query_schema_test {
     use crate::{
-        schema::QueryMethod,
-        util::{AddToQuery, SQLQueryBuilder},
+        model::area::AreaModel, schema::QueryMethod, util::{AddToQuery, SQLQueryBuilder}
     };
 
     use super::QueryAreaSchema;
@@ -152,7 +144,7 @@ mod query_schema_test {
     fn empty() {
         let schema = QueryAreaSchema::default();
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(AreaModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();
@@ -166,7 +158,7 @@ mod query_schema_test {
         let mut schema = QueryAreaSchema::default();
         schema.name = Some(QueryMethod::Match("Test Name".to_string()));
 
-        let mut builder = SQLQueryBuilder::new();
+        let mut builder = SQLQueryBuilder::new(AreaModel::TABLE);
         schema.add_to_query(&mut builder);
 
         let (statement, params) = builder.build_select();
