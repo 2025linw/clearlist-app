@@ -18,7 +18,9 @@ pub async fn register_user(
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Check for email and password
     if body.email.is_none() || body.password.is_none() {
-        return Err(Error::InvalidRequest("Invalid user login details".to_string()).to_axum_response());
+        return Err(
+            Error::InvalidRequest("Invalid user login details".to_string()).to_axum_response(),
+        );
     }
 
     let email = body.email.unwrap();
@@ -73,7 +75,10 @@ pub async fn register_user(
         .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Commit transaction
-    transaction.commit().await.map_err(|e| Error::from(e).to_axum_response())?;
+    transaction
+        .commit()
+        .await
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     Ok(StatusCode::CREATED)
 }
@@ -84,7 +89,9 @@ pub async fn login_user(
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Check for email and password
     if body.email.is_none() || body.password.is_none() {
-        return Err(Error::InvalidRequest("Invalid user login details".to_string()).to_axum_response());
+        return Err(
+            Error::InvalidRequest("Invalid user login details".to_string()).to_axum_response(),
+        );
     }
 
     println!("{:#?}", body);
@@ -93,7 +100,10 @@ pub async fn login_user(
     let password = body.password.unwrap();
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| Error::from(e).to_axum_response())?;
+    let conn = data
+        .get_conn()
+        .await
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Check if user exists
     let mut query_builder = SQLQueryBuilder::new(UserModel::TABLE);
@@ -102,23 +112,32 @@ pub async fn login_user(
 
     let (statement, params) = query_builder.build_select();
 
-    let row_opt = conn.query_opt(&statement, &params).await.map_err(|e| Error::from(e).to_axum_response())?;
+    let row_opt = conn
+        .query_opt(&statement, &params)
+        .await
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     let password_hash = match row_opt {
         Some(row) => row.get::<&str, String>(UserModel::PASS_HASH),
         None => {
-            return Err(Error::InvalidRequest("Account with email and password combination not found".to_string()).to_axum_response());
+            return Err(Error::InvalidRequest(
+                "Account with email and password combination not found".to_string(),
+            )
+            .to_axum_response());
         }
     };
 
     // Verify hash
-    let parsed_hash = PasswordHash::new(&password_hash).map_err(|_| Error::Internal.to_axum_response())?;
+    let parsed_hash =
+        PasswordHash::new(&password_hash).map_err(|_| Error::Internal.to_axum_response())?;
 
     let verify_result = Argon2::default().verify_password(password.as_bytes(), &parsed_hash);
 
     match verify_result {
         Ok(()) => Ok(StatusCode::OK),
-        Err(password_hash::Error::Password) => Err(Error::InvalidRequest("Incorrect password".to_string()).to_axum_response()),
+        Err(password_hash::Error::Password) => {
+            Err(Error::InvalidRequest("Incorrect password".to_string()).to_axum_response())
+        }
         Err(_) => Err(Error::Internal.to_axum_response()),
     }
 }
