@@ -2,7 +2,14 @@ use axum::{Json, http::StatusCode};
 use serde_json::json;
 
 // TODO: use thiserror
+// TODO: better differentiate between different types of errors (user auth, database query, database pool, etc)
+// TODO: include server side console prints or logs
+// TODO: include client side responses that don't reveal too much about server architecture
 
+/// Errors that are used to return back to Client
+///
+/// Any function that returns to client must use this to avoid
+/// revealing any information about backend issues.
 #[derive(Debug)]
 pub enum Error {
     DatabasePool(deadpool_postgres::PoolError),
@@ -13,7 +20,7 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn err_map(&self) -> (StatusCode, Json<serde_json::Value>) {
+    pub fn to_axum_response(&self) -> (StatusCode, Json<serde_json::Value>) {
         match self {
             Error::DatabasePool(pool_error) => {
                 eprintln!("Database Pool Error: {:#}", pool_error);

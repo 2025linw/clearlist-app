@@ -59,20 +59,24 @@ CASCADE;
 INSERT INTO auth.users
 (
     user_id,
-	username
+	email,
+    password_hash
 )
 VALUES
 (
     '00000000-0000-40ff-9000-000000000001',
-    'Test User 1'
+    'testuser1@email.com',
+    'not real hash'
 ),
 (
     '00000000-0000-40ff-9000-000000000002',
-    'Test User 2'
+    'testuser2@email.com',
+    'not real hash'
 ),
 (
     '00000000-0000-40ff-9000-000000000003',
-    'Test User 3'
+    'testuser3@email.com',
+    'not real hash'
 );
 
 
@@ -89,7 +93,7 @@ VALUES
     '00000000-0000-40aa-9000-000000000000',
 	'No Title',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 
 INSERT INTO data.tasks -- Task A
@@ -114,7 +118,7 @@ VALUES
     NULL,
     NULL,
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1')
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9001-000000000002',
@@ -125,7 +129,7 @@ VALUES
     NULL,
     NULL,
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1')
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9001-000000000003',
@@ -136,7 +140,7 @@ VALUES
     '12:00:00',
     NULL,
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1')
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9001-000000000004',
@@ -147,7 +151,7 @@ VALUES
     NULL,
     '2026-02-01',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1')
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9001-000000000005',
@@ -158,7 +162,7 @@ VALUES
     NULL,
     '2026-02-01',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1')
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9001-000000000006',
@@ -169,7 +173,7 @@ VALUES
     '12:00:00',
     '2026-02-01',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1')
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 
 INSERT INTO data.tasks -- Task B
@@ -189,7 +193,7 @@ VALUES
     'Task B1',
     'No Completed, No Logged, No Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     NULL,
 	NULL,
 	NULL
@@ -199,7 +203,7 @@ VALUES
     'Task B2',
     'No Completed, No Logged, Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     NULL,
     NULL,
     '2025-01-03'
@@ -209,7 +213,7 @@ VALUES
     'Task B3',
     'No Completed, Logged, No Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     NULL,
     '2025-01-02',
     NULL
@@ -219,7 +223,7 @@ VALUES
     'Task B4',
     'No Completed, Logged, Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     NULL,
     '2025-01-02',
     '2025-01-03'
@@ -229,7 +233,7 @@ VALUES
     'Task B5',
     'Completed, No Logged, No Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     '2025-01-01',
 	NULL,
 	NULL
@@ -239,7 +243,7 @@ VALUES
     'Task B6',
     'Completed, No Logged, Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     '2025-01-01',
 	NULL,
     '2025-01-03'
@@ -249,7 +253,7 @@ VALUES
     'Task B7',
     'Completed, Logged, No Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     '2025-01-01',
     '2025-01-02',
     NULL
@@ -259,7 +263,7 @@ VALUES
     'Task B8',
     'Completed, Logged, Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     '2025-01-01',
     '2025-01-02',
     '2025-01-03'
@@ -279,7 +283,7 @@ VALUES
     '00000000-0000-40bb-9000-000000000000',
 	'No Title',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 
 INSERT INTO data.projects -- Project A
@@ -304,7 +308,7 @@ VALUES
 	NULL,
 	NULL,
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9001-000000000002',
@@ -315,7 +319,7 @@ VALUES
 	NULL,
 	NULL,
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9001-000000000003',
@@ -326,7 +330,7 @@ VALUES
 	'12:00:00',
 	NULL,
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9001-000000000004',
@@ -337,7 +341,7 @@ VALUES
 	NULL,
 	'2026-02-01',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9001-000000000005',
@@ -348,7 +352,7 @@ VALUES
 	NULL,
 	'2026-02-01',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9001-000000000006',
@@ -359,7 +363,7 @@ VALUES
 	'12:00:00',
 	'2026-02-01',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 
 INSERT INTO data.projects -- Project B
@@ -379,7 +383,7 @@ VALUES
     'Project B1',
     'No Completed, No Logged, No Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     NULL,
 	NULL,
 	NULL
@@ -389,7 +393,7 @@ VALUES
     'Project B2',
     'No Completed, No Logged, Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     NULL,
     NULL,
     '2025-01-03'
@@ -399,7 +403,7 @@ VALUES
     'Project B3',
     'No Completed, Logged, No Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     NULL,
     '2025-01-02',
     NULL
@@ -409,7 +413,7 @@ VALUES
     'Project B4',
     'No Completed, Logged, Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     NULL,
     '2025-01-02',
     '2025-01-03'
@@ -419,7 +423,7 @@ VALUES
     'Project B5',
     'Completed, No Logged, No Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     '2025-01-01',
 	NULL,
 	NULL
@@ -429,7 +433,7 @@ VALUES
     'Project B6',
     'Completed, No Logged, Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     '2025-01-01',
 	NULL,
     '2025-01-03'
@@ -439,7 +443,7 @@ VALUES
     'Project B7',
     'Completed, Logged, No Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     '2025-01-01',
     '2025-01-02',
     NULL
@@ -449,7 +453,7 @@ VALUES
     'Project B8',
     'Completed, Logged, Trashed',
 
-    (SELECT user_id FROM auth.users WHERE username='Test User 1'),
+    (SELECT user_id FROM auth.users WHERE email='testuser1@email.com'),
     '2025-01-01',
     '2025-01-02',
     '2025-01-03'
@@ -469,7 +473,7 @@ VALUES
 	'Project C',
 	'No Area',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.tasks -- Task C
 (
@@ -489,7 +493,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project C'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9003-000000000002',
@@ -498,7 +502,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project C'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9003-000000000003',
@@ -507,7 +511,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project C'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9003-000000000004',
@@ -516,7 +520,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project C'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9003-000000000005',
@@ -525,7 +529,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project C'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 
 
@@ -538,7 +542,7 @@ INSERT INTO data.areas -- Area 0
 VALUES
 (
     '00000000-0000-40cc-9000-000000000000',
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 
 INSERT INTO data.areas -- Area D
@@ -553,7 +557,7 @@ VALUES
     '00000000-0000-40cc-9004-000000000000',
 	'Area D',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.projects -- Project D
 (
@@ -573,7 +577,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area D'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.tasks -- Task D
 (
@@ -593,7 +597,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project D'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9004-000000000002',
@@ -602,7 +606,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project D'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9004-000000000003',
@@ -611,7 +615,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project D'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9004-000000000004',
@@ -620,7 +624,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project D'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9004-000000000005',
@@ -629,7 +633,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project D'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 
 INSERT INTO data.areas -- Area E
@@ -644,7 +648,7 @@ VALUES
     '00000000-0000-40cc-9005-000000000000',
 	'Area E',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.tasks -- Task E
 (
@@ -664,7 +668,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area E'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9005-000000000002',
@@ -673,7 +677,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area E'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9005-000000000003',
@@ -682,7 +686,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area E'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9005-000000000004',
@@ -691,7 +695,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area E'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9005-000000000005',
@@ -700,7 +704,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area E'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.projects -- Project E
 (
@@ -720,7 +724,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area E'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9005-000000000002',
@@ -729,7 +733,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area E'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9005-000000000003',
@@ -738,7 +742,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area E'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9005-000000000004',
@@ -747,7 +751,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area E'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9005-000000000005',
@@ -756,7 +760,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area E'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.projects -- Project F
 (
@@ -776,7 +780,7 @@ VALUES
 
 	(SELECT area_id FROM data.areas WHERE area_name='Area E'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.tasks -- Task F
 (
@@ -796,7 +800,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project F'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9006-000000000002',
@@ -805,7 +809,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project F'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9006-000000000003',
@@ -814,7 +818,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project F'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9006-000000000004',
@@ -823,7 +827,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project F'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9006-000000000005',
@@ -832,7 +836,7 @@ VALUES
 
 	(SELECT project_id FROM data.projects WHERE project_title='Project F'),
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 
 
@@ -855,7 +859,7 @@ VALUES
 
 	'#000000',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 -- Tag 0
 (
@@ -865,7 +869,7 @@ VALUES
 
 	'#ffe600',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40dd-9000-000000000002',
@@ -874,7 +878,7 @@ VALUES
 
 	'#ff0000',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 -- Tag A
 (
@@ -884,7 +888,7 @@ VALUES
 
 	'#0aab20',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40dd-9001-000000000002',
@@ -893,7 +897,7 @@ VALUES
 
 	'#faea05',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40dd-9001-000000000003',
@@ -902,7 +906,7 @@ VALUES
 
 	'#fa1d05',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 -- Tag B
 (
@@ -912,7 +916,7 @@ VALUES
 
 	'#757171',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40dd-9002-000000000002',
@@ -921,7 +925,7 @@ VALUES
 
 	'#e3c905',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40dd-9002-000000000003',
@@ -930,7 +934,7 @@ VALUES
 
 	'#f59b0a',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40dd-9002-000000000004',
@@ -939,7 +943,7 @@ VALUES
 
 	'#02d102',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 -- Tag C
 (
@@ -949,7 +953,7 @@ VALUES
 
 	'#d11702',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40dd-9003-000000000002',
@@ -958,7 +962,7 @@ VALUES
 
 	'#e08002',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40dd-9003-000000000003',
@@ -967,7 +971,7 @@ VALUES
 
 	'#fcf000',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40dd-9003-000000000004',
@@ -976,7 +980,7 @@ VALUES
 
 	'#02cc02',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40dd-9003-000000000005',
@@ -985,7 +989,7 @@ VALUES
 
 	'#0b2fe3',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 
 
@@ -1004,21 +1008,21 @@ VALUES
 	'Task G1',
 	'Priority: Low',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9007-000000000002',
 	'Task G2',
 	'Priority: Mid',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9007-000000000003',
 	'Task G3',
 	'Priority: High',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.task_tags
 (
@@ -1053,35 +1057,35 @@ VALUES
 	'Task H1',
 	'School: Class 1',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9008-000000000002',
 	'Task H2',
 	'School: Class 2',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9008-000000000003',
 	'Task H3',
 	'School: Class 3',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9008-000000000004',
 	'Task H4',
 	'School: Class 4',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9008-000000000005',
 	'Task H5',
 	'School: Class 5',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.task_tags
 (
@@ -1124,28 +1128,28 @@ VALUES
 	'Task I1',
 	'Scrum: Backlog; Important',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9009-000000000002',
 	'Task I2',
 	'Scrum: To-do; Urgent',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9009-000000000003',
 	'Task I3',
 	'Scrum: In-progress',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40aa-9009-000000000004',
 	'Task I4',
 	'Scrum: Done',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.task_tags
 (
@@ -1194,21 +1198,21 @@ VALUES
 	'Project G1',
 	'Priority: Low',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9007-000000000002',
 	'Project G2',
 	'Priority: Mid',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9007-000000000003',
 	'Project G3',
 	'Priority: High',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.project_tags
 (
@@ -1251,35 +1255,35 @@ VALUES
 	'Project H1',
 	'School: Class 1',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9008-000000000002',
 	'Project H2',
 	'School: Class 2',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9008-000000000003',
 	'Project H3',
 	'School: Class 3',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9008-000000000004',
 	'Project H4',
 	'School: Class 4',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 ),
 (
     '00000000-0000-40bb-9008-000000000005',
 	'Project H5',
 	'School: Class 5',
 
-	(SELECT user_id FROM auth.users WHERE username='Test User 1')
+	(SELECT user_id FROM auth.users WHERE email='testuser1@email.com')
 );
 INSERT INTO data.project_tags
 (

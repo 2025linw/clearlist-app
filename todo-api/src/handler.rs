@@ -1,8 +1,8 @@
 pub mod area;
+pub mod auth;
 pub mod project;
 pub mod tag;
 pub mod task;
-pub mod user;
 
 use axum::{Json, response::IntoResponse};
 

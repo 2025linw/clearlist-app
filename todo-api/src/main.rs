@@ -68,5 +68,7 @@ async fn main() {
     let url = format!("localhost:{srv_port}");
     println!("Starting server at {}", url);
     let listener = TcpListener::bind(url).await.unwrap();
-    axum::serve(listener, router).await.unwrap();
+    axum::serve(listener, router)
+        .await
+        .expect("Unable to start server");
 }

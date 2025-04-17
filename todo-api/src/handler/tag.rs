@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Json,
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     response::IntoResponse,
 };
@@ -26,19 +26,19 @@ use crate::{
 };
 
 pub async fn create_tag_handler(
-    State(data): State<Arc<AppState>>,
+    Extension(data): Extension<Arc<AppState>>,
     jar: CookieJar,
     Json(body): Json<CreateTagSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Create tag
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
@@ -51,13 +51,13 @@ pub async fn create_tag_handler(
     let row = transaction
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Commit transaction
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     let tag = TagModel::from(row);
 
@@ -73,15 +73,15 @@ pub async fn create_tag_handler(
 }
 
 pub async fn retrieve_tag_handler(
-    State(data): State<Arc<AppState>>,
+    Extension(data): Extension<Arc<AppState>>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
 
     // Retrieve tag
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
@@ -94,7 +94,7 @@ pub async fn retrieve_tag_handler(
     let row_opt = conn
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Get retrieved tag
     let tag = match row_opt {
@@ -118,20 +118,20 @@ pub async fn retrieve_tag_handler(
 }
 
 pub async fn update_tag_handler(
-    State(data): State<Arc<AppState>>,
+    Extension(data): Extension<Arc<AppState>>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateTagSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Update tag
     let timestamp = Local::now();
@@ -147,7 +147,7 @@ pub async fn update_tag_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -162,7 +162,7 @@ pub async fn update_tag_handler(
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Get updated tag
     let tag = TagModel::from(row_opt.unwrap());
@@ -176,19 +176,19 @@ pub async fn update_tag_handler(
 }
 
 pub async fn delete_tag_handler(
-    State(data): State<Arc<AppState>>,
+    Extension(data): Extension<Arc<AppState>>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Delete tag
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
@@ -201,13 +201,13 @@ pub async fn delete_tag_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Commit transaction
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -222,16 +222,16 @@ pub async fn delete_tag_handler(
 }
 
 pub async fn query_tag_handler(
-    State(data): State<Arc<AppState>>,
+    Extension(data): Extension<Arc<AppState>>,
     jar: CookieJar,
     Query(opts): Query<FilterOptions>,
     Json(body): Json<QueryTagSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
 
     // Get pagination info
     let page = opts.page.unwrap_or(1);
@@ -250,7 +250,7 @@ pub async fn query_tag_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 

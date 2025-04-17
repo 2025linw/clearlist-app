@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Json,
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     response::IntoResponse,
 };
@@ -27,19 +27,19 @@ use crate::{
 };
 
 pub async fn create_task_handler(
-    State(data): State<Arc<AppState>>,
+    Extension(data): Extension<Arc<AppState>>,
     jar: CookieJar,
     Json(body): Json<CreateTaskSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Create task
     let mut query_builder = SQLQueryBuilder::new(TaskModel::TABLE);
@@ -52,7 +52,7 @@ pub async fn create_task_handler(
     let row = transaction
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     let task_id: Uuid = row.get(TaskModel::ID);
 
@@ -68,10 +68,10 @@ pub async fn create_task_handler(
             if transaction
                 .execute(&statement, &params)
                 .await
-                .map_err(|e| Error::from(e).err_map())?
+                .map_err(|e| Error::from(e).to_axum_response())?
                 != 1
             {
-                return Err(Error::Internal.err_map());
+                return Err(Error::Internal.to_axum_response());
             }
         }
     }
@@ -80,7 +80,7 @@ pub async fn create_task_handler(
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Get created task
     let mut query_builder = SQLQueryBuilder::new(TaskModel::TABLE);
@@ -93,7 +93,7 @@ pub async fn create_task_handler(
     let row = conn
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     let task = TaskModel::from(row);
 
@@ -108,7 +108,7 @@ pub async fn create_task_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
@@ -124,15 +124,15 @@ pub async fn create_task_handler(
 }
 
 pub async fn retrieve_task_handler(
-    State(data): State<Arc<AppState>>,
+    Extension(data): Extension<Arc<AppState>>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
 
     // Retrieve task
     let mut query_builder = SQLQueryBuilder::new(TaskModel::TABLE);
@@ -145,7 +145,7 @@ pub async fn retrieve_task_handler(
     let row_opt = conn
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     let task = match row_opt {
         Some(row) => TaskModel::from(row),
@@ -170,7 +170,7 @@ pub async fn retrieve_task_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
@@ -183,20 +183,20 @@ pub async fn retrieve_task_handler(
 }
 
 pub async fn update_task_handler(
-    State(data): State<Arc<AppState>>,
+    Extension(data): Extension<Arc<AppState>>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateTaskSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Update task
     let timestamp = Local::now();
@@ -212,7 +212,7 @@ pub async fn update_task_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -233,7 +233,7 @@ pub async fn update_task_handler(
         transaction
             .execute(&statement, &params)
             .await
-            .map_err(|e| Error::from(e).err_map())?;
+            .map_err(|e| Error::from(e).to_axum_response())?;
 
         for tag in v {
             let mut query_builder = SQLQueryBuilder::new(TaskTagModel::TABLE);
@@ -245,10 +245,10 @@ pub async fn update_task_handler(
             if transaction
                 .execute(&statement, &params)
                 .await
-                .map_err(|e| Error::from(e).err_map())?
+                .map_err(|e| Error::from(e).to_axum_response())?
                 != 1
             {
-                return Err(Error::Internal.err_map());
+                return Err(Error::Internal.to_axum_response());
             }
         }
     }
@@ -257,7 +257,7 @@ pub async fn update_task_handler(
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Get updated task
     let mut query_builder = SQLQueryBuilder::new(TaskModel::TABLE);
@@ -270,7 +270,7 @@ pub async fn update_task_handler(
     let row = conn
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     let task = TaskModel::from(row);
 
@@ -285,7 +285,7 @@ pub async fn update_task_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
@@ -298,19 +298,19 @@ pub async fn update_task_handler(
 }
 
 pub async fn delete_task_handler(
-    State(data): State<Arc<AppState>>,
+    Extension(data): Extension<Arc<AppState>>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Delete task
     let mut query_builder = SQLQueryBuilder::new(TaskModel::TABLE);
@@ -323,13 +323,13 @@ pub async fn delete_task_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     // Commit transaction
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -344,16 +344,16 @@ pub async fn delete_task_handler(
 }
 
 pub async fn query_task_handler(
-    State(data): State<Arc<AppState>>,
+    Extension(data): Extension<Arc<AppState>>,
     jar: CookieJar,
     Query(opts): Query<FilterOptions>,
     Json(body): Json<QueryTaskSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
 
     // Get pagination info
     let page = opts.page.unwrap_or(1);
@@ -372,7 +372,7 @@ pub async fn query_task_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).to_axum_response())?;
 
     let mut tasks: Vec<TaskModel> = rows.iter().map(|r| TaskModel::from(r.to_owned())).collect();
 
@@ -395,7 +395,7 @@ pub async fn query_task_handler(
         let rows = conn
             .query(&statement, &params)
             .await
-            .map_err(|e| Error::from(e).err_map())?;
+            .map_err(|e| Error::from(e).to_axum_response())?;
 
         let task_ids: Vec<Uuid> = rows
             .iter()
@@ -418,7 +418,7 @@ pub async fn query_task_handler(
         let rows = conn
             .query(&statement, &params)
             .await
-            .map_err(|e| Error::from(e).err_map())?;
+            .map_err(|e| Error::from(e).to_axum_response())?;
 
         let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 

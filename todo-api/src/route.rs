@@ -1,17 +1,23 @@
 use std::sync::Arc;
 
 use axum::{
-    Router,
+    Extension, Router,
+    http::Method,
     routing::{get, post},
 };
+use tower::ServiceBuilder;
+use tower_http::cors::CorsLayer;
+use tower_jwt::JwtLayer;
 
 use crate::{
     AppState,
-    handler::{area::*, health_check_handler, project::*, tag::*, task::*, user::*},
+    handler::{area::*, auth::*, health_check_handler, project::*, tag::*, task::*},
 };
 
 pub fn create_api_router(app_state: Arc<AppState>) -> Router {
-    let user_routes = Router::new();
+    let auth_routes = Router::new()
+        .route("/register", post(register_user))
+        .route("/login", post(login_user));
 
     let task_routes = Router::new()
         .route("/", post(query_task_handler))
@@ -52,12 +58,21 @@ pub fn create_api_router(app_state: Arc<AppState>) -> Router {
 
     let api_routes = Router::new()
         .route("/healthcheck", get(health_check_handler))
-        .nest("/users", user_routes)
+        .nest("/auth", auth_routes)
         .nest("/tasks", task_routes)
         .nest("/projects", project_routes)
         .nest("/areas", area_routes)
-        .nest("/tags", tag_routes)
-        .with_state(app_state);
+        .nest("/tags", tag_routes);
 
-    Router::new().nest("/api", api_routes)
+    Router::new().nest("/api", api_routes).layer(
+        ServiceBuilder::new()
+            .layer(CorsLayer::new().allow_methods([
+                Method::GET,
+                Method::POST,
+                Method::DELETE,
+                Method::PUT,
+            ]))
+            // .layer(JwtLayer::<Claim, _>::new())
+            .layer(Extension(app_state)),
+    )
 }

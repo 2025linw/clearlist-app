@@ -4,6 +4,9 @@
 # Environment Files
 **/.env
 
+# Security Keys
+**/*.pem
+
 # Log files
 **/*.log
 
