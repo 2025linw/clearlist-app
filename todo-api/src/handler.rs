@@ -17,4 +17,4 @@ pub async fn health_check_handler() -> impl IntoResponse {
     Json(json_response)
 }
 
-// TEST: test handlers?
+// TEST: healthcheck handler

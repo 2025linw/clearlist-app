@@ -87,21 +87,17 @@ impl ToResponse for TaskModel {
     fn to_response(&self) -> Self::Response {
         Self::Response {
             id: self.task_id,
-
             title: self.task_title.to_owned().unwrap_or_default(),
             notes: self.notes.to_owned().unwrap_or_default(),
             start_date: self.start_date,
             start_time: self.start_time,
             deadline: self.deadline,
-
             completed_on: self.completed_on,
             logged_on: self.logged_on,
             trashed_on: self.trashed_on,
-
             area_id: self.area_id,
             project_id: self.project_id,
             tags: Vec::new(),
-
             user_id: self.user_id,
             created_on: self.created_on,
             updated_on: self.updated_on,
@@ -148,5 +144,3 @@ impl TaskTagModel {
     pub const TASK_ID: &str = "task_id";
     pub const TAG_ID: &str = "tag_id";
 }
-
-// TEST: ToResponse test?

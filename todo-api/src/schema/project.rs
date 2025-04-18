@@ -638,5 +638,7 @@ mod query_schema_test {
         assert_eq!(params.len(), 6);
     }
 
+    // TEST: test with tags
+
     // TEST: make production example
 }

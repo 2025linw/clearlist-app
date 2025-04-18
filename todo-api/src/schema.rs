@@ -113,5 +113,3 @@ where
 
     to_sql_checked!();
 }
-
-// TEST: ToPostgresCmp test?

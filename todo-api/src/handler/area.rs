@@ -264,4 +264,4 @@ pub async fn query_area_handler(
     })))
 }
 
-// TEST: handler tests?
+// TEST: area handlers

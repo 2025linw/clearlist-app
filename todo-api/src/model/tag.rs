@@ -55,12 +55,9 @@ impl ToResponse for TagModel {
     fn to_response(&self) -> Self::Response {
         Self::Response {
             id: self.tag_id,
-
             label: self.tag_label.to_owned().unwrap_or_default(),
             color: self.color.to_owned().unwrap_or_default(),
-
             category: self.category.to_owned().unwrap_or_default(),
-
             user_id: self.user_id,
             created_on: self.created_on,
             updated_on: self.updated_on,
@@ -82,5 +79,3 @@ pub struct TagResponseModel {
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
 }
-
-// TEST: ToResponse test?

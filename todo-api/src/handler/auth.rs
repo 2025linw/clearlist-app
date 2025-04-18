@@ -133,6 +133,7 @@ pub async fn login_user(
 
     let verify_result = Argon2::default().verify_password(password.as_bytes(), &parsed_hash);
 
+    // TODO: return JWT
     match verify_result {
         Ok(()) => Ok(StatusCode::OK),
         Err(password_hash::Error::Password) => {
@@ -142,4 +143,6 @@ pub async fn login_user(
     }
 }
 
-// Add delete user
+// TODO: Add delete user
+
+// TEST: authentication handlers
