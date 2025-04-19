@@ -32,8 +32,6 @@ pub async fn create_task_handler(
     jar: CookieJar,
     Json(body): Json<CreateTaskSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    println!("{:#?}", claim);
-
     // Get user id
     let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
