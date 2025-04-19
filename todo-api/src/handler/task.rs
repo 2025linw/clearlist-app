@@ -1,12 +1,11 @@
-use std::sync::Arc;
-
 use axum::{
     Json,
-    extract::{Extension, Path, Query},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
 use axum_extra::extract::CookieJar;
+use axum_jwt_auth::Claims;
 use chrono::Local;
 use serde_json::json;
 use uuid::Uuid;
@@ -21,16 +20,20 @@ use crate::{
     },
     schema::{
         FilterOptions,
+        auth::Claim,
         task::{CreateTaskSchema, QueryTaskSchema, UpdateTaskSchema},
     },
     util::{AddToQuery, Join, PostgresCmp, SQLQueryBuilder, extract_user_id},
 };
 
 pub async fn create_task_handler(
-    Extension(data): Extension<Arc<AppState>>,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
     jar: CookieJar,
     Json(body): Json<CreateTaskSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    println!("{:#?}", claim);
+
     // Get user id
     let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
 
@@ -124,7 +127,8 @@ pub async fn create_task_handler(
 }
 
 pub async fn retrieve_task_handler(
-    Extension(data): Extension<Arc<AppState>>,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -183,7 +187,8 @@ pub async fn retrieve_task_handler(
 }
 
 pub async fn update_task_handler(
-    Extension(data): Extension<Arc<AppState>>,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateTaskSchema>,
@@ -298,7 +303,8 @@ pub async fn update_task_handler(
 }
 
 pub async fn delete_task_handler(
-    Extension(data): Extension<Arc<AppState>>,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -344,7 +350,8 @@ pub async fn delete_task_handler(
 }
 
 pub async fn query_task_handler(
-    Extension(data): Extension<Arc<AppState>>,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
     jar: CookieJar,
     Query(opts): Query<FilterOptions>,
     Json(body): Json<QueryTaskSchema>,

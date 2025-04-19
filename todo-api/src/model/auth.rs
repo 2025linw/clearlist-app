@@ -29,6 +29,16 @@ impl UserModel {
     pub const UPDATED: &str = "updated_on";
 }
 
+impl UserModel {
+    pub fn user_id(&self) -> &Uuid {
+        &self.user_id
+    }
+
+    pub fn password_hash(&self) -> &str {
+        &self.password_hash
+    }
+}
+
 impl From<Row> for UserModel {
     fn from(value: Row) -> Self {
         Self {

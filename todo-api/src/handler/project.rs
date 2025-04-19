@@ -1,12 +1,11 @@
-use std::sync::Arc;
-
 use axum::{
     Json,
-    extract::{Extension, Path, Query},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
 use axum_extra::extract::CookieJar;
+use axum_jwt_auth::Claims;
 use chrono::Local;
 use serde_json::json;
 use uuid::Uuid;
@@ -21,13 +20,15 @@ use crate::{
     },
     schema::{
         FilterOptions,
+        auth::Claim,
         project::{CreateProjectSchema, QueryProjectSchema, UpdateProjectSchema},
     },
     util::{AddToQuery, Join, PostgresCmp, SQLQueryBuilder, extract_user_id},
 };
 
 pub async fn create_project_handler(
-    Extension(data): Extension<Arc<AppState>>,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
     jar: CookieJar,
     Json(body): Json<CreateProjectSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -124,7 +125,8 @@ pub async fn create_project_handler(
 }
 
 pub async fn retrieve_project_handler(
-    Extension(data): Extension<Arc<AppState>>,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -183,7 +185,8 @@ pub async fn retrieve_project_handler(
 }
 
 pub async fn update_project_handler(
-    Extension(data): Extension<Arc<AppState>>,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateProjectSchema>,
@@ -298,7 +301,8 @@ pub async fn update_project_handler(
 }
 
 pub async fn delete_project_handler(
-    Extension(data): Extension<Arc<AppState>>,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
     jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -344,7 +348,8 @@ pub async fn delete_project_handler(
 }
 
 pub async fn query_project_handler(
-    Extension(data): Extension<Arc<AppState>>,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
     jar: CookieJar,
     Query(opts): Query<FilterOptions>,
     Json(body): Json<QueryProjectSchema>,

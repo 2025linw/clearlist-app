@@ -483,7 +483,7 @@ pub trait AddToQuery<'a, 'b> {
 
 #[cfg(test)]
 mod select_builder_tests {
-    use super::{NULL, Join, PostgresCmp, SQLQueryBuilder};
+    use super::{Join, NULL, PostgresCmp, SQLQueryBuilder};
 
     // TEST: as ISNULL and NOTNULL to tests
 
