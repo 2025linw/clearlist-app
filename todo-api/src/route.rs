@@ -1,6 +1,11 @@
+use std::sync::Arc;
+
 use axum::{
     Router,
     routing::{get, post},
+};
+use tower_governor::{
+    GovernorLayer, governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor,
 };
 
 use crate::{
@@ -9,9 +14,29 @@ use crate::{
 };
 
 pub fn create_api_router() -> Router<AppState> {
+    let governor_default_conf = Arc::new(
+        GovernorConfigBuilder::default()
+            .key_extractor(SmartIpKeyExtractor)
+            .per_second(1)
+            .burst_size(8)
+            .finish()
+            .unwrap(),
+    );
+    let governor_secure_conf = Arc::new(
+        GovernorConfigBuilder::default()
+            .key_extractor(SmartIpKeyExtractor)
+            .per_second(4)
+            .burst_size(2)
+            .finish()
+            .unwrap(),
+    );
+
     let auth_routes = Router::new()
         .route("/register", post(register_user))
-        .route("/login", post(login_user));
+        .route("/login", post(login_user))
+        .layer(GovernorLayer {
+            config: governor_secure_conf,
+        });
 
     let task_routes = Router::new()
         .route("/", post(query_task_handler))
@@ -50,11 +75,17 @@ pub fn create_api_router() -> Router<AppState> {
                 .delete(delete_tag_handler),
         );
 
-    Router::new()
-        .route("/healthcheck", get(health_check_handler))
-        .nest("/auth", auth_routes)
+    let api_routes = Router::new()
         .nest("/tasks", task_routes)
         .nest("/projects", project_routes)
         .nest("/areas", area_routes)
         .nest("/tags", tag_routes)
+        .layer(GovernorLayer {
+            config: governor_default_conf,
+        });
+
+    Router::new()
+        .route("/healthcheck", get(health_check_handler))
+        .nest("/auth", auth_routes)
+        .merge(api_routes)
 }

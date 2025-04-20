@@ -23,17 +23,17 @@ use crate::{
         auth::Claim,
         project::{CreateProjectSchema, QueryProjectSchema, UpdateProjectSchema},
     },
-    util::{AddToQuery, Join, PostgresCmp, SQLQueryBuilder, extract_user_id},
+    util::{AddToQuery, Join, PostgresCmp, SQLQueryBuilder},
 };
 
 pub async fn create_project_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
-    jar: CookieJar,
+    _jar: CookieJar,
     Json(body): Json<CreateProjectSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
     let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
@@ -127,11 +127,11 @@ pub async fn create_project_handler(
 pub async fn retrieve_project_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
-    jar: CookieJar,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
+    let user_id = claim.sub;
 
     // Get database connection
     let conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
@@ -187,12 +187,12 @@ pub async fn retrieve_project_handler(
 pub async fn update_project_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
-    jar: CookieJar,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateProjectSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
     let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
@@ -303,11 +303,11 @@ pub async fn update_project_handler(
 pub async fn delete_project_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
-    jar: CookieJar,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
     let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
@@ -350,12 +350,12 @@ pub async fn delete_project_handler(
 pub async fn query_project_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
-    jar: CookieJar,
+    _jar: CookieJar,
     Query(opts): Query<FilterOptions>,
     Json(body): Json<QueryProjectSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.to_axum_response())?;
+    let user_id = claim.sub;
 
     // Get database connection
     let conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;

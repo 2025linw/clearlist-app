@@ -2,12 +2,8 @@ pub mod sql_builder;
 
 pub use sql_builder::*;
 
-use axum_extra::extract::CookieJar;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, PoolError};
 use tokio_postgres::{Config, NoTls};
-use uuid::Uuid;
-
-use crate::error::Error;
 
 pub async fn get_database_pool(
     host: String,
@@ -26,18 +22,4 @@ pub async fn get_database_pool(
     let _ = pool.get().await?;
 
     Ok(pool)
-}
-
-pub fn extract_user_id(cookies: &CookieJar) -> Result<Uuid, Error> {
-    let cookie = match cookies.get("todo_app_user_id") {
-        Some(c) => c,
-        None => return Err(Error::InvalidRequest("User ID was not sent".to_string())),
-    };
-
-    match Uuid::try_parse(cookie.value()) {
-        Ok(i) => Ok(i),
-        Err(_) => Err(Error::InvalidRequest(
-            "User ID was not a UUID format".to_string(),
-        )),
-    }
 }

@@ -143,9 +143,10 @@ pub async fn login_user(
     let header = Header::new(Algorithm::EdDSA);
 
     let exp = Utc::now() + Duration::weeks(1);
-    let claims = Claim::new(user.user_id().to_string(), exp.timestamp() as u64);
 
-    let token = encode::<Claim>(&header, &claims, &key).unwrap(); // TODO: change this to error
+    let claims = Claim::new(user.user_id().to_owned(), exp.timestamp() as u64);
+
+    let token = encode::<Claim>(&header, &claims, &key).expect("wut"); // TODO: change this to error
 
     Ok(token.into_response())
 }

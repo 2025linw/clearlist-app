@@ -1,5 +1,6 @@
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(Default))]
@@ -12,14 +13,15 @@ pub struct LoginDetails {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Claim {
     pub iss: String,
-    pub sub: String,
+    #[serde(with = "uuid::serde::simple")]
+    pub sub: Uuid,
     pub aud: String,
     pub iat: u64,
     pub exp: u64,
 }
 
 impl Claim {
-    pub fn new(sub: String, exp: u64) -> Self {
+    pub fn new(sub: Uuid, exp: u64) -> Self {
         Self {
             sub,
             exp,
@@ -35,7 +37,7 @@ impl Default for Claim {
 
         Self {
             iss: "todo-app-auth".to_string(),
-            sub: String::new(),
+            sub: Uuid::nil(),
             aud: "todo-app-api".to_string(),
             iat: iat.timestamp() as u64,
             exp: exp.timestamp() as u64,

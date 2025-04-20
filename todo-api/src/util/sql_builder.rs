@@ -6,6 +6,7 @@ pub const NULL: Option<String> = None;
 // TODO: create NullValue as a struct that implements ToSql
 
 // TODO: move this to SQL Builder Crate
+#[allow(dead_code)]
 pub enum PostgresCmp {
     Equal,
     NotEqual,
@@ -40,6 +41,7 @@ pub trait ToPostgresCmp {
 }
 
 /// Postgres joins
+#[allow(dead_code)]
 pub enum Join {
     Inner,
     Left,

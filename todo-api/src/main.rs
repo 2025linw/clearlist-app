@@ -6,7 +6,7 @@ mod route;
 mod schema;
 mod util;
 
-use std::{env, fs, sync::Arc};
+use std::{env, fs, net::SocketAddr, sync::Arc};
 
 use axum::{Router, extract::FromRef, http::Method};
 use axum_jwt_auth::{JwtDecoderState, LocalDecoder};
@@ -82,10 +82,10 @@ async fn main() {
         .expect("unable to create decoder");
 
     let app_state = AppState {
-        db_pool: pool,
         decoder: JwtDecoderState {
             decoder: Arc::new(decoder),
         },
+        db_pool: pool,
     };
 
     let router = Router::new().nest(
@@ -102,7 +102,12 @@ async fn main() {
     let listener = TcpListener::bind(&url).await.unwrap();
 
     println!("Starting server at {}", url);
-    axum::serve(listener, router.with_state(app_state))
-        .await
-        .expect("Unable to start server");
+    axum::serve(
+        listener,
+        router
+            .with_state(app_state)
+            .into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .expect("failed to start server");
 }
