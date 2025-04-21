@@ -35,11 +35,11 @@ pub async fn create_tag_handler(
     let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Create tag
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
@@ -52,13 +52,13 @@ pub async fn create_tag_handler(
     let row = transaction
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Commit transaction
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let tag = TagModel::from(row);
 
@@ -83,7 +83,7 @@ pub async fn retrieve_tag_handler(
     let user_id = claim.sub;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
+    let conn = data.get_conn().await.map_err(|e| e.into())?;
 
     // Retrieve tag
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
@@ -96,7 +96,7 @@ pub async fn retrieve_tag_handler(
     let row_opt = conn
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Get retrieved tag
     let tag = match row_opt {
@@ -130,11 +130,11 @@ pub async fn update_tag_handler(
     let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Update tag
     let timestamp = Local::now();
@@ -150,7 +150,7 @@ pub async fn update_tag_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -165,7 +165,7 @@ pub async fn update_tag_handler(
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Get updated tag
     let tag = TagModel::from(row_opt.unwrap());
@@ -188,11 +188,11 @@ pub async fn delete_tag_handler(
     let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Delete tag
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
@@ -205,13 +205,13 @@ pub async fn delete_tag_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Commit transaction
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -236,7 +236,7 @@ pub async fn query_tag_handler(
     let user_id = claim.sub;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
+    let conn = data.get_conn().await.map_err(|e| e.into())?;
 
     // Get pagination info
     let page = opts.page.unwrap_or(1);
@@ -255,7 +255,7 @@ pub async fn query_tag_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 

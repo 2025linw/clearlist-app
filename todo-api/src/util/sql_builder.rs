@@ -1,9 +1,42 @@
-use std::fmt::Write;
+use std::{fmt::Write, marker::PhantomData};
 
-use tokio_postgres::types::ToSql;
+use tokio_postgres::types::{IsNull, ToSql, Type, to_sql_checked};
 
 pub const NULL: Option<String> = None;
 // TODO: create NullValue as a struct that implements ToSql
+
+#[derive(Debug)]
+pub struct NullValue<T>
+where
+    T: ToSql,
+{
+    test: PhantomData<T>,
+}
+
+impl<T> ToSql for NullValue<T>
+where
+    T: ToSql,
+{
+    fn to_sql(
+        &self,
+        _ty: &Type,
+        _out: &mut bytes::BytesMut,
+    ) -> Result<IsNull, Box<dyn std::error::Error + Sync + Send>>
+    where
+        Self: Sized,
+    {
+        Ok(IsNull::Yes)
+    }
+
+    fn accepts(ty: &Type) -> bool
+    where
+        Self: Sized,
+    {
+        <T as ToSql>::accepts(ty)
+    }
+
+    to_sql_checked!();
+}
 
 // TODO: move this to SQL Builder Crate
 #[allow(dead_code)]

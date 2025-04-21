@@ -36,11 +36,11 @@ pub async fn create_task_handler(
     let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Create task
     let mut query_builder = SQLQueryBuilder::new(TaskModel::TABLE);
@@ -53,7 +53,7 @@ pub async fn create_task_handler(
     let row = transaction
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let task_id: Uuid = row.get(TaskModel::ID);
 
@@ -69,10 +69,10 @@ pub async fn create_task_handler(
             if transaction
                 .execute(&statement, &params)
                 .await
-                .map_err(|e| Error::from(e).to_axum_response())?
+                .map_err(|e| Error::from(e).into())?
                 != 1
             {
-                return Err(Error::Internal.to_axum_response());
+                return Err(Error::Internal("tag was not added to task".to_string()).into());
             }
         }
     }
@@ -81,7 +81,7 @@ pub async fn create_task_handler(
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Get created task
     let mut query_builder = SQLQueryBuilder::new(TaskModel::TABLE);
@@ -94,7 +94,7 @@ pub async fn create_task_handler(
     let row = conn
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let task = TaskModel::from(row);
 
@@ -109,7 +109,7 @@ pub async fn create_task_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
@@ -134,7 +134,7 @@ pub async fn retrieve_task_handler(
     let user_id = claim.sub;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
+    let conn = data.get_conn().await.map_err(|e| e.into())?;
 
     // Retrieve task
     let mut query_builder = SQLQueryBuilder::new(TaskModel::TABLE);
@@ -147,7 +147,7 @@ pub async fn retrieve_task_handler(
     let row_opt = conn
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let task = match row_opt {
         Some(row) => TaskModel::from(row),
@@ -172,7 +172,7 @@ pub async fn retrieve_task_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
@@ -195,11 +195,11 @@ pub async fn update_task_handler(
     let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Update task
     let timestamp = Local::now();
@@ -215,7 +215,7 @@ pub async fn update_task_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -236,7 +236,7 @@ pub async fn update_task_handler(
         transaction
             .execute(&statement, &params)
             .await
-            .map_err(|e| Error::from(e).to_axum_response())?;
+            .map_err(|e| Error::from(e).into())?;
 
         for tag in v {
             let mut query_builder = SQLQueryBuilder::new(TaskTagModel::TABLE);
@@ -248,10 +248,10 @@ pub async fn update_task_handler(
             if transaction
                 .execute(&statement, &params)
                 .await
-                .map_err(|e| Error::from(e).to_axum_response())?
+                .map_err(|e| Error::from(e).into())?
                 != 1
             {
-                return Err(Error::Internal.to_axum_response());
+                return Err(Error::Internal("tag was not added to task".to_string()).into());
             }
         }
     }
@@ -260,7 +260,7 @@ pub async fn update_task_handler(
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Get updated task
     let mut query_builder = SQLQueryBuilder::new(TaskModel::TABLE);
@@ -273,7 +273,7 @@ pub async fn update_task_handler(
     let row = conn
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let task = TaskModel::from(row);
 
@@ -288,7 +288,7 @@ pub async fn update_task_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
@@ -310,11 +310,11 @@ pub async fn delete_task_handler(
     let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Delete task
     let mut query_builder = SQLQueryBuilder::new(TaskModel::TABLE);
@@ -327,13 +327,13 @@ pub async fn delete_task_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Commit transaction
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -358,7 +358,7 @@ pub async fn query_task_handler(
     let user_id = claim.sub;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.to_axum_response())?;
+    let conn = data.get_conn().await.map_err(|e| e.into())?;
 
     // Get pagination info
     let page = opts.page.unwrap_or(1);
@@ -377,7 +377,7 @@ pub async fn query_task_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).to_axum_response())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let mut tasks: Vec<TaskModel> = rows.iter().map(|r| TaskModel::from(r.to_owned())).collect();
 
@@ -400,7 +400,7 @@ pub async fn query_task_handler(
         let rows = conn
             .query(&statement, &params)
             .await
-            .map_err(|e| Error::from(e).to_axum_response())?;
+            .map_err(|e| Error::from(e).into())?;
 
         let task_ids: Vec<Uuid> = rows
             .iter()
@@ -423,7 +423,7 @@ pub async fn query_task_handler(
         let rows = conn
             .query(&statement, &params)
             .await
-            .map_err(|e| Error::from(e).to_axum_response())?;
+            .map_err(|e| Error::from(e).into())?;
 
         let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
