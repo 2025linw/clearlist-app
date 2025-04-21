@@ -16,7 +16,7 @@ CREATE EXTENSION citext;
 Adds authentication schema and adjust permissions::
     Give API user (todo_app) access to use schema and grant data manipulation functions to tables in schema by default
 */
-CREATE SCHEMA auth;
+CREATE SCHEMA IF NOT EXISTS auth;
 GRANT USAGE ON SCHEMA auth TO todo_app;
 ALTER DEFAULT PRIVILEGES
 IN SCHEMA auth
@@ -26,7 +26,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO todo_app;
 Adds data schema and adjust permissions:
     Give API user (todo_app) access to use schema and grant data manipulation functions to tables in schema by default
 */
-CREATE SCHEMA data;
+CREATE SCHEMA IF NOT EXISTS data;
 GRANT USAGE ON SCHEMA data TO todo_app;
 ALTER DEFAULT PRIVILEGES
 IN SCHEMA data
@@ -40,13 +40,14 @@ CREATE TABLE IF NOT EXISTS auth.users
 (
 	user_id uuid DEFAULT gen_random_uuid(),
 
-	username varchar(50) NOT NULL UNIQUE,
-	password_hash text,
-    password_hash_salt text,
-	email varchar(320),
+	email varchar(320) NOT NULL UNIQUE,
+	password_hash text NOT NULL,
+
+    -- TODO: add user first and last name
 
 	created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    deleted_on timestamptz(0),
 
 	PRIMARY KEY (user_id)
 );

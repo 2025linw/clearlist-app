@@ -1,8 +1,8 @@
 pub mod area;
+pub mod auth;
 pub mod project;
 pub mod tag;
 pub mod task;
-pub mod user;
 
 use axum::{Json, response::IntoResponse};
 
@@ -17,4 +17,4 @@ pub async fn health_check_handler() -> impl IntoResponse {
     Json(json_response)
 }
 
-// TEST: test handlers?
+// TEST: healthcheck handler

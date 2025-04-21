@@ -1,4 +1,5 @@
 pub mod area;
+pub mod auth;
 pub mod project;
 pub mod tag;
 pub mod task;
@@ -44,7 +45,7 @@ impl<T: ToSql> ToSql for UpdateMethod<T> {
         match *self {
             Self::Remove(true) => Ok(IsNull::Yes),
             Self::Change(ref o) => o.to_sql(ty, out),
-            Self::Remove(false) => panic!(), // FIX: don't panic here...
+            Self::Remove(false) => Err(Box::from("no-op")),
         }
     }
 
@@ -99,7 +100,7 @@ where
     {
         match *self {
             Self::Match(ref o) | Self::Compare(ref o, _) => o.to_sql(ty, out),
-            _ => panic!(), // FIX: don't panic here, error back to caller
+            _ => Err(Box::from("no-op")),
         }
     }
 
@@ -112,5 +113,3 @@ where
 
     to_sql_checked!();
 }
-
-// TEST: ToPostgresCmp test?

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -7,6 +5,7 @@ use axum::{
     response::IntoResponse,
 };
 use axum_extra::extract::CookieJar;
+use axum_jwt_auth::Claims;
 use chrono::Local;
 use serde_json::json;
 use uuid::Uuid;
@@ -21,24 +20,26 @@ use crate::{
     schema::{
         FilterOptions,
         area::{CreateAreaSchema, QueryAreaSchema, UpdateAreaSchema},
+        auth::Claim,
     },
-    util::{AddToQuery, PostgresCmp, SQLQueryBuilder, extract_user_id},
+    util::{AddToQuery, PostgresCmp, SQLQueryBuilder},
 };
 
 pub async fn create_area_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Json(body): Json<CreateAreaSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Create area
     let mut query_builder = SQLQueryBuilder::new(AreaModel::TABLE);
@@ -51,13 +52,13 @@ pub async fn create_area_handler(
     let row = transaction
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Commit transaction
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let area = AreaModel::from(row);
 
@@ -73,15 +74,16 @@ pub async fn create_area_handler(
 }
 
 pub async fn retrieve_area_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let conn = data.get_conn().await.map_err(|e| e.into())?;
 
     // Retrieve area
     let mut query_builder = SQLQueryBuilder::new(AreaModel::TABLE);
@@ -94,7 +96,7 @@ pub async fn retrieve_area_handler(
     let row_opt = conn
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let area = match row_opt {
         Some(row) => AreaModel::from(row),
@@ -117,20 +119,21 @@ pub async fn retrieve_area_handler(
 }
 
 pub async fn update_area_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateAreaSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Update area
     let timestamp = Local::now();
@@ -146,7 +149,7 @@ pub async fn update_area_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -161,7 +164,7 @@ pub async fn update_area_handler(
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Get updated area
     let area = AreaModel::from(row_opt.unwrap());
@@ -175,19 +178,20 @@ pub async fn update_area_handler(
 }
 
 pub async fn delete_area_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Delete area
     let mut query_builder = SQLQueryBuilder::new(AreaModel::TABLE);
@@ -200,13 +204,13 @@ pub async fn delete_area_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Commit transaction
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -221,16 +225,17 @@ pub async fn delete_area_handler(
 }
 
 pub async fn query_area_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Query(opts): Query<FilterOptions>,
     Json(body): Json<QueryAreaSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let conn = data.get_conn().await.map_err(|e| e.into())?;
 
     // Get pagination info
     let page = opts.page.unwrap_or(1);
@@ -249,7 +254,7 @@ pub async fn query_area_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let areas: Vec<AreaModel> = rows.iter().map(|r| AreaModel::from(r.to_owned())).collect();
 
@@ -264,4 +269,4 @@ pub async fn query_area_handler(
     })))
 }
 
-// TEST: handler tests?
+// TEST: area handlers

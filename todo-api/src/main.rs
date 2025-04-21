@@ -6,25 +6,29 @@ mod route;
 mod schema;
 mod util;
 
-use std::{env, sync::Arc};
+use std::{env, fs, net::SocketAddr, sync::Arc};
 
+use axum::{Router, extract::FromRef, http::Method};
+use axum_jwt_auth::{JwtDecoderState, LocalDecoder};
 use deadpool_postgres::{Object, Pool};
 use dotenvy::dotenv;
+use jsonwebtoken::{DecodingKey, Validation};
 use tokio::net::TcpListener;
+use tower::ServiceBuilder;
+use tower_http::cors::CorsLayer;
 
 use error::Error;
 use route::create_api_router;
+use schema::auth::Claim;
 use util::get_database_pool;
 
+#[derive(Clone, FromRef)]
 pub struct AppState {
+    decoder: JwtDecoderState<Claim>,
     db_pool: Pool,
 }
 
 impl AppState {
-    pub fn with_pool(pool: Pool) -> Self {
-        Self { db_pool: pool }
-    }
-
     #[inline]
     pub async fn get_conn(&self) -> Result<Object, Error> {
         return Ok(self.db_pool.get().await?);
@@ -62,11 +66,48 @@ async fn main() {
         }
     };
 
-    let app_state = Arc::new(AppState::with_pool(pool));
-    let router = create_api_router(app_state);
+    // Read in DER files
+    let public_key = fs::read("./pubkey.der").expect("unable to read key from file");
+    let keys = DecodingKey::from_ed_der(&public_key);
+
+    let mut validation = Validation::new(jsonwebtoken::Algorithm::EdDSA);
+    validation.set_issuer(&["todo-app-auth"]);
+    validation.set_audience(&["todo-app-api"]);
+    validation.set_required_spec_claims(&["iss", "aud", "sub", "exp"]);
+
+    let decoder = LocalDecoder::builder()
+        .keys(vec![keys])
+        .validation(validation)
+        .build()
+        .expect("unable to create decoder");
+
+    let app_state = AppState {
+        decoder: JwtDecoderState {
+            decoder: Arc::new(decoder),
+        },
+        db_pool: pool,
+    };
+
+    let router = Router::new().nest(
+        "/api",
+        create_api_router().layer(ServiceBuilder::new().layer(CorsLayer::new().allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::DELETE,
+            Method::PUT,
+        ]))),
+    );
 
     let url = format!("localhost:{srv_port}");
+    let listener = TcpListener::bind(&url).await.unwrap();
+
     println!("Starting server at {}", url);
-    let listener = TcpListener::bind(url).await.unwrap();
-    axum::serve(listener, router).await.unwrap();
+    axum::serve(
+        listener,
+        router
+            .with_state(app_state)
+            .into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .expect("failed to start server");
 }

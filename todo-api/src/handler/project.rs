@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -7,6 +5,7 @@ use axum::{
     response::IntoResponse,
 };
 use axum_extra::extract::CookieJar;
+use axum_jwt_auth::Claims;
 use chrono::Local;
 use serde_json::json;
 use uuid::Uuid;
@@ -21,25 +20,27 @@ use crate::{
     },
     schema::{
         FilterOptions,
+        auth::Claim,
         project::{CreateProjectSchema, QueryProjectSchema, UpdateProjectSchema},
     },
-    util::{AddToQuery, Join, PostgresCmp, SQLQueryBuilder, extract_user_id},
+    util::{AddToQuery, Join, PostgresCmp, SQLQueryBuilder},
 };
 
 pub async fn create_project_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Json(body): Json<CreateProjectSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Create project
     let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
@@ -52,7 +53,7 @@ pub async fn create_project_handler(
     let row = transaction
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let project_id: Uuid = row.get(ProjectModel::ID);
 
@@ -68,10 +69,10 @@ pub async fn create_project_handler(
             if transaction
                 .execute(&statement, &params)
                 .await
-                .map_err(|e| Error::from(e).err_map())?
+                .map_err(|e| Error::from(e).into())?
                 != 1
             {
-                return Err(Error::Internal.err_map());
+                return Err(Error::Internal("tag was not added to project".to_string()).into());
             }
         }
     }
@@ -80,7 +81,7 @@ pub async fn create_project_handler(
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Get created project
     let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
@@ -93,7 +94,7 @@ pub async fn create_project_handler(
     let row = conn
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let project = ProjectModel::from(row);
 
@@ -108,7 +109,7 @@ pub async fn create_project_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
@@ -124,15 +125,16 @@ pub async fn create_project_handler(
 }
 
 pub async fn retrieve_project_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let conn = data.get_conn().await.map_err(|e| e.into())?;
 
     // Retrieve project
     let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
@@ -145,7 +147,7 @@ pub async fn retrieve_project_handler(
     let row_opt = conn
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let project = match row_opt {
         Some(row) => ProjectModel::from(row),
@@ -170,7 +172,7 @@ pub async fn retrieve_project_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
@@ -183,20 +185,21 @@ pub async fn retrieve_project_handler(
 }
 
 pub async fn update_project_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateProjectSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Update project
     let timestamp = Local::now();
@@ -212,7 +215,7 @@ pub async fn update_project_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -233,7 +236,7 @@ pub async fn update_project_handler(
         transaction
             .execute(&statement, &params)
             .await
-            .map_err(|e| Error::from(e).err_map())?;
+            .map_err(|e| Error::from(e).into())?;
 
         for tag in v {
             let mut query_builder = SQLQueryBuilder::new(ProjectTagModel::TABLE);
@@ -245,10 +248,10 @@ pub async fn update_project_handler(
             if transaction
                 .execute(&statement, &params)
                 .await
-                .map_err(|e| Error::from(e).err_map())?
+                .map_err(|e| Error::from(e).into())?
                 != 1
             {
-                return Err(Error::Internal.err_map());
+                return Err(Error::Internal("tag was not added to project".to_string()).into());
             }
         }
     }
@@ -257,7 +260,7 @@ pub async fn update_project_handler(
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Get updated project
     let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
@@ -270,7 +273,7 @@ pub async fn update_project_handler(
     let row = conn
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let project = ProjectModel::from(row);
 
@@ -285,7 +288,7 @@ pub async fn update_project_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
@@ -298,19 +301,20 @@ pub async fn update_project_handler(
 }
 
 pub async fn delete_project_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Delete project
     let mut query_builder = SQLQueryBuilder::new(ProjectModel::TABLE);
@@ -323,13 +327,13 @@ pub async fn delete_project_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Commit transaction
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -344,16 +348,17 @@ pub async fn delete_project_handler(
 }
 
 pub async fn query_project_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Query(opts): Query<FilterOptions>,
     Json(body): Json<QueryProjectSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let conn = data.get_conn().await.map_err(|e| e.into())?;
 
     // Get pagination info
     let page = opts.page.unwrap_or(1);
@@ -372,7 +377,7 @@ pub async fn query_project_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let mut projects: Vec<ProjectModel> = rows
         .iter()
@@ -398,7 +403,7 @@ pub async fn query_project_handler(
         let rows = conn
             .query(&statement, &params)
             .await
-            .map_err(|e| Error::from(e).err_map())?;
+            .map_err(|e| Error::from(e).into())?;
 
         let project_ids: Vec<Uuid> = rows
             .iter()
@@ -425,7 +430,7 @@ pub async fn query_project_handler(
         let rows = conn
             .query(&statement, &params)
             .await
-            .map_err(|e| Error::from(e).err_map())?;
+            .map_err(|e| Error::from(e).into())?;
 
         let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
@@ -444,4 +449,4 @@ pub async fn query_project_handler(
     })))
 }
 
-// TEST: handler tests?
+// TEST: query handlers

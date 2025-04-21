@@ -50,10 +50,8 @@ impl ToResponse for AreaModel {
     fn to_response(&self) -> Self::Response {
         Self::Response {
             id: self.area_id,
-
             name: self.area_name.to_owned().unwrap_or_default(),
             icon_url: self.icon_url.to_owned().unwrap_or_default(),
-
             user_id: self.user_id,
             created_on: self.created_on,
             updated_on: self.updated_on,
@@ -73,5 +71,3 @@ pub struct AreaResponseModel {
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
 }
-
-// TEST: ToResponse test?

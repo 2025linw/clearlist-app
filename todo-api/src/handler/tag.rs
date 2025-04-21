@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -7,6 +5,7 @@ use axum::{
     response::IntoResponse,
 };
 use axum_extra::extract::CookieJar;
+use axum_jwt_auth::Claims;
 use chrono::Local;
 use serde_json::json;
 use uuid::Uuid;
@@ -20,25 +19,27 @@ use crate::{
     },
     schema::{
         FilterOptions,
+        auth::Claim,
         tag::{CreateTagSchema, QueryTagSchema, UpdateTagSchema},
     },
-    util::{AddToQuery, PostgresCmp, SQLQueryBuilder, extract_user_id},
+    util::{AddToQuery, PostgresCmp, SQLQueryBuilder},
 };
 
 pub async fn create_tag_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Json(body): Json<CreateTagSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Create tag
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
@@ -51,13 +52,13 @@ pub async fn create_tag_handler(
     let row = transaction
         .query_one(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Commit transaction
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let tag = TagModel::from(row);
 
@@ -73,15 +74,16 @@ pub async fn create_tag_handler(
 }
 
 pub async fn retrieve_tag_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let conn = data.get_conn().await.map_err(|e| e.into())?;
 
     // Retrieve tag
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
@@ -94,7 +96,7 @@ pub async fn retrieve_tag_handler(
     let row_opt = conn
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Get retrieved tag
     let tag = match row_opt {
@@ -118,20 +120,21 @@ pub async fn retrieve_tag_handler(
 }
 
 pub async fn update_tag_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateTagSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Update tag
     let timestamp = Local::now();
@@ -147,7 +150,7 @@ pub async fn update_tag_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -162,7 +165,7 @@ pub async fn update_tag_handler(
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Get updated tag
     let tag = TagModel::from(row_opt.unwrap());
@@ -176,19 +179,20 @@ pub async fn update_tag_handler(
 }
 
 pub async fn delete_tag_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection and start transaction
-    let mut conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let mut conn = data.get_conn().await.map_err(|e| e.into())?;
     let transaction = conn
         .transaction()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Delete tag
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
@@ -201,13 +205,13 @@ pub async fn delete_tag_handler(
     let row_opt = transaction
         .query_opt(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     // Commit transaction
     transaction
         .commit()
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     if row_opt.is_none() {
         let json_message = json!({
@@ -222,16 +226,17 @@ pub async fn delete_tag_handler(
 }
 
 pub async fn query_tag_handler(
-    State(data): State<Arc<AppState>>,
-    jar: CookieJar,
+    Claims(claim): Claims<Claim>,
+    State(data): State<AppState>,
+    _jar: CookieJar,
     Query(opts): Query<FilterOptions>,
     Json(body): Json<QueryTagSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Get user id
-    let user_id = extract_user_id(&jar).map_err(|e| e.err_map())?;
+    let user_id = claim.sub;
 
     // Get database connection
-    let conn = data.get_conn().await.map_err(|e| e.err_map())?;
+    let conn = data.get_conn().await.map_err(|e| e.into())?;
 
     // Get pagination info
     let page = opts.page.unwrap_or(1);
@@ -250,7 +255,7 @@ pub async fn query_tag_handler(
     let rows = conn
         .query(&statement, &params)
         .await
-        .map_err(|e| Error::from(e).err_map())?;
+        .map_err(|e| Error::from(e).into())?;
 
     let tags: Vec<TagModel> = rows.iter().map(|r| TagModel::from(r.to_owned())).collect();
 
@@ -265,4 +270,4 @@ pub async fn query_tag_handler(
     })))
 }
 
-// TEST: handler tests?
+// TEST: tag handlers

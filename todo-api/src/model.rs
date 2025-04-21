@@ -1,4 +1,5 @@
 pub mod area;
+pub mod auth;
 pub mod project;
 pub mod tag;
 pub mod task;

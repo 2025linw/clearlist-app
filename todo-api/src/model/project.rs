@@ -84,20 +84,16 @@ impl ToResponse for ProjectModel {
     fn to_response(&self) -> Self::Response {
         Self::Response {
             id: self.project_id,
-
             title: self.project_title.to_owned().unwrap_or_default(),
             notes: self.notes.to_owned().unwrap_or_default(),
             start_date: self.start_date,
             start_time: self.start_time,
             deadline: self.deadline,
-
             completed_on: self.completed_on,
             logged_on: self.logged_on,
             trashed_on: self.trashed_on,
-
             area_id: self.area_id,
             tags: Vec::new(),
-
             user_id: self.user_id,
             created_on: self.created_on,
             updated_on: self.updated_on,
@@ -143,5 +139,3 @@ impl ProjectTagModel {
     pub const PROJECT_ID: &str = "project_id";
     pub const TAG_ID: &str = "tag_id";
 }
-
-// TEST: ToResponse test?
