@@ -1,16 +1,45 @@
-# DevEnv Config Files
+# VSCode config files
 **/.vscode
-todo-app.code-workspace
-
-# Environment Files
-**/.env
-
-# Security Keys
-**/*.pem
-**/*.der
 
 # Log files
 **/*.log
 
-# MacOS Files
+# MacOS files
 **/.DS_Store
+
+# Node dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+app-example

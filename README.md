@@ -1,21 +1,12 @@
+# Clear List App
 
-# Todo List Application
+Clear List will be a todo-list app that combines various features of different todo list apps in the market.
 
-Todo List application that supports both web UI and mobile UIs.
+Many todo list contains all the features within Clear List, but none have all of this combine into a single app.
 
-This project was used to explore and learn Rust offerings for backend web servers and React Native for the frontend to support variety of platforms.
+## Features
 
-The backend utilizes:
-
-- PostgreSQL Database
-- Rust Axum Web Server
-
-The frontend utilizes:
-
-- React Native
-
-## Current Roadmap
-
-- [x] Backend Implementation
-- [ ] Backend Integration Testing
-- [ ] React Native Research and Planning
+* Organization of tasks with areas and tags (Things 3)
+* Integrated calendar support (TickTick) and allow tasks to be shown on third-party calendars, such as Google and Apple calendars
+* Display of start and deadlines in calendar
+* Kanban board and many other view of tasks based on categories (Trello)
