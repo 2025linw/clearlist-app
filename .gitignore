@@ -1,5 +1,6 @@
 # DevEnv Config Files
 **/.vscode
+todo-app.code-workspace
 
 # Environment Files
 **/.env
