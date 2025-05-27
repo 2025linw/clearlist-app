@@ -48,6 +48,8 @@ async fn main() {
     info!("Getting environment variables");
     dotenv().unwrap();
 
+    let srv_addr = env::var("SRV_ADDR")
+        .expect("SRV_ADDR must be set");
     let srv_port = env::var("SRV_PORT")
         .expect("SRV_PORT must be set")
         .parse::<u16>()
@@ -99,7 +101,7 @@ async fn main() {
         ]))),
     );
 
-    let url = format!("localhost:{srv_port}");
+    let url = format!("{srv_addr}:{srv_port}");
     let listener = TcpListener::bind(&url).await.unwrap();
 
     info!("Starting server at {}", url);
