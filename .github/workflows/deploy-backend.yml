@@ -30,6 +30,9 @@ jobs:
     - name: Build App
       run: cargo build --release
 
+    - name: Check built files
+      run: ls -l
+
     - name: Copy Binary to Server
       uses: appleboy/scp-action@v0.1.7
       with:
