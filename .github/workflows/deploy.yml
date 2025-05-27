@@ -3,6 +3,8 @@ name: Deploy to Server
 on:
   push:
     branches: [main]
+    paths:
+      - 'backend/src'
 
 jobs:
   build-and-deploy:

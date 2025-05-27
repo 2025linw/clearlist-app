@@ -168,7 +168,7 @@ pub async fn login_handler(
 }
 
 pub async fn refresh_handler(
-    State(data): State<AppState>,
+    State(_data): State<AppState>, // TODO: '_' if completely unused
     Json(body): Json<RefreshToken>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let token = body.refresh_jwt;
