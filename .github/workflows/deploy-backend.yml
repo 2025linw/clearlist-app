@@ -1,4 +1,4 @@
-name: Deploy to Backend to Home Server
+name: Deploy to backend to personal server
 
 on:
   push:
@@ -27,10 +27,13 @@ jobs:
       with:
         toolchain: stable
 
-    - name: Build App
-      run: cargo build --release
+    - name: Test app
+      run: cargo test --verbose
 
-    - name: Copy Binary to Server
+    - name: Build app
+      run: cargo build --bin todo-api --release
+
+    - name: Copy binary to server
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.DEPLOY_HOST }}
@@ -40,7 +43,7 @@ jobs:
         target: ${{ secrets.DEPLOY_PATH }}
         strip_components: 3
 
-    - name: Restart Systemd Service
+    - name: Restart systemd service
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.DEPLOY_HOST }}
