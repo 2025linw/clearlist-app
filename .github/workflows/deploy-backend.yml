@@ -42,4 +42,4 @@ jobs:
         host: ${{ secrets.DEPLOY_HOST }}
         username: ${{ secrets.DEPLOY_USER }}
         key: ${{ secrets.DEPLOY_KEY }}
-        script: systemctl restart clearlist-server.service
+        script: sudo systemctl restart clearlist-server.service
