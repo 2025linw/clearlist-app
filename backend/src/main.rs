@@ -14,7 +14,8 @@ use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
-use tracing::{error, info, warn};
+// use tracing::{error, info, warn};
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 use error::Error;
