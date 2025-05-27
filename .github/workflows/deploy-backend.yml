@@ -39,9 +39,9 @@ jobs:
         host: ${{ secrets.DEPLOY_HOST }}
         username: ${{ secrets.DEPLOY_USER }}
         key: ${{ secrets.DEPLOY_KEY }}
-        source: target/release/todo-api
+        source: backend/target/release/todo-api
         target: ${{ secrets.DEPLOY_PATH }}
-        strip_components: 2
+        strip_components: 3
 
     - name: Restart Systemd Service
       uses: appleboy/ssh-action@v1.0.0
