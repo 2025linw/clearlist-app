@@ -31,7 +31,7 @@ jobs:
       run: cargo build --release
 
     - name: Check built files
-      run: ls -l
+      run: ls -l target/release
 
     - name: Copy Binary to Server
       uses: appleboy/scp-action@v0.1.7
