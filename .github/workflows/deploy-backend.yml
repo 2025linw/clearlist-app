@@ -14,6 +14,10 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: backend
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -25,7 +29,6 @@ jobs:
 
     - name: Build App
       run: cargo build --release
-      working-directory: backend
 
     - name: Copy Binary to Server
       uses: appleboy/scp-action@v0.1.7
