@@ -14,6 +14,8 @@ use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
+use tracing::{error, info, warn};
+use tracing_subscriber::EnvFilter;
 
 use error::Error;
 use route::create_api_router;
@@ -36,7 +38,13 @@ impl AppState {
 // Server Main
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_target(false)
+        .init();
+
     // Get .env environment variables
+    info!("Getting environment variables");
     dotenv().unwrap();
 
     let srv_port = env::var("SRV_PORT")
@@ -93,7 +101,7 @@ async fn main() {
     let url = format!("localhost:{srv_port}");
     let listener = TcpListener::bind(&url).await.unwrap();
 
-    println!("Starting server at {}", url);
+    info!("Starting server at {}", url);
     axum::serve(
         listener,
         router
