@@ -15,10 +15,11 @@ jobs:
     - name: Set up Rust
       uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
-        rust-version: stable
+        toolchain: stable
 
     - name: Build App
       run: cargo build --release
+      working-directory: backend
 
     - name: Copy Binary to Server
       uses: appleboy/scp-action@v0.1.7
@@ -26,7 +27,7 @@ jobs:
         host: ${{ secrets.DEPLOY_HOST }}
         username: ${{ secrets.DEPLOY_USER }}
         key: ${{ secrets.DEPLOY_KEY }}
-        source: target/release/todo-api
+        source: backend/target/release/todo-api
         target: ${{ secrets.DEPLOY_PATH }}
 
     - name: Restart Systemd Service
