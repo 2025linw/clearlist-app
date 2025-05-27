@@ -2,9 +2,12 @@ name: Deploy to Server
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
-      - 'backend/src'
+      - 'backend/src/**'
+      - 'backend/Cargo.toml'
+      - 'backend/Cargo.lock'
 
 jobs:
   build-and-deploy:
