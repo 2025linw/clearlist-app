@@ -25,7 +25,7 @@ use crate::{
     util::{Join, PostgresCmp, SQLQueryBuilder, ToSQLQueryBuilder},
 };
 
-pub async fn create_project_handler(
+pub async fn create_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     _jar: CookieJar,
@@ -121,7 +121,7 @@ pub async fn create_project_handler(
     ))
 }
 
-pub async fn retrieve_project_handler(
+pub async fn retrieve_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     _jar: CookieJar,
@@ -181,7 +181,7 @@ pub async fn retrieve_project_handler(
     })))
 }
 
-pub async fn update_project_handler(
+pub async fn update_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     _jar: CookieJar,
@@ -298,7 +298,7 @@ pub async fn update_project_handler(
     })))
 }
 
-pub async fn delete_project_handler(
+pub async fn delete_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     _jar: CookieJar,
@@ -345,7 +345,7 @@ pub async fn delete_project_handler(
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub async fn query_project_handler(
+pub async fn query_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     _jar: CookieJar,

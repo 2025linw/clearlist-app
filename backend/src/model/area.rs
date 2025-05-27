@@ -61,6 +61,7 @@ impl ToResponse for AreaModel {
 
 /// Area Response Model
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct AreaResponseModel {
     id: Uuid,
 

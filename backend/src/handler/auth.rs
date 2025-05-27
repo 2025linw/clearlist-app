@@ -1,24 +1,22 @@
-use std::fs;
-
-use argon2::{Argon2, PasswordHash};
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
-use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
-use password_hash::{PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng};
+use chrono::Duration;
 use serde_json::json;
 
 use crate::{
     AppState,
     error::Error,
-    model::auth::UserModel,
-    schema::auth::{Claim, LoginDetails},
-    util::{PostgresCmp, SQLQueryBuilder},
+    model::auth::{TokenResponseModel, UserModel},
+    schema::auth::{LoginDetails, RefreshToken},
+    util::{
+        PostgresCmp, SQLQueryBuilder,
+        auth::{create_jwt, hash_password, verify_jwt, verify_password},
+    },
 };
 
 const MISSING_LOGIN: &str = "missing email and/or password";
 const ERROR_LOGIN: &str = "user with given email and password combination not found";
 
-pub async fn register_user(
+pub async fn registration_handler(
     State(data): State<AppState>,
     Json(body): Json<LoginDetails>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -56,15 +54,11 @@ pub async fn register_user(
         );
     }
 
-    // Hash password with Argon2
-    let salt = SaltString::generate(&mut OsRng);
-
-    let argon2 = Argon2::default();
-
-    let password_hash = argon2
-        .hash_password(password.as_bytes(), &salt)
-        .map_err(|e| Error::Internal(e.to_string()).into())?
-        .to_string();
+    // Hash password
+    let password_hash: String = match hash_password(&password) {
+        Ok(h) => h,
+        Err(e) => return Err(e.into()),
+    };
 
     // Create new user
     let transaction = conn
@@ -92,7 +86,7 @@ pub async fn register_user(
     Ok(StatusCode::CREATED)
 }
 
-pub async fn login_user(
+pub async fn login_handler(
     State(data): State<AppState>,
     Json(body): Json<LoginDetails>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -138,42 +132,76 @@ pub async fn login_user(
         }
     };
 
-    // Verify hash
-    let parsed_hash = PasswordHash::new(user.password_hash())
-        .map_err(|e| Error::Internal(e.to_string()).into())?;
-
-    let verify_result = Argon2::default().verify_password(password.as_bytes(), &parsed_hash);
-    if let Err(e) = verify_result {
-        match e {
-            password_hash::Error::Password => {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({
-                        "status": "error",
-                        "message": ERROR_LOGIN,
-                    })),
-                ));
-            }
-            _ => {
-                return Err(Error::Internal(e.to_string()).into());
-            }
-        };
+    // Verify password
+    match verify_password(user.password_hash(), &password) {
+        Ok(true) => (),
+        Ok(false) => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "status": "error",
+                    "message": ERROR_LOGIN,
+                })),
+            ));
+        }
+        Err(e) => return Err(e.into()),
     }
 
-    // Encode key
-    let private_key =
-        fs::read("./privkey.der").map_err(|e| Error::Internal(e.to_string()).into())?;
-    let key = EncodingKey::from_ed_der(&private_key);
+    // Get access JWT
+    let access_jwt: String = match create_jwt(user.user_id(), None) {
+        Ok(s) => s,
+        Err(e) => return Err(e.into()),
+    };
 
-    let header = Header::new(Algorithm::EdDSA);
+    let mut response = TokenResponseModel::new(access_jwt);
 
-    let exp = Utc::now() + Duration::weeks(1);
-    let claims = Claim::new(user.user_id().to_owned(), exp.timestamp() as u64);
+    // Get refresh JWT
+    match create_jwt(
+        user.user_id(),
+        Some(Duration::weeks(1).num_seconds() as u64),
+    ) {
+        Ok(s) => response.set_refresh_jwt(s),
+        Err(e) => return Err(e.into()),
+    };
 
-    let token = encode::<Claim>(&header, &claims, &key)
-        .map_err(|e| Error::Internal(e.to_string()).into())?;
+    Ok(Json(json!(response)))
+}
 
-    Ok(token.into_response())
+pub async fn refresh_handler(
+    State(data): State<AppState>,
+    Json(body): Json<RefreshToken>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let token = body.refresh_jwt;
+
+    match verify_jwt(&token, body.user_id) {
+        Ok(true) => (),
+        Ok(false) => {
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                Json(json!({
+                    "status": "error",
+                    "message": "refresh token expired, reauthentication needed",
+                })),
+            ));
+        }
+        Err(e) => return Err(e.into()),
+    }
+
+    // Get access JWT
+    let access_jwt: String = match create_jwt(body.user_id, None) {
+        Ok(s) => s,
+        Err(e) => return Err(e.into()),
+    };
+
+    let mut response = TokenResponseModel::new(access_jwt);
+
+    // Get refresh JWT
+    match create_jwt(body.user_id, Some(Duration::weeks(1).num_seconds() as u64)) {
+        Ok(s) => response.set_refresh_jwt(s),
+        Err(e) => return Err(e.into()),
+    };
+
+    Ok(Json(json!(response)))
 }
 
 // TODO: Add update user

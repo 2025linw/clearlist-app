@@ -2,14 +2,6 @@ use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Deserialize)]
-#[cfg_attr(test, derive(Default))]
-#[serde(rename_all(deserialize = "camelCase"))]
-pub struct LoginDetails {
-    pub email: Option<String>,
-    pub password: Option<String>,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Claim {
     pub iss: String,
@@ -37,10 +29,26 @@ impl Default for Claim {
 
         Self {
             iss: "todo-app-auth".to_string(),
+            aud: "todo-app-user".to_string(),
             sub: Uuid::nil(),
-            aud: "todo-app-api".to_string(),
-            iat: iat.timestamp() as u64,
             exp: exp.timestamp() as u64,
+            iat: iat.timestamp() as u64,
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(Default))]
+#[serde(rename_all(deserialize = "camelCase"))]
+pub struct LoginDetails {
+    pub email: Option<String>,
+    pub password: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(Default))]
+#[serde(rename_all(deserialize = "camelCase"))]
+pub struct RefreshToken {
+    pub user_id: Uuid,
+    pub refresh_jwt: String,
 }

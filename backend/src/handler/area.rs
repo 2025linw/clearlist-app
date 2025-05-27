@@ -24,7 +24,7 @@ use crate::{
     util::{PostgresCmp, SQLQueryBuilder, ToSQLQueryBuilder},
 };
 
-pub async fn create_area_handler(
+pub async fn create_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     _jar: CookieJar,
@@ -70,7 +70,7 @@ pub async fn create_area_handler(
     ))
 }
 
-pub async fn retrieve_area_handler(
+pub async fn retrieve_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     _jar: CookieJar,
@@ -115,7 +115,7 @@ pub async fn retrieve_area_handler(
     })))
 }
 
-pub async fn update_area_handler(
+pub async fn update_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     _jar: CookieJar,
@@ -175,7 +175,7 @@ pub async fn update_area_handler(
     })))
 }
 
-pub async fn delete_area_handler(
+pub async fn delete_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     _jar: CookieJar,
@@ -222,7 +222,7 @@ pub async fn delete_area_handler(
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub async fn query_area_handler(
+pub async fn query_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     _jar: CookieJar,

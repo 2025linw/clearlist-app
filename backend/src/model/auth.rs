@@ -30,8 +30,8 @@ impl UserModel {
 }
 
 impl UserModel {
-    pub fn user_id(&self) -> &Uuid {
-        &self.user_id
+    pub fn user_id(&self) -> Uuid {
+        self.user_id
     }
 
     pub fn password_hash(&self) -> &str {
@@ -65,6 +65,7 @@ impl ToResponse for UserModel {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct UserResponseModel {
     id: Uuid,
 
@@ -72,4 +73,24 @@ pub struct UserResponseModel {
 
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all(serialize = "camelCase"))]
+pub struct TokenResponseModel {
+    access_jwt: String,
+    refresh_jwt: Option<String>,
+}
+
+impl TokenResponseModel {
+    pub fn new(access_jwt: String) -> Self {
+        TokenResponseModel {
+            access_jwt,
+            refresh_jwt: None,
+        }
+    }
+
+    pub fn set_refresh_jwt(&mut self, refresh_jwt: String) {
+        self.refresh_jwt = Some(refresh_jwt);
+    }
 }

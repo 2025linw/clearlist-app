@@ -53,9 +53,7 @@ pub struct UpdateTagSchema {
 
 impl UpdateTagSchema {
     pub fn is_empty(&self) -> bool {
-        self.label.is_none()
-            && self.color.is_none()
-            && self.category.is_none()
+        self.label.is_none() && self.color.is_none() && self.category.is_none()
     }
 }
 

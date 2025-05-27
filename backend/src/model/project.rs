@@ -103,6 +103,7 @@ impl ToResponse for ProjectModel {
 
 /// Project Response Model
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct ProjectResponseModel {
     id: Uuid,
 

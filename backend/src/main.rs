@@ -1,4 +1,3 @@
-// New
 mod error;
 mod handler;
 mod model;
@@ -6,13 +5,12 @@ mod route;
 mod schema;
 mod util;
 
-use std::{env, fs, net::SocketAddr, sync::Arc};
+use std::{env, net::SocketAddr};
 
 use axum::{Router, extract::FromRef, http::Method};
-use axum_jwt_auth::{JwtDecoderState, LocalDecoder};
+use axum_jwt_auth::JwtDecoderState;
 use deadpool_postgres::{Object, Pool};
 use dotenvy::dotenv;
-use jsonwebtoken::{DecodingKey, Validation};
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
@@ -20,7 +18,7 @@ use tower_http::cors::CorsLayer;
 use error::Error;
 use route::create_api_router;
 use schema::auth::Claim;
-use util::get_database_pool;
+use util::{auth::create_decoder, get_database_pool};
 
 #[derive(Clone, FromRef)]
 pub struct AppState {
@@ -66,25 +64,19 @@ async fn main() {
         }
     };
 
-    // Read in DER files
-    let public_key = fs::read("./pubkey.der").expect("unable to read key from file");
-    let keys = DecodingKey::from_ed_der(&public_key);
+    // Get decoder
+    let decoder = match create_decoder() {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("unable to create decoder: {:?}", e);
 
-    let mut validation = Validation::new(jsonwebtoken::Algorithm::EdDSA);
-    validation.set_issuer(&["todo-app-auth"]);
-    validation.set_audience(&["todo-app-api"]);
-    validation.set_required_spec_claims(&["iss", "aud", "sub", "exp"]);
+            std::process::exit(1);
+        }
+    };
 
-    let decoder = LocalDecoder::builder()
-        .keys(vec![keys])
-        .validation(validation)
-        .build()
-        .expect("unable to create decoder");
-
+    // Setup app state
     let app_state = AppState {
-        decoder: JwtDecoderState {
-            decoder: Arc::new(decoder),
-        },
+        decoder,
         db_pool: pool,
     };
 

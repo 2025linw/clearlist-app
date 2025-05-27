@@ -107,6 +107,7 @@ impl ToResponse for TaskModel {
 
 /// Task Response Model
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct TaskResponseModel {
     id: Uuid,
 

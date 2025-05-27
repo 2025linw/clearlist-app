@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Router,
+    handler::Handler,
     routing::{get, post},
 };
 use tower_governor::{
@@ -10,7 +11,7 @@ use tower_governor::{
 
 use crate::{
     AppState,
-    handler::{area::*, auth::*, health_check_handler, project::*, tag::*, task::*},
+    handler::{area, auth::*, health_check_handler, project, tag, task},
 };
 
 pub fn create_api_router() -> Router<AppState> {
@@ -32,48 +33,41 @@ pub fn create_api_router() -> Router<AppState> {
     );
 
     let auth_routes = Router::new()
-        .route("/register", post(register_user))
-        .route("/login", post(login_user))
+        .route("/register", post(registration_handler))
+        .route("/login", post(login_handler))
+        .route("/refresh", post(refresh_handler))
         .layer(GovernorLayer {
             config: governor_secure_conf,
         });
 
-    let task_routes = Router::new()
-        .route("/", post(query_task_handler))
-        .route("/create", post(create_task_handler))
-        .route(
-            "/{id}",
-            get(retrieve_task_handler)
-                .patch(update_task_handler)
-                .delete(delete_task_handler),
-        );
-    let project_routes = Router::new()
-        .route("/", post(query_project_handler))
-        .route("/create", post(create_project_handler))
-        .route(
-            "/{id}",
-            get(retrieve_project_handler)
-                .patch(update_project_handler)
-                .delete(delete_project_handler),
-        );
-    let area_routes = Router::new()
-        .route("/", post(query_area_handler))
-        .route("/create", post(create_area_handler))
-        .route(
-            "/{id}",
-            get(retrieve_area_handler)
-                .patch(update_area_handler)
-                .delete(delete_area_handler),
-        );
-    let tag_routes = Router::new()
-        .route("/", post(query_tag_handler))
-        .route("/create", post(create_tag_handler))
-        .route(
-            "/{id}",
-            get(retrieve_tag_handler)
-                .patch(update_tag_handler)
-                .delete(delete_tag_handler),
-        );
+    let task_routes = create_resource_router(
+        task::create_handler,
+        task::retrieve_handler,
+        task::update_handler,
+        task::delete_handler,
+        task::query_handler,
+    );
+    let project_routes = create_resource_router(
+        project::create_handler,
+        project::retrieve_handler,
+        project::update_handler,
+        project::delete_handler,
+        project::query_handler,
+    );
+    let area_routes = create_resource_router(
+        area::create_handler,
+        area::retrieve_handler,
+        area::update_handler,
+        area::delete_handler,
+        area::query_handler,
+    );
+    let tag_routes = create_resource_router(
+        tag::create_handler,
+        tag::retrieve_handler,
+        tag::update_handler,
+        tag::delete_handler,
+        tag::query_handler,
+    );
 
     let api_routes = Router::new()
         .nest("/tasks", task_routes)
@@ -88,4 +82,34 @@ pub fn create_api_router() -> Router<AppState> {
         .route("/healthcheck", get(health_check_handler))
         .nest("/auth", auth_routes)
         .merge(api_routes)
+}
+
+fn create_resource_router<C, R, U, D, Q, T1, T2, T3, T4, T5>(
+    create_handler: C,
+    retrieve_handler: R,
+    update_handler: U,
+    delete_handler: D,
+    query_handler: Q,
+) -> Router<AppState>
+where
+    C: Handler<T1, AppState>,
+    R: Handler<T2, AppState>,
+    U: Handler<T3, AppState>,
+    D: Handler<T4, AppState>,
+    Q: Handler<T5, AppState>,
+    T1: 'static,
+    T2: 'static,
+    T3: 'static,
+    T4: 'static,
+    T5: 'static,
+{
+    Router::new()
+        .route("/", post(query_handler))
+        .route("/create", post(create_handler))
+        .route(
+            "/{id}",
+            get(retrieve_handler)
+                .patch(update_handler)
+                .delete(delete_handler),
+        )
 }

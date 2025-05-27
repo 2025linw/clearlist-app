@@ -1,4 +1,6 @@
-pub mod sql_builder;
+mod sql_builder;
+
+pub mod auth;
 
 pub use sql_builder::*;
 
@@ -12,6 +14,7 @@ pub async fn get_database_pool(
     user: String,
     pass: String,
 ) -> Result<Pool, PoolError> {
+    // TODO: replace PoolError with crate error
     let mut pg_config = Config::new();
     pg_config.host(host).port(port);
     pg_config.user(user).password(pass).dbname(database);
