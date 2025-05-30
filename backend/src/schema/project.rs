@@ -26,7 +26,7 @@ pub struct CreateProjectSchema {
 impl ToSQLQueryBuilder for CreateProjectSchema {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
         let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
-        builder.set_return(vec![ProjectModel::ID]);
+        builder.set_return(&[ProjectModel::ID]);
 
         if let Some(ref s) = self.title {
             builder.add_column(ProjectModel::TITLE, s);
@@ -92,7 +92,7 @@ impl ToSQLQueryBuilder for UpdateProjectSchema {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
         let mut builder = SQLQueryBuilder::new(ProjectModel::TABLE);
         builder.add_column(ProjectModel::UPDATED, &self.timestamp);
-        builder.set_return(vec![ProjectModel::ID]);
+        builder.set_return(&[ProjectModel::ID]);
 
         if let Some(ref u) = self.title {
             if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {

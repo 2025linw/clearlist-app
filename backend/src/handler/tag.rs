@@ -196,7 +196,7 @@ pub async fn delete_handler(
     let mut query_builder = SQLQueryBuilder::new(TagModel::TABLE);
     query_builder.add_condition(TagModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(TagModel::ID, PostgresCmp::Equal, &id);
-    query_builder.set_return(vec![TagModel::ID]);
+    query_builder.set_return(&[TagModel::ID]);
 
     let (statement, params) = query_builder.build_delete();
 

@@ -5,7 +5,10 @@ use serde_json::json;
 use crate::{
     AppState,
     error::Error,
-    model::auth::{TokenResponseModel, UserModel},
+    model::{
+        ToResponse,
+        auth::{TokenResponseModel, UserModel, UserTokenResponseModel},
+    },
     schema::auth::{LoginDetails, RefreshToken},
     util::{
         PostgresCmp, SQLQueryBuilder,
@@ -168,7 +171,7 @@ pub async fn login_handler(
 }
 
 pub async fn refresh_handler(
-    State(_data): State<AppState>, // TODO: '_' if completely unused
+    State(data): State<AppState>, // TODO: '_' if completely unused
     Json(body): Json<RefreshToken>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let token = body.refresh_jwt;
@@ -187,19 +190,49 @@ pub async fn refresh_handler(
         Err(e) => return Err(e.into()),
     }
 
+    // Get database connection
+    let conn = data.get_conn().await.map_err(|e| e.into())?;
+
+    // Check if user exists
+    let mut query_builder = SQLQueryBuilder::new(UserModel::TABLE);
+    query_builder.add_condition(UserModel::ID, PostgresCmp::Equal, &body.user_id);
+    query_builder.set_return(&[UserModel::ID, UserModel::EMAIL]);
+
+    let (statement, params) = query_builder.build_select();
+
+    let row_opt = conn
+        .query_opt(&statement, &params)
+        .await
+        .map_err(|e| Error::from(e).into())?;
+
+    let user = match row_opt {
+        Some(row) => UserModel::from(row),
+        None => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "status": "error",
+                    "message": ERROR_LOGIN,
+                })),
+            ));
+        }
+    };
+
     // Get access JWT
     let access_jwt: String = match create_jwt(body.user_id, None) {
         Ok(s) => s,
         Err(e) => return Err(e.into()),
     };
 
-    let mut response = TokenResponseModel::new(access_jwt);
+    let mut token = TokenResponseModel::new(access_jwt);
 
     // Get refresh JWT
     match create_jwt(body.user_id, Some(Duration::weeks(1).num_seconds() as u64)) {
-        Ok(s) => response.set_refresh_jwt(s),
+        Ok(s) => token.set_refresh_jwt(s),
         Err(e) => return Err(e.into()),
     };
+
+    let response = UserTokenResponseModel::new(user.to_response(), token);
 
     Ok(Json(json!(response)))
 }

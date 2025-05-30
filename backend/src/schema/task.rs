@@ -27,7 +27,7 @@ pub struct CreateTaskSchema {
 impl ToSQLQueryBuilder for CreateTaskSchema {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
         let mut builder = SQLQueryBuilder::new(TaskModel::TABLE);
-        builder.set_return(vec![TaskModel::ID]);
+        builder.set_return(&[TaskModel::ID]);
 
         if let Some(ref s) = self.title {
             builder.add_column(TaskModel::TITLE, s);
@@ -98,7 +98,7 @@ impl ToSQLQueryBuilder for UpdateTaskSchema {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
         let mut builder = SQLQueryBuilder::new(TaskModel::TABLE);
         builder.add_column(TaskModel::UPDATED, &self.timestamp);
-        builder.set_return(vec![TaskModel::ID]);
+        builder.set_return(&[TaskModel::ID]);
 
         if let Some(ref u) = self.title {
             if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {

@@ -147,7 +147,7 @@ impl<'a> SQLQueryBuilder<'a> {
         self
     }
 
-    pub fn set_group_by(&mut self, columns: Vec<&str>) -> &mut Self {
+    pub fn set_group_by(&mut self, columns: &[&str]) -> &mut Self {
         self.group_by = columns.iter().map(|s| s.to_string()).collect();
 
         self
@@ -179,7 +179,7 @@ impl<'a> SQLQueryBuilder<'a> {
     }
 
     /// Set query to return columns given
-    pub fn set_return(&mut self, columns: Vec<&str>) -> &mut Self {
+    pub fn set_return(&mut self, columns: &[&str]) -> &mut Self {
         self.return_columns = columns.iter().map(|s| s.to_string()).collect();
 
         self
@@ -532,7 +532,7 @@ mod select_builder_tests {
     fn one_column() {
         let mut builder = SQLQueryBuilder::new("table");
 
-        builder.set_return(vec!["col_1"]);
+        builder.set_return(&["col_1"]);
 
         let (statement, params) = builder.build_select();
 
@@ -544,7 +544,7 @@ mod select_builder_tests {
     fn many_columns() {
         let mut builder = SQLQueryBuilder::new("table");
 
-        builder.set_return(vec!["col_1", "col_2", "col_3"]);
+        builder.set_return(&["col_1", "col_2", "col_3"]);
 
         let (statement, params) = builder.build_select();
 
@@ -600,7 +600,7 @@ mod select_builder_tests {
     fn columns_and_conditions() {
         let mut builder = SQLQueryBuilder::new("table");
 
-        builder.set_return(vec!["col_1"]);
+        builder.set_return(&["col_1"]);
 
         let val_1: i32 = 10;
         let val_2: i32 = 35;
@@ -698,7 +698,7 @@ mod select_builder_tests {
     fn group_by() {
         let mut builder = SQLQueryBuilder::new("table");
 
-        builder.set_group_by(vec!["col_1"]);
+        builder.set_group_by(&["col_1"]);
 
         let (statement, params) = builder.build_select();
 
@@ -775,7 +775,7 @@ mod insert_builder_tests {
         let col_1 = String::from("Sample data");
         builder.add_column("col_1", &col_1);
 
-        builder.set_return(vec!["col_1"]);
+        builder.set_return(&["col_1"]);
 
         let (statement, params) = builder.build_insert();
 
@@ -797,7 +797,7 @@ mod insert_builder_tests {
         builder.add_column("col_2", &col_2);
         builder.add_column("col_3", &col_3);
 
-        builder.set_return(vec!["col_1", "col_2"]);
+        builder.set_return(&["col_1", "col_2"]);
 
         let (statement, params) = builder.build_insert();
 
@@ -950,7 +950,7 @@ mod update_builder_tests {
         let col_1 = String::from("Sample Data");
         builder.add_column("col_1", &col_1);
 
-        builder.set_return(vec!["col_1"]);
+        builder.set_return(&["col_1"]);
 
         let (statement, params) = builder.build_update();
 
@@ -968,7 +968,7 @@ mod update_builder_tests {
         let col_1 = String::from("Sample Data");
         builder.add_column("col_1", &col_1);
 
-        builder.set_return(vec!["col_1", "col_2", "col_3"]);
+        builder.set_return(&["col_1", "col_2", "col_3"]);
 
         let (statement, params) = builder.build_update();
 
@@ -1052,7 +1052,7 @@ mod delete_builder_tests {
     fn return_one_column() {
         let mut builder = SQLQueryBuilder::new("table");
 
-        builder.set_return(vec!["col_1"]);
+        builder.set_return(&["col_1"]);
 
         let (statement, params) = builder.build_delete();
 
@@ -1064,7 +1064,7 @@ mod delete_builder_tests {
     fn return_many_columns() {
         let mut builder = SQLQueryBuilder::new("table");
 
-        builder.set_return(vec!["col_1", "col_2"]);
+        builder.set_return(&["col_1", "col_2"]);
 
         let (statement, params) = builder.build_delete();
 

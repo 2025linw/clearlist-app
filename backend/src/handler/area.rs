@@ -195,7 +195,7 @@ pub async fn delete_handler(
     let mut query_builder = SQLQueryBuilder::new(AreaModel::TABLE);
     query_builder.add_condition(AreaModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(AreaModel::ID, PostgresCmp::Equal, &id);
-    query_builder.set_return(vec![AreaModel::ID]);
+    query_builder.set_return(&[AreaModel::ID]);
 
     let (statement, params) = query_builder.build_delete();
 

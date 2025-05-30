@@ -84,7 +84,7 @@ pub struct TokenResponseModel {
 
 impl TokenResponseModel {
     pub fn new(access_jwt: String) -> Self {
-        TokenResponseModel {
+        Self {
             access_jwt,
             refresh_jwt: None,
         }
@@ -92,5 +92,20 @@ impl TokenResponseModel {
 
     pub fn set_refresh_jwt(&mut self, refresh_jwt: String) {
         self.refresh_jwt = Some(refresh_jwt);
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all(serialize = "camelCase"))]
+pub struct UserTokenResponseModel {
+    #[serde(flatten)]
+    user: UserResponseModel,
+    #[serde(flatten)]
+    token: TokenResponseModel,
+}
+
+impl UserTokenResponseModel {
+    pub fn new(user: UserResponseModel, token: TokenResponseModel) -> Self {
+        Self { user, token }
     }
 }

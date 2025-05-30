@@ -319,7 +319,7 @@ pub async fn delete_handler(
     let mut query_builder = SQLQueryBuilder::new(TaskModel::TABLE);
     query_builder.add_condition(TaskModel::USER_ID, PostgresCmp::Equal, &user_id);
     query_builder.add_condition(TaskModel::ID, PostgresCmp::Equal, &id);
-    query_builder.set_return(vec![TaskModel::ID]);
+    query_builder.set_return(&[TaskModel::ID]);
 
     let (statement, params) = query_builder.build_delete();
 
@@ -384,9 +384,9 @@ pub async fn query_handler(
         let num_tags = v.len() as i64;
 
         let mut query_builder = SQLQueryBuilder::new(TaskTagModel::TABLE);
-        query_builder.set_return(vec![TaskTagModel::TASK_ID]);
+        query_builder.set_return(&[TaskTagModel::TASK_ID]);
         query_builder.add_condition(TaskTagModel::TAG_ID, PostgresCmp::In, v);
-        query_builder.set_group_by(vec![TaskTagModel::TASK_ID]);
+        query_builder.set_group_by(&[TaskTagModel::TASK_ID]);
         query_builder.set_having(
             format!("COUNT(DISTINCT {})", TaskTagModel::TAG_ID).as_str(),
             PostgresCmp::Equal,
