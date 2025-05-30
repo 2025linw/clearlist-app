@@ -196,7 +196,7 @@ pub async fn refresh_handler(
     // Check if user exists
     let mut query_builder = SQLQueryBuilder::new(UserModel::TABLE);
     query_builder.add_condition(UserModel::ID, PostgresCmp::Equal, &body.user_id);
-    query_builder.set_return(&[UserModel::ID, UserModel::EMAIL]);
+    query_builder.set_return_all();
 
     let (statement, params) = query_builder.build_select();
 
