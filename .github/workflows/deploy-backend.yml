@@ -27,11 +27,11 @@ jobs:
       with:
         toolchain: stable
 
-    - name: Test app
-      run: cargo test --verbose
-
     - name: Build app
       run: cargo build --bin todo-api --release
+
+    - name: Test app
+      run: cargo test --bin todo-api --verbose
 
     - name: Upload binary to proxy
       uses: appleboy/scp-action@v0.1.7
