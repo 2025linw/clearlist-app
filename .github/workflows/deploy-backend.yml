@@ -31,7 +31,7 @@ jobs:
       run: cargo build --bin todo-api --release
 
     - name: Test app
-      run: cargo test --bin todo-api --verbose
+      run: cargo test --bin todo-api --release --verbose
 
     - name: Upload binary to proxy
       uses: appleboy/scp-action@v0.1.7
@@ -41,6 +41,7 @@ jobs:
         key: ${{ secrets.PROXY_KEY }}
         source: backend/target/release/todo-api
         target: /tmp/todo-api
+        strip_components: 3
 
     - name: Forward binary to server and restart service
       uses: appleboy/ssh-action@v1.0.0
@@ -49,8 +50,8 @@ jobs:
         username: ${{ secrets.PROXY_USER }}
         key: ${{ secrets.PROXY_KEY }}
         script: |
-          scp /tmp/todo-api ${{ secrets.MAIN_USER }}@${{ secrets.MAIN_HOST }}:${{ secrets.DEPLOY_PATH }}
+          scp /tmp/todo-api ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}
 
-          ssh ${{ secrets.MAIN_USER }}@${{ secrets.MAIN_HOST }} << 'EOF'
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
             sudo systemctl restart clearlist-api.service
           EOF
