@@ -50,7 +50,7 @@ jobs:
         username: ${{ secrets.PROXY_USER }}
         key: ${{ secrets.PROXY_KEY }}
         script: |
-          scp /tmp/todo-api ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}
+          scp /tmp/todo-api/todo-api ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}
 
           ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
             sudo systemctl restart clearlist-api.service
