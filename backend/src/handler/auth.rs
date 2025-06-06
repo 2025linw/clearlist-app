@@ -24,7 +24,7 @@ pub async fn registration_handler(
     Json(body): Json<LoginDetails>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Check for email and password
-    if body.email.is_none() || body.password.is_none() {
+    if body.email.as_ref().is_none_or(|s| s.is_empty()) || body.password.as_ref().is_none_or(|s| s.is_empty()) {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({
@@ -94,7 +94,7 @@ pub async fn login_handler(
     Json(body): Json<LoginDetails>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Check for email and password
-    if body.email.is_none() || body.password.is_none() {
+    if body.email.as_ref().is_none_or(|s| s.is_empty()) || body.password.as_ref().is_none_or(|s| s.is_empty()) {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({
