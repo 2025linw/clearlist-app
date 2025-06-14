@@ -3,11 +3,11 @@ use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 use uuid::Uuid;
 
-use super::ToResponse;
+use super::super::ToResponse;
 
 /// User Database Model
 #[derive(Debug, Deserialize)]
-pub struct UserModel {
+pub struct DatabaseModel {
     user_id: Uuid,
 
     email: String,
@@ -17,7 +17,7 @@ pub struct UserModel {
     updated_on: DateTime<Local>,
 }
 
-impl UserModel {
+impl DatabaseModel {
     pub const TABLE: &str = "auth.users";
 
     pub const ID: &str = "user_id";
@@ -29,7 +29,7 @@ impl UserModel {
     pub const UPDATED: &str = "updated_on";
 }
 
-impl UserModel {
+impl DatabaseModel {
     pub fn user_id(&self) -> Uuid {
         self.user_id
     }
@@ -39,7 +39,7 @@ impl UserModel {
     }
 }
 
-impl From<Row> for UserModel {
+impl From<Row> for DatabaseModel {
     fn from(value: Row) -> Self {
         Self {
             user_id: value.get(Self::ID),
@@ -51,8 +51,8 @@ impl From<Row> for UserModel {
     }
 }
 
-impl ToResponse for UserModel {
-    type Response = UserResponseModel;
+impl ToResponse for DatabaseModel {
+    type Response = ResponseModel;
 
     fn to_response(&self) -> Self::Response {
         Self::Response {
@@ -65,47 +65,12 @@ impl ToResponse for UserModel {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all(serialize = "camelCase"))]
-pub struct UserResponseModel {
+#[serde(rename_all = "camelCase")]
+pub struct ResponseModel {
     id: Uuid,
 
     email: String,
 
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all(serialize = "camelCase"))]
-pub struct TokenResponseModel {
-    access_jwt: String,
-    refresh_jwt: Option<String>,
-}
-
-impl TokenResponseModel {
-    pub fn new(access_jwt: String) -> Self {
-        Self {
-            access_jwt,
-            refresh_jwt: None,
-        }
-    }
-
-    pub fn set_refresh_jwt(&mut self, refresh_jwt: String) {
-        self.refresh_jwt = Some(refresh_jwt);
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all(serialize = "camelCase"))]
-pub struct UserTokenResponseModel {
-    #[serde(flatten)]
-    user: UserResponseModel,
-    #[serde(flatten)]
-    token: TokenResponseModel,
-}
-
-impl UserTokenResponseModel {
-    pub fn new(user: UserResponseModel, token: TokenResponseModel) -> Self {
-        Self { user, token }
-    }
 }

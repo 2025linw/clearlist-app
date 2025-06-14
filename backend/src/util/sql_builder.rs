@@ -1,44 +1,9 @@
-use std::{fmt::Write, marker::PhantomData};
+use std::fmt::Write;
 
-use tokio_postgres::types::{IsNull, ToSql, Type, to_sql_checked};
+use tokio_postgres::types::ToSql;
 
 pub const NULL: Option<String> = None;
-// TODO: create NullValue as a struct that implements ToSql
 
-#[derive(Debug)]
-pub struct NullValue<T>
-where
-    T: ToSql,
-{
-    test: PhantomData<T>,
-}
-
-impl<T> ToSql for NullValue<T>
-where
-    T: ToSql,
-{
-    fn to_sql(
-        &self,
-        _ty: &Type,
-        _out: &mut bytes::BytesMut,
-    ) -> Result<IsNull, Box<dyn std::error::Error + Sync + Send>>
-    where
-        Self: Sized,
-    {
-        Ok(IsNull::Yes)
-    }
-
-    fn accepts(ty: &Type) -> bool
-    where
-        Self: Sized,
-    {
-        <T as ToSql>::accepts(ty)
-    }
-
-    to_sql_checked!();
-}
-
-// TODO: move this to SQL Builder Crate
 #[allow(dead_code)]
 pub enum PostgresCmp {
     Equal,
@@ -107,14 +72,6 @@ impl<'a> SQLQueryBuilder<'a> {
         }
     }
 
-    /// Get element at a given index in columns
-    pub fn get_column(&self, index: usize) -> Option<&'a (dyn ToSql + Sync)> {
-        match self.columns.get(index) {
-            Some((_, val)) => Some(val.to_owned()),
-            None => None,
-        }
-    }
-
     /// Add tables to join
     pub fn add_join(&mut self, join_type: Join, table_name: &str, join_column: &str) -> &mut Self {
         self.join_tables
@@ -178,7 +135,9 @@ impl<'a> SQLQueryBuilder<'a> {
         self
     }
 
-    /// Set query to return columns given
+    /// Set query to return columns specified
+    ///
+    /// When using this with a `SELECT` query, limits columns returned
     pub fn set_return(&mut self, columns: &[&str]) -> &mut Self {
         self.return_columns = columns.iter().map(|s| s.to_string()).collect();
 
@@ -187,7 +146,10 @@ impl<'a> SQLQueryBuilder<'a> {
 
     /// Sets query to return all columns
     ///
-    /// It is not necessary to call this on `SELECT` however, it doesn't change query response
+    /// Using this when creating a `SELECT` query returns select back to default
+    /// of returning all columns.
+    ///
+    /// For other queries, returns all columns
     pub fn set_return_all(&mut self) -> &mut Self {
         self.return_columns.clear();
         self.return_columns.push("*".to_string());
@@ -213,10 +175,6 @@ impl<'a> SQLQueryBuilder<'a> {
             query.push_str(&self.return_columns.join(", "));
         }
 
-        // Add table to retrieve from
-        if self.table.is_empty() {
-            panic!();
-        }
         query.push_str(" FROM ");
         query.push_str(&self.table);
 
@@ -315,10 +273,6 @@ impl<'a> SQLQueryBuilder<'a> {
         let mut param_n = 1;
         let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
 
-        // Add table to insert into
-        if self.table.is_empty() {
-            panic!();
-        }
         query.push_str(" INTO ");
         query.push_str(&self.table);
 
@@ -364,9 +318,6 @@ impl<'a> SQLQueryBuilder<'a> {
         let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
 
         // Add table to update
-        if self.table.is_empty() {
-            panic!();
-        }
         query.push(' ');
         query.push_str(&self.table);
 
@@ -448,9 +399,6 @@ impl<'a> SQLQueryBuilder<'a> {
         let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
 
         // Add table to delete from
-        if self.table.is_empty() {
-            panic!();
-        }
         query.push_str(" FROM ");
         query.push_str(&self.table);
 
@@ -839,7 +787,7 @@ mod update_builder_tests {
 
     #[test]
     #[should_panic]
-    fn no_title() {
+    fn empty() {
         let builder = SQLQueryBuilder::new("table");
 
         builder.build_update();

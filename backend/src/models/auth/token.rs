@@ -2,6 +2,26 @@ use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseModel {
+    access_jwt: String,
+    refresh_jwt: Option<String>,
+}
+
+impl ResponseModel {
+    pub fn new(access_jwt: String) -> Self {
+        Self {
+            access_jwt,
+            refresh_jwt: None,
+        }
+    }
+
+    pub fn set_refresh_jwt(&mut self, refresh_jwt: String) {
+        self.refresh_jwt = Some(refresh_jwt);
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Claim {
     pub iss: String,
@@ -39,15 +59,7 @@ impl Default for Claim {
 
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(Default))]
-#[serde(rename_all(deserialize = "camelCase"))]
-pub struct LoginDetails {
-    pub email: Option<String>,
-    pub password: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[cfg_attr(test, derive(Default))]
-#[serde(rename_all(deserialize = "camelCase"))]
+#[serde(rename_all = "camelCase")]
 pub struct RefreshToken {
     pub user_id: Uuid,
     pub refresh_jwt: String,

@@ -23,6 +23,51 @@ ALTER DEFAULT PRIVILEGES
 IN SCHEMA data
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO todo_app;
 
+/*
+Adds functions to verify that a task/project and tag being related are created by the same user
+*/
+CREATE OR REPLACE FUNCTION check_task_tag_user_consistency()
+RETURNS trigger AS $$
+DECLARE
+    task_user UUID;
+    tag_user UUID;
+BEGIN
+    SELECT user_id INTO task_user FROM data.tasks WHERE task_id = NEW.task_id;
+    SELECT user_id INTO tag_user FROM data.tags WHERE tag_id = NEW.tag_id;
+
+    IF task_user IS NULL OR tag_user IS NULL THEN
+        RAISE EXCEPTION 'Task or Tag not found';
+    END IF;
+
+    IF task_user != tag_user THEN
+        RAISE EXCEPTION 'Task and Tag must belong to the same user';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION check_project_tag_user_consistency()
+RETURNS trigger AS $$
+DECLARE
+    project_user UUID;
+    tag_user UUID;
+BEGIN
+    SELECT user_id INTO project_user FROM data.projects WHERE project_id = NEW.project_id;
+    SELECT user_id INTO tag_user FROM data.tags WHERE tag_id = NEW.tag_id;
+
+    IF project_user IS NULL OR tag_user IS NULL THEN
+        RAISE EXCEPTION 'Project or Tag not found';
+    END IF;
+
+    IF project_user != tag_user THEN
+        RAISE EXCEPTION 'Project and Tag must belong to the same user';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 
 /*
 Create users tables in auth schema
@@ -120,8 +165,8 @@ CREATE TABLE IF NOT EXISTS data.tasks
     updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
 	PRIMARY KEY(task_id),
-	FOREIGN KEY(area_id) REFERENCES data.areas(area_id),
-	FOREIGN KEY(project_id) REFERENCES data.projects(project_id),
+	FOREIGN KEY(area_id) REFERENCES data.areas(area_id) ON DELETE SET NULL,
+	FOREIGN KEY(project_id) REFERENCES data.projects(project_id) ON DELETE SET NULL,
 	FOREIGN	KEY(user_id) REFERENCES auth.users(user_id)
 );
 
@@ -160,6 +205,10 @@ CREATE TABLE IF NOT EXISTS data.project_tags
 	FOREIGN KEY(tag_id) REFERENCES data.tags(tag_id) ON DELETE CASCADE
 );
 
+CREATE OR REPLACE TRIGGER check_user_id_match_trigger
+BEFORE INSERT OR UPDATE ON data.project_tags
+FOR EACH ROW EXECUTE FUNCTION check_project_tag_user_consistency();
+
 /*
 Create task-tags relation table in data schema
 
@@ -174,3 +223,7 @@ CREATE TABLE IF NOT EXISTS data.task_tags
 	FOREIGN KEY(task_id) REFERENCES data.tasks(task_id) ON DELETE CASCADE,
 	FOREIGN KEY(tag_id) REFERENCES data.tags(tag_id) ON DELETE CASCADE
 );
+
+CREATE OR REPLACE TRIGGER check_user_id_match_trigger
+BEFORE INSERT OR UPDATE ON data.task_tags
+FOR EACH ROW EXECUTE FUNCTION check_task_tag_user_consistency();

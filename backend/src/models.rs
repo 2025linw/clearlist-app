@@ -4,7 +4,7 @@ pub mod project;
 pub mod tag;
 pub mod task;
 
-use std::{error::Error, fmt::Debug};
+use std::error::Error;
 
 use bytes::BytesMut;
 use serde::Deserialize;
@@ -12,6 +12,7 @@ use tokio_postgres::types::{IsNull, ToSql, Type, to_sql_checked};
 
 use crate::util::{PostgresCmp, ToPostgresCmp};
 
+/// Paging options for querying
 #[derive(Debug, Deserialize)]
 pub struct FilterOptions {
     pub page: Option<usize>,
@@ -27,36 +28,12 @@ impl Default for FilterOptions {
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum UpdateMethod<T>
-where
-    T: ToSql,
-{
-    Remove(bool),
-    Change(T),
-}
+/// Trait to convert from Database Model to Response Model
+pub trait ToResponse {
+    type Response;
 
-impl<T: ToSql> ToSql for UpdateMethod<T> {
-    fn to_sql(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>>
-    where
-        Self: Sized,
-    {
-        match *self {
-            Self::Remove(true) => Ok(IsNull::Yes),
-            Self::Change(ref o) => o.to_sql(ty, out),
-            Self::Remove(false) => Err(Box::from("no-op")),
-        }
-    }
-
-    fn accepts(ty: &Type) -> bool
-    where
-        Self: Sized,
-    {
-        <T as ToSql>::accepts(ty)
-    }
-
-    to_sql_checked!();
+    /// Converts type to Response
+    fn to_response(&self) -> Self::Response;
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -82,6 +59,36 @@ impl ToPostgresCmp for Compare {
     }
 }
 
+/// Update request body elements
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "op")]
+pub enum UpdateMethod<T: ToSql> {
+    Remove,
+    Set(T),
+}
+
+impl<T: ToSql> ToSql for UpdateMethod<T> {
+    fn to_sql(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>>
+    where
+        Self: Sized,
+    {
+        match *self {
+            Self::Remove => Ok(IsNull::Yes),
+            Self::Set(ref value) => value.to_sql(ty, out),
+        }
+    }
+
+    fn accepts(ty: &Type) -> bool
+    where
+        Self: Sized,
+    {
+        <T as ToSql>::accepts(ty)
+    }
+
+    to_sql_checked!();
+}
+
+/// Query request body elements
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum QueryMethod<T: ToSql> {

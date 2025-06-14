@@ -1,18 +1,150 @@
+pub mod tag;
+
 use chrono::{DateTime, Local, NaiveDate, NaiveTime};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use tokio_postgres::Row;
 use uuid::Uuid;
 
-use crate::{
-    model::task::TaskModel,
-    util::{NULL, PostgresCmp, SQLQueryBuilder, ToPostgresCmp, ToSQLQueryBuilder},
-};
+use crate::util::{NULL, PostgresCmp, SQLQueryBuilder, ToPostgresCmp, ToSQLQueryBuilder};
 
-use super::{QueryMethod, UpdateMethod};
+use super::{QueryMethod, ToResponse, UpdateMethod};
+
+/// Task Database Model
+#[derive(Debug, Deserialize)]
+pub struct DatabaseModel {
+    #[serde(alias = "task_id")]
+    id: Uuid,
+
+    task_title: Option<String>,
+    notes: Option<String>,
+    start_date: Option<NaiveDate>,
+    start_time: Option<NaiveTime>,
+    deadline: Option<NaiveDate>,
+
+    completed_on: Option<DateTime<Local>>,
+    logged_on: Option<DateTime<Local>>,
+    trashed_on: Option<DateTime<Local>>,
+
+    area_id: Option<Uuid>,
+    project_id: Option<Uuid>,
+
+    user_id: Uuid,
+    created_on: DateTime<Local>,
+    updated_on: DateTime<Local>,
+}
+
+impl DatabaseModel {
+    pub fn id(&self) -> Uuid {
+        self.id
+    }
+}
+
+impl DatabaseModel {
+    pub const TABLE: &str = "data.tasks";
+
+    pub const ID: &str = "task_id";
+
+    pub const TITLE: &str = "task_title";
+    pub const NOTES: &str = "notes";
+    pub const START_DATE: &str = "start_date";
+    pub const START_TIME: &str = "start_time";
+    pub const DEADLINE: &str = "deadline";
+
+    pub const COMPLETED: &str = "completed_on";
+    pub const LOGGED: &str = "logged_on";
+    pub const TRASHED: &str = "trashed_on";
+
+    pub const AREA_ID: &str = "area_id";
+    pub const PROJECT_ID: &str = "project_id";
+
+    pub const USER_ID: &str = "user_id";
+    pub const CREATED: &str = "created_on";
+    pub const UPDATED: &str = "updated_on";
+}
+
+impl From<Row> for DatabaseModel {
+    fn from(value: Row) -> Self {
+        Self {
+            id: value.get(Self::ID),
+            task_title: value.get(Self::TITLE),
+            notes: value.get(Self::NOTES),
+            start_date: value.get(Self::START_DATE),
+            start_time: value.get(Self::START_TIME),
+            deadline: value.get(Self::DEADLINE),
+            completed_on: value.get(Self::COMPLETED),
+            logged_on: value.get(Self::LOGGED),
+            trashed_on: value.get(Self::TRASHED),
+            area_id: value.get(Self::AREA_ID),
+            project_id: value.get(Self::PROJECT_ID),
+            user_id: value.get(Self::USER_ID),
+            created_on: value.get(Self::CREATED),
+            updated_on: value.get(Self::UPDATED),
+        }
+    }
+}
+
+impl ToResponse for DatabaseModel {
+    type Response = ResponseModel;
+
+    fn to_response(&self) -> Self::Response {
+        Self::Response {
+            id: self.id,
+            title: self.task_title.to_owned().unwrap_or_default(),
+            notes: self.notes.to_owned().unwrap_or_default(),
+            start_date: self.start_date,
+            start_time: self.start_time,
+            deadline: self.deadline,
+            completed_on: self.completed_on,
+            logged_on: self.logged_on,
+            trashed_on: self.trashed_on,
+            area_id: self.area_id,
+            project_id: self.project_id,
+            tag_ids: Vec::new(),
+            user_id: self.user_id,
+            created_on: self.created_on,
+            updated_on: self.updated_on,
+        }
+    }
+}
+
+/// Task Response Model
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseModel {
+    id: Uuid,
+
+    title: String,
+    notes: String,
+    start_date: Option<NaiveDate>,
+    start_time: Option<NaiveTime>,
+    deadline: Option<NaiveDate>,
+
+    completed_on: Option<DateTime<Local>>,
+    logged_on: Option<DateTime<Local>>,
+    trashed_on: Option<DateTime<Local>>,
+
+    area_id: Option<Uuid>,
+    project_id: Option<Uuid>,
+
+    tag_ids: Vec<Uuid>,
+
+    user_id: Uuid,
+    created_on: DateTime<Local>,
+    updated_on: DateTime<Local>,
+}
+
+impl ResponseModel {
+    pub fn add_tag_ids(mut self, tag_ids: Vec<Uuid>) -> Self {
+        self.tag_ids = tag_ids;
+
+        self
+    }
+}
 
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(Default))]
-#[serde(rename_all(deserialize = "camelCase"))]
-pub struct CreateTaskSchema {
+#[serde(rename_all = "camelCase")]
+pub struct CreateSchema {
     title: Option<String>,
     notes: Option<String>,
     start_date: Option<NaiveDate>,
@@ -21,35 +153,42 @@ pub struct CreateTaskSchema {
 
     area_id: Option<Uuid>,
     project_id: Option<Uuid>,
-    pub(crate) tag_ids: Option<Vec<Uuid>>, // TODO: is there a way that this can not be pub?
+
+    tag_ids: Vec<Uuid>,
 }
 
-impl ToSQLQueryBuilder for CreateTaskSchema {
+impl CreateSchema {
+    fn tag_ids(&self) -> &[Uuid] {
+        &self.tag_ids
+    }
+}
+
+impl ToSQLQueryBuilder for CreateSchema {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(TaskModel::TABLE);
-        builder.set_return(&[TaskModel::ID]);
+        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+        builder.set_return(&[DatabaseModel::ID]);
 
         if let Some(ref s) = self.title {
-            builder.add_column(TaskModel::TITLE, s);
+            builder.add_column(DatabaseModel::TITLE, s);
         }
         if let Some(ref s) = self.notes {
-            builder.add_column(TaskModel::NOTES, s);
+            builder.add_column(DatabaseModel::NOTES, s);
         }
         if let Some(ref d) = self.start_date {
-            builder.add_column(TaskModel::START_DATE, d);
+            builder.add_column(DatabaseModel::START_DATE, d);
         }
         if let Some(ref t) = self.start_time {
-            builder.add_column(TaskModel::START_TIME, t);
+            builder.add_column(DatabaseModel::START_TIME, t);
         }
         if let Some(ref d) = self.deadline {
-            builder.add_column(TaskModel::DEADLINE, d);
+            builder.add_column(DatabaseModel::DEADLINE, d);
         }
 
         if let Some(ref i) = self.area_id {
-            builder.add_column(TaskModel::AREA_ID, i);
+            builder.add_column(DatabaseModel::AREA_ID, i);
         }
         if let Some(ref i) = self.project_id {
-            builder.add_column(TaskModel::PROJECT_ID, i);
+            builder.add_column(DatabaseModel::PROJECT_ID, i);
         }
 
         builder
@@ -59,7 +198,7 @@ impl ToSQLQueryBuilder for CreateTaskSchema {
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(Default))]
 #[serde(rename_all = "camelCase")]
-pub struct UpdateTaskSchema {
+pub struct UpdateSchema {
     title: Option<UpdateMethod<String>>,
     notes: Option<UpdateMethod<String>>,
     start_date: Option<UpdateMethod<NaiveDate>>,
@@ -72,13 +211,14 @@ pub struct UpdateTaskSchema {
 
     area_id: Option<UpdateMethod<Uuid>>,
     project_id: Option<UpdateMethod<Uuid>>,
-    pub(crate) tag_ids: Option<Vec<Uuid>>, // TODO: is there a way that this can not be pub?
+
+    tag_ids: Vec<Uuid>,
 
     #[serde(default)]
     timestamp: DateTime<Local>,
 }
 
-impl UpdateTaskSchema {
+impl UpdateSchema {
     pub fn is_empty(&self) -> bool {
         self.title.is_none()
             && self.notes.is_none()
@@ -90,79 +230,58 @@ impl UpdateTaskSchema {
             && self.trashed.is_none()
             && self.area_id.is_none()
             && self.project_id.is_none()
-            && self.tag_ids.is_none()
     }
 }
 
-impl ToSQLQueryBuilder for UpdateTaskSchema {
+impl ToSQLQueryBuilder for UpdateSchema {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(TaskModel::TABLE);
-        builder.add_column(TaskModel::UPDATED, &self.timestamp);
-        builder.set_return(&[TaskModel::ID]);
+        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+        builder.add_column(DatabaseModel::UPDATED, &self.timestamp);
+        builder.set_return(&[DatabaseModel::ID]);
 
         if let Some(ref u) = self.title {
-            if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {
-                builder.add_column(TaskModel::TITLE, u);
-            }
+            builder.add_column(DatabaseModel::TITLE, u);
         }
         if let Some(ref u) = self.notes {
-            if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {
-                builder.add_column(TaskModel::NOTES, u);
-            }
+            builder.add_column(DatabaseModel::NOTES, u);
         }
         if let Some(ref u) = self.start_date {
-            if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {
-                builder.add_column(TaskModel::START_DATE, u);
-            }
+            builder.add_column(DatabaseModel::START_DATE, u);
         }
         if let Some(ref u) = self.start_time {
-            if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {
-                builder.add_column(TaskModel::START_TIME, u);
-            }
+            builder.add_column(DatabaseModel::START_TIME, u);
         }
         if let Some(ref u) = self.deadline {
-            if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {
-                builder.add_column(TaskModel::DEADLINE, u);
-            }
+            builder.add_column(DatabaseModel::DEADLINE, u);
         }
 
         if let Some(b) = self.completed {
             if b {
-                builder.add_column(
-                    TaskModel::COMPLETED,
-                    builder.get_column(0).unwrap().to_owned(),
-                );
+                builder.add_column(DatabaseModel::COMPLETED, &self.timestamp);
             } else {
-                builder.add_column(TaskModel::COMPLETED, &None::<DateTime<Local>>);
+                builder.add_column(DatabaseModel::COMPLETED, &None::<DateTime<Local>>);
             }
         }
         if let Some(b) = self.logged {
             if b {
-                builder.add_column(TaskModel::LOGGED, builder.get_column(0).unwrap().to_owned());
+                builder.add_column(DatabaseModel::LOGGED, &self.timestamp);
             } else {
-                builder.add_column(TaskModel::LOGGED, &None::<DateTime<Local>>);
+                builder.add_column(DatabaseModel::LOGGED, &None::<DateTime<Local>>);
             }
         }
         if let Some(b) = self.trashed {
             if b {
-                builder.add_column(
-                    TaskModel::TRASHED,
-                    builder.get_column(0).unwrap().to_owned(),
-                );
+                builder.add_column(DatabaseModel::TRASHED, &self.timestamp);
             } else {
-                builder.add_column(TaskModel::TRASHED, &None::<DateTime<Local>>);
+                builder.add_column(DatabaseModel::TRASHED, &None::<DateTime<Local>>);
             }
         }
 
         if let Some(ref u) = self.area_id {
-            if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {
-                builder.add_column(TaskModel::AREA_ID, u);
-            }
+            builder.add_column(DatabaseModel::AREA_ID, u);
         }
         if let Some(ref u) = self.project_id {
-            if matches!(u, UpdateMethod::Remove(true) | UpdateMethod::Change(..)) {
-                builder.add_column(TaskModel::PROJECT_ID, u);
-            }
+            builder.add_column(DatabaseModel::PROJECT_ID, u);
         }
 
         builder
@@ -172,7 +291,7 @@ impl ToSQLQueryBuilder for UpdateTaskSchema {
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(Default))]
 #[serde(rename_all = "camelCase")]
-pub struct QueryTaskSchema {
+pub struct QuerySchema {
     title: Option<QueryMethod<String>>,
     notes: Option<QueryMethod<String>>,
     start_date: Option<QueryMethod<NaiveDate>>,
@@ -185,12 +304,13 @@ pub struct QueryTaskSchema {
 
     area_id: Option<Uuid>,
     project_id: Option<Uuid>,
-    pub(crate) tag_ids: Option<Vec<Uuid>>, // TODO: is there a way that this can not be pub? (ExtractTagSchema)
+
+    tag_ids: Vec<Uuid>,
 }
 
-impl ToSQLQueryBuilder for QueryTaskSchema {
+impl ToSQLQueryBuilder for QuerySchema {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(TaskModel::TABLE);
+        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
 
         if let Some(ref q) = self.title {
             let cmp;
@@ -205,7 +325,7 @@ impl ToSQLQueryBuilder for QueryTaskSchema {
                 QueryMethod::Match(_) => cmp = PostgresCmp::ILike,
                 QueryMethod::Compare(_, c) => cmp = c.to_postgres_cmp(),
             }
-            builder.add_condition(TaskModel::TITLE, cmp, q);
+            builder.add_condition(DatabaseModel::TITLE, cmp, q);
         }
         if let Some(ref q) = self.notes {
             let cmp;
@@ -220,7 +340,7 @@ impl ToSQLQueryBuilder for QueryTaskSchema {
                 QueryMethod::Match(_) => cmp = PostgresCmp::ILike,
                 QueryMethod::Compare(_, c) => cmp = c.to_postgres_cmp(),
             }
-            builder.add_condition(TaskModel::NOTES, cmp, q);
+            builder.add_condition(DatabaseModel::NOTES, cmp, q);
         }
         if let Some(ref q) = self.start_date {
             let cmp;
@@ -235,7 +355,7 @@ impl ToSQLQueryBuilder for QueryTaskSchema {
                 QueryMethod::Match(_) => cmp = PostgresCmp::Equal,
                 QueryMethod::Compare(_, c) => cmp = c.to_postgres_cmp(),
             }
-            builder.add_condition(TaskModel::START_DATE, cmp, q);
+            builder.add_condition(DatabaseModel::START_DATE, cmp, q);
         }
         if let Some(ref q) = self.start_time {
             let cmp;
@@ -250,7 +370,7 @@ impl ToSQLQueryBuilder for QueryTaskSchema {
                 QueryMethod::Match(_) => cmp = PostgresCmp::Equal,
                 QueryMethod::Compare(_, c) => cmp = c.to_postgres_cmp(),
             }
-            builder.add_condition(TaskModel::START_TIME, cmp, q);
+            builder.add_condition(DatabaseModel::START_TIME, cmp, q);
         }
         if let Some(ref q) = self.deadline {
             let cmp;
@@ -265,36 +385,36 @@ impl ToSQLQueryBuilder for QueryTaskSchema {
                 QueryMethod::Match(_) => cmp = PostgresCmp::Equal,
                 QueryMethod::Compare(_, c) => cmp = c.to_postgres_cmp(),
             }
-            builder.add_condition(TaskModel::DEADLINE, cmp, q);
+            builder.add_condition(DatabaseModel::DEADLINE, cmp, q);
         }
 
         if let Some(b) = self.completed {
             if b {
-                builder.add_condition(TaskModel::COMPLETED, PostgresCmp::NotNull, &NULL);
+                builder.add_condition(DatabaseModel::COMPLETED, PostgresCmp::NotNull, &NULL);
             } else {
-                builder.add_condition(TaskModel::COMPLETED, PostgresCmp::IsNull, &NULL);
+                builder.add_condition(DatabaseModel::COMPLETED, PostgresCmp::IsNull, &NULL);
             }
         }
         if let Some(b) = self.logged {
             if b {
-                builder.add_condition(TaskModel::LOGGED, PostgresCmp::NotNull, &NULL);
+                builder.add_condition(DatabaseModel::LOGGED, PostgresCmp::NotNull, &NULL);
             } else {
-                builder.add_condition(TaskModel::LOGGED, PostgresCmp::IsNull, &NULL);
+                builder.add_condition(DatabaseModel::LOGGED, PostgresCmp::IsNull, &NULL);
             }
         }
         if let Some(b) = self.trashed {
             if b {
-                builder.add_condition(TaskModel::TRASHED, PostgresCmp::NotNull, &NULL);
+                builder.add_condition(DatabaseModel::TRASHED, PostgresCmp::NotNull, &NULL);
             } else {
-                builder.add_condition(TaskModel::TRASHED, PostgresCmp::IsNull, &NULL);
+                builder.add_condition(DatabaseModel::TRASHED, PostgresCmp::IsNull, &NULL);
             }
         }
 
         if let Some(ref i) = self.area_id {
-            builder.add_condition(TaskModel::AREA_ID, PostgresCmp::Equal, i);
+            builder.add_condition(DatabaseModel::AREA_ID, PostgresCmp::Equal, i);
         }
         if let Some(ref i) = self.project_id {
-            builder.add_condition(TaskModel::PROJECT_ID, PostgresCmp::Equal, i);
+            builder.add_condition(DatabaseModel::PROJECT_ID, PostgresCmp::Equal, i);
         }
 
         builder
@@ -308,11 +428,11 @@ mod create_schema_test {
 
     use crate::util::ToSQLQueryBuilder;
 
-    use super::CreateTaskSchema;
+    use super::CreateSchema;
 
     #[test]
     fn text_only() {
-        let mut schema = CreateTaskSchema::default();
+        let mut schema = CreateSchema::default();
         schema.title = Some("Test Title".to_string());
         schema.notes = Some("Test Note".to_string());
 
@@ -329,7 +449,7 @@ mod create_schema_test {
     fn date_time_only() {
         let now = Local::now();
 
-        let mut schema = CreateTaskSchema::default();
+        let mut schema = CreateSchema::default();
         schema.start_date = Some(now.date_naive());
         schema.start_time = Some(now.time());
         schema.deadline = Some(now.date_naive());
@@ -345,7 +465,7 @@ mod create_schema_test {
 
     #[test]
     fn id_only() {
-        let mut schema = CreateTaskSchema::default();
+        let mut schema = CreateSchema::default();
         schema.area_id = Some(Uuid::new_v4());
         schema.project_id = Some(Uuid::new_v4());
 
@@ -362,7 +482,7 @@ mod create_schema_test {
     fn full() {
         let now = Local::now();
 
-        let mut schema = CreateTaskSchema::default();
+        let mut schema = CreateSchema::default();
         schema.title = Some("Test Title".to_string());
         schema.notes = Some("Test Note".to_string());
         schema.start_date = Some(now.date_naive());
@@ -388,15 +508,15 @@ mod update_schema_test {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::{schema::UpdateMethod, util::ToSQLQueryBuilder};
+    use crate::{models::UpdateMethod, util::ToSQLQueryBuilder};
 
-    use super::UpdateTaskSchema;
+    use super::UpdateSchema;
 
     #[test]
     fn text_only() {
-        let mut schema = UpdateTaskSchema::default();
-        schema.title = Some(UpdateMethod::Change("Test Title".to_string()));
-        schema.notes = Some(UpdateMethod::Change("Test Note".to_string()));
+        let mut schema = UpdateSchema::default();
+        schema.title = Some(UpdateMethod::Set("Test Title".to_string()));
+        schema.notes = Some(UpdateMethod::Set("Test Note".to_string()));
 
         let (statement, params) = schema.to_sql_builder().build_update();
 
@@ -411,10 +531,10 @@ mod update_schema_test {
     fn date_time_only() {
         let now = Local::now();
 
-        let mut schema = UpdateTaskSchema::default();
-        schema.start_date = Some(UpdateMethod::Change(now.date_naive()));
-        schema.start_time = Some(UpdateMethod::Change(now.time()));
-        schema.deadline = Some(UpdateMethod::Change(now.date_naive()));
+        let mut schema = UpdateSchema::default();
+        schema.start_date = Some(UpdateMethod::Set(now.date_naive()));
+        schema.start_time = Some(UpdateMethod::Set(now.time()));
+        schema.deadline = Some(UpdateMethod::Set(now.date_naive()));
 
         let (statement, params) = schema.to_sql_builder().build_update();
 
@@ -427,7 +547,7 @@ mod update_schema_test {
 
     #[test]
     fn bool_only() {
-        let mut schema = UpdateTaskSchema::default();
+        let mut schema = UpdateSchema::default();
         schema.completed = Some(true);
         schema.logged = Some(true);
         schema.trashed = Some(true);
@@ -443,9 +563,9 @@ mod update_schema_test {
 
     #[test]
     fn id_only() {
-        let mut schema = UpdateTaskSchema::default();
-        schema.area_id = Some(UpdateMethod::Change(Uuid::new_v4()));
-        schema.project_id = Some(UpdateMethod::Change(Uuid::new_v4()));
+        let mut schema = UpdateSchema::default();
+        schema.area_id = Some(UpdateMethod::Set(Uuid::new_v4()));
+        schema.project_id = Some(UpdateMethod::Set(Uuid::new_v4()));
 
         let (statement, params) = schema.to_sql_builder().build_update();
 
@@ -460,17 +580,17 @@ mod update_schema_test {
     fn full() {
         let now = Local::now();
 
-        let mut schema = UpdateTaskSchema::default();
-        schema.title = Some(UpdateMethod::Change("Test Title".to_string()));
-        schema.notes = Some(UpdateMethod::Change("Test Note".to_string()));
-        schema.start_date = Some(UpdateMethod::Change(now.date_naive()));
-        schema.start_time = Some(UpdateMethod::Change(now.time()));
-        schema.deadline = Some(UpdateMethod::Change(now.date_naive()));
+        let mut schema = UpdateSchema::default();
+        schema.title = Some(UpdateMethod::Set("Test Title".to_string()));
+        schema.notes = Some(UpdateMethod::Set("Test Note".to_string()));
+        schema.start_date = Some(UpdateMethod::Set(now.date_naive()));
+        schema.start_time = Some(UpdateMethod::Set(now.time()));
+        schema.deadline = Some(UpdateMethod::Set(now.date_naive()));
         schema.completed = Some(true);
         schema.logged = Some(true);
         schema.trashed = Some(true);
-        schema.area_id = Some(UpdateMethod::Change(Uuid::new_v4()));
-        schema.project_id = Some(UpdateMethod::Change(Uuid::new_v4()));
+        schema.area_id = Some(UpdateMethod::Set(Uuid::new_v4()));
+        schema.project_id = Some(UpdateMethod::Set(Uuid::new_v4()));
 
         let (statement, params) = schema.to_sql_builder().build_update();
 
@@ -489,16 +609,13 @@ mod query_schema_test {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::{
-        schema::{Compare, QueryMethod},
-        util::ToSQLQueryBuilder,
-    };
+    use crate::{models::Compare, util::ToSQLQueryBuilder};
 
-    use super::QueryTaskSchema;
+    use super::{QueryMethod, QuerySchema};
 
     #[test]
     fn empty() {
-        let schema = QueryTaskSchema::default();
+        let schema = QuerySchema::default();
 
         let (statement, params) = schema.to_sql_builder().build_select();
 
@@ -508,7 +625,7 @@ mod query_schema_test {
 
     #[test]
     fn text_only() {
-        let mut schema = QueryTaskSchema::default();
+        let mut schema = QuerySchema::default();
         schema.title = Some(QueryMethod::Match("Test Title".to_string()));
         schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
 
@@ -525,7 +642,7 @@ mod query_schema_test {
     fn date_time_eq_only() {
         let now = Local::now();
 
-        let mut schema = QueryTaskSchema::default();
+        let mut schema = QuerySchema::default();
         schema.start_date = Some(QueryMethod::Match(now.date_naive()));
         schema.start_time = Some(QueryMethod::Match(now.time()));
         schema.deadline = Some(QueryMethod::Match(now.date_naive()));
@@ -543,7 +660,7 @@ mod query_schema_test {
     fn date_time_cmp_only() {
         let now = Local::now();
 
-        let mut schema = QueryTaskSchema::default();
+        let mut schema = QuerySchema::default();
         schema.start_date = Some(QueryMethod::Compare(now.date_naive(), Compare::Less));
         schema.start_time = Some(QueryMethod::Compare(now.time(), Compare::LessEq));
         schema.deadline = Some(QueryMethod::Compare(now.date_naive(), Compare::Greater));
@@ -559,7 +676,7 @@ mod query_schema_test {
 
     #[test]
     fn bool_t_only() {
-        let mut schema = QueryTaskSchema::default();
+        let mut schema = QuerySchema::default();
         schema.completed = Some(true);
         schema.logged = Some(true);
         schema.trashed = Some(true);
@@ -575,7 +692,7 @@ mod query_schema_test {
 
     #[test]
     fn bool_f_only() {
-        let mut schema = QueryTaskSchema::default();
+        let mut schema = QuerySchema::default();
         schema.completed = Some(false);
         schema.logged = Some(false);
         schema.trashed = Some(false);
@@ -591,7 +708,7 @@ mod query_schema_test {
 
     #[test]
     fn id_only() {
-        let mut schema = QueryTaskSchema::default();
+        let mut schema = QuerySchema::default();
         schema.area_id = Some(Uuid::new_v4());
         schema.project_id = Some(Uuid::new_v4());
 
@@ -608,7 +725,7 @@ mod query_schema_test {
     fn full() {
         let now = Local::now();
 
-        let mut schema = QueryTaskSchema::default();
+        let mut schema = QuerySchema::default();
         schema.title = Some(QueryMethod::Match("Test Title".to_string()));
         schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
         schema.start_date = Some(QueryMethod::Match(now.date_naive()));
