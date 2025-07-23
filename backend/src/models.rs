@@ -1,19 +1,21 @@
 pub mod area;
 pub mod auth;
+pub mod jwt;
 pub mod project;
 pub mod tag;
 pub mod task;
-
-use std::error::Error;
+pub mod user;
 
 use bytes::BytesMut;
 use serde::Deserialize;
 use tokio_postgres::types::{IsNull, ToSql, Type, to_sql_checked};
 
+use crate::error::Error;
 use crate::util::{PostgresCmp, ToPostgresCmp};
 
 /// Paging options for querying
 #[derive(Debug, Deserialize)]
+#[serde(default)]
 pub struct FilterOptions {
     pub page: Option<usize>,
     pub limit: Option<usize>,
@@ -22,7 +24,7 @@ pub struct FilterOptions {
 impl Default for FilterOptions {
     fn default() -> Self {
         Self {
-            page: Some(0),
+            page: Some(1),
             limit: Some(25),
         }
     }
@@ -60,21 +62,36 @@ impl ToPostgresCmp for Compare {
 }
 
 /// Update request body elements
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "op")]
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "op", content = "value")]
 pub enum UpdateMethod<T: ToSql> {
+    #[default]
+    NoOp,
     Remove,
     Set(T),
 }
 
+impl<T: ToSql> UpdateMethod<T> {
+    pub fn is_noop(&self) -> bool {
+        matches!(self, Self::NoOp)
+    }
+}
+
 impl<T: ToSql> ToSql for UpdateMethod<T> {
-    fn to_sql(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>>
+    fn to_sql(
+        &self,
+        ty: &Type,
+        out: &mut BytesMut,
+    ) -> Result<IsNull, Box<dyn std::error::Error + Sync + Send>>
     where
         Self: Sized,
     {
         match *self {
             Self::Remove => Ok(IsNull::Yes),
             Self::Set(ref value) => value.to_sql(ty, out),
+            Self::NoOp => Err(Box::new(Error::Internal(String::from(
+                "UpdateMethod::NoOp can not be converted into SQL",
+            )))),
         }
     }
 
@@ -101,13 +118,19 @@ impl<T> ToSql for QueryMethod<T>
 where
     T: ToSql,
 {
-    fn to_sql(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>>
+    fn to_sql(
+        &self,
+        ty: &Type,
+        out: &mut BytesMut,
+    ) -> Result<IsNull, Box<dyn std::error::Error + Sync + Send>>
     where
         Self: Sized,
     {
         match *self {
             Self::Match(ref o) | Self::Compare(ref o, _) => o.to_sql(ty, out),
-            _ => Err(Box::from("no-op")),
+            _ => Err(Box::new(Error::Internal(String::from(
+                "QueryMethod::NotNull can not be converted into SQL",
+            )))),
         }
     }
 

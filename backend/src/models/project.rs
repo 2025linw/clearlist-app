@@ -5,14 +5,16 @@ use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 use uuid::Uuid;
 
-use crate::util::{NULL, PostgresCmp, SQLQueryBuilder, ToPostgresCmp, ToSQLQueryBuilder};
+use crate::{
+    models::tag as tag_model,
+    util::{NULL, PostgresCmp, SQLQueryBuilder, ToPostgresCmp, ToSQLQueryBuilder},
+};
 
 use super::{QueryMethod, ToResponse, UpdateMethod};
 
 /// Project Database Model
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct DatabaseModel {
-    #[serde(alias = "project_id")]
     id: Uuid,
 
     project_title: Option<String>,
@@ -26,10 +28,21 @@ pub struct DatabaseModel {
     trashed_on: Option<DateTime<Local>>,
 
     area_id: Option<Uuid>,
+    tags: Vec<tag_model::DatabaseModel>,
 
     user_id: Uuid,
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
+}
+
+impl DatabaseModel {
+    pub fn id_as_ref(&self) -> &Uuid {
+        &self.id
+    }
+
+    pub fn set_tags(&mut self, tags: Vec<tag_model::DatabaseModel>) {
+        self.tags = tags;
+    }
 }
 
 impl DatabaseModel {
@@ -67,6 +80,7 @@ impl From<Row> for DatabaseModel {
             logged_on: value.get(Self::LOGGED),
             trashed_on: value.get(Self::TRASHED),
             area_id: value.get(Self::AREA_ID),
+            tags: Vec::new(),
             user_id: value.get(Self::USER_ID),
             created_on: value.get(Self::CREATED),
             updated_on: value.get(Self::UPDATED),
@@ -89,6 +103,7 @@ impl ToResponse for DatabaseModel {
             logged_on: self.logged_on,
             trashed_on: self.trashed_on,
             area_id: self.area_id,
+            tags: self.tags.iter().map(|t| t.to_response()).collect(),
             user_id: self.user_id,
             created_on: self.created_on,
             updated_on: self.updated_on,
@@ -97,7 +112,7 @@ impl ToResponse for DatabaseModel {
 }
 
 /// Project Response Model
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseModel {
     id: Uuid,
@@ -113,6 +128,7 @@ pub struct ResponseModel {
     trashed_on: Option<DateTime<Local>>,
 
     area_id: Option<Uuid>,
+    tags: Vec<tag_model::ResponseModel>,
 
     user_id: Uuid,
     created_on: DateTime<Local>,
@@ -122,7 +138,7 @@ pub struct ResponseModel {
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(Default))]
 #[serde(rename_all = "camelCase")]
-pub struct CreateSchema {
+pub struct CreateRequest {
     title: Option<String>,
     notes: Option<String>,
     start_date: Option<NaiveDate>,
@@ -130,11 +146,30 @@ pub struct CreateSchema {
     deadline: Option<NaiveDate>,
 
     area_id: Option<Uuid>,
+    tag_ids: Vec<Uuid>,
+
+    #[serde(skip)]
+    user_id: Uuid,
 }
 
-impl ToSQLQueryBuilder for CreateSchema {
+impl CreateRequest {
+    pub fn tag_ids(&self) -> &[Uuid] {
+        &self.tag_ids
+    }
+
+    pub fn set_user_id(&mut self, user_id: Uuid) {
+        self.user_id = user_id;
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.user_id != Uuid::default()
+    }
+}
+
+impl ToSQLQueryBuilder for CreateRequest {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
         let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+        builder.add_column(DatabaseModel::USER_ID, &self.user_id);
         builder.set_return(&[DatabaseModel::ID]);
 
         if let Some(ref s) = self.title {
@@ -163,85 +198,198 @@ impl ToSQLQueryBuilder for CreateSchema {
 
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(Default))]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateSchema {
-    title: Option<UpdateMethod<String>>,
-    notes: Option<UpdateMethod<String>>,
-    start_date: Option<UpdateMethod<NaiveDate>>,
-    start_time: Option<UpdateMethod<NaiveTime>>,
-    deadline: Option<UpdateMethod<NaiveDate>>,
+pub struct RetrieveRequest {
+    project_id: Uuid,
 
-    completed: Option<bool>,
-    logged: Option<bool>,
-    trashed: Option<bool>,
-
-    area_id: Option<UpdateMethod<Uuid>>,
-
-    #[serde(default)]
-    timestamp: DateTime<Local>,
+    #[serde(skip)]
+    user_id: Uuid,
 }
 
-impl UpdateSchema {
-    pub fn is_empty(&self) -> bool {
-        self.title.is_none()
-            && self.notes.is_none()
-            && self.start_date.is_none()
-            && self.start_time.is_none()
-            && self.deadline.is_none()
-            && self.completed.is_none()
-            && self.logged.is_none()
-            && self.trashed.is_none()
-            && self.area_id.is_none()
+impl RetrieveRequest {
+    pub fn new(project_id: Uuid, user_id: Uuid) -> Self {
+        Self {
+            project_id,
+            user_id,
+        }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.project_id != Uuid::default() && self.user_id != Uuid::default()
     }
 }
 
-impl ToSQLQueryBuilder for UpdateSchema {
+impl ToSQLQueryBuilder for RetrieveRequest {
+    fn to_sql_builder(&self) -> SQLQueryBuilder {
+        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
+
+        builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &self.project_id);
+
+        builder.set_return_all();
+
+        builder
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct UpdateRequest {
+    title: UpdateMethod<String>,
+    notes: UpdateMethod<String>,
+    start_date: UpdateMethod<NaiveDate>,
+    start_time: UpdateMethod<NaiveTime>,
+    deadline: UpdateMethod<NaiveDate>,
+
+    completed: UpdateMethod<bool>,
+    logged: UpdateMethod<bool>,
+    trashed: UpdateMethod<bool>,
+
+    area_id: UpdateMethod<Uuid>,
+    tag_ids: UpdateMethod<Vec<Uuid>>,
+
+    #[serde(default = "chrono::Local::now")]
+    timestamp: DateTime<Local>,
+
+    #[serde(skip)]
+    project_id: Uuid,
+    #[serde(skip)]
+    user_id: Uuid,
+}
+
+impl UpdateRequest {
+    pub fn is_empty(&self) -> bool {
+        self.title.is_noop()
+            && self.notes.is_noop()
+            && self.start_date.is_noop()
+            && self.start_time.is_noop()
+            && self.deadline.is_noop()
+            && self.completed.is_noop()
+            && self.logged.is_noop()
+            && self.trashed.is_noop()
+            && self.area_id.is_noop()
+            && self.tag_ids.is_noop()
+    }
+
+    pub fn is_valid(&self) -> bool {
+        !self.is_empty() && self.project_id != Uuid::default() && self.user_id != Uuid::default()
+    }
+
+    pub fn tag_ids(&self) -> Option<&[Uuid]> {
+        if let UpdateMethod::Set(ref tag_ids) = self.tag_ids {
+            Some(tag_ids)
+        } else {
+            None
+        }
+    }
+
+    pub fn set_project_id(&mut self, project_id: Uuid) {
+        self.project_id = project_id;
+    }
+
+    pub fn set_user_id(&mut self, user_id: Uuid) {
+        self.user_id = user_id;
+    }
+}
+
+impl ToSQLQueryBuilder for UpdateRequest {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
         let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
         builder.add_column(DatabaseModel::UPDATED, &self.timestamp);
         builder.set_return(&[DatabaseModel::ID]);
 
-        if let Some(ref u) = self.title {
-            builder.add_column(DatabaseModel::TITLE, u);
+        if !self.title.is_noop() {
+            builder.add_column(DatabaseModel::TITLE, &self.title);
         }
-        if let Some(ref u) = self.notes {
-            builder.add_column(DatabaseModel::NOTES, u);
+        if !self.notes.is_noop() {
+            builder.add_column(DatabaseModel::NOTES, &self.notes);
         }
-        if let Some(ref u) = self.start_date {
-            builder.add_column(DatabaseModel::START_DATE, u);
+        if !self.start_date.is_noop() {
+            builder.add_column(DatabaseModel::START_DATE, &self.start_date);
         }
-        if let Some(ref u) = self.start_time {
-            builder.add_column(DatabaseModel::START_TIME, u);
+        if !self.start_time.is_noop() {
+            builder.add_column(DatabaseModel::START_TIME, &self.start_time);
         }
-        if let Some(ref u) = self.deadline {
-            builder.add_column(DatabaseModel::DEADLINE, u);
-        }
-
-        if let Some(b) = self.completed {
-            if b {
-                builder.add_column(DatabaseModel::COMPLETED, &self.timestamp);
-            } else {
-                builder.add_column(DatabaseModel::COMPLETED, &None::<DateTime<Local>>);
-            }
-        }
-        if let Some(b) = self.logged {
-            if b {
-                builder.add_column(DatabaseModel::LOGGED, &self.timestamp);
-            } else {
-                builder.add_column(DatabaseModel::LOGGED, &None::<DateTime<Local>>);
-            }
-        }
-        if let Some(b) = self.trashed {
-            if b {
-                builder.add_column(DatabaseModel::TRASHED, &self.timestamp);
-            } else {
-                builder.add_column(DatabaseModel::TRASHED, &None::<DateTime<Local>>);
-            }
+        if !self.deadline.is_noop() {
+            builder.add_column(DatabaseModel::DEADLINE, &self.deadline);
         }
 
-        if let Some(ref u) = self.area_id {
-            builder.add_column(DatabaseModel::AREA_ID, u);
+        if !self.completed.is_noop() {
+            match self.completed {
+                UpdateMethod::Set(true) => {
+                    builder.add_column(DatabaseModel::COMPLETED, &self.timestamp);
+                }
+                UpdateMethod::Set(false) | UpdateMethod::Remove => {
+                    builder.add_column(DatabaseModel::COMPLETED, &None::<DateTime<Local>>);
+                }
+                UpdateMethod::NoOp => unreachable!(),
+            }
         }
+        if !self.logged.is_noop() {
+            match self.logged {
+                UpdateMethod::Set(true) => {
+                    builder.add_column(DatabaseModel::LOGGED, &self.timestamp);
+                }
+                UpdateMethod::Set(false) | UpdateMethod::Remove => {
+                    builder.add_column(DatabaseModel::LOGGED, &None::<DateTime<Local>>);
+                }
+                UpdateMethod::NoOp => unreachable!(),
+            }
+        }
+        if !self.trashed.is_noop() {
+            match self.trashed {
+                UpdateMethod::Set(true) => {
+                    builder.add_column(DatabaseModel::TRASHED, &self.timestamp);
+                }
+                UpdateMethod::Set(false) | UpdateMethod::Remove => {
+                    builder.add_column(DatabaseModel::TRASHED, &None::<DateTime<Local>>);
+                }
+                UpdateMethod::NoOp => unreachable!(),
+            }
+        }
+
+        if !self.area_id.is_noop() {
+            builder.add_column(DatabaseModel::AREA_ID, &self.area_id);
+        }
+
+        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
+        builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &self.project_id);
+
+        builder
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(Default))]
+pub struct DeleteRequest {
+    project_id: Uuid,
+
+    #[serde(skip)]
+    user_id: Uuid,
+}
+
+impl DeleteRequest {
+    pub fn new(project_id: Uuid, user_id: Uuid) -> Self {
+        Self {
+            project_id,
+            user_id,
+        }
+    }
+
+    pub fn set_user_id(&mut self, user_id: Uuid) {
+        self.user_id = user_id;
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.project_id != Uuid::default() && self.user_id != Uuid::default()
+    }
+}
+
+impl ToSQLQueryBuilder for DeleteRequest {
+    fn to_sql_builder(&self) -> SQLQueryBuilder {
+        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
+
+        builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &self.project_id);
 
         builder
     }
@@ -250,7 +398,7 @@ impl ToSQLQueryBuilder for UpdateSchema {
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(Default))]
 #[serde(rename_all = "camelCase")]
-pub struct QuerySchema {
+pub struct QueryRequest {
     title: Option<QueryMethod<String>>,
     notes: Option<QueryMethod<String>>,
     start_date: Option<QueryMethod<NaiveDate>>,
@@ -262,11 +410,42 @@ pub struct QuerySchema {
     trashed: Option<bool>,
 
     area_id: Option<Uuid>,
+    tag_ids: Vec<Uuid>,
+
+    limit: Option<usize>,
+    offset: Option<usize>,
+
+    #[serde(skip)]
+    user_id: Uuid,
 }
 
-impl ToSQLQueryBuilder for QuerySchema {
+impl QueryRequest {
+    pub fn tag_ids(&self) -> &[Uuid] {
+        &self.tag_ids
+    }
+
+    pub fn set_user_id(&mut self, user_id: Uuid) {
+        self.user_id = user_id;
+    }
+
+    pub fn set_limit(&mut self, limit: usize) {
+        self.limit = Some(limit);
+    }
+
+    pub fn set_offset(&mut self, offset: usize) {
+        self.offset = Some(offset);
+    }
+
+    pub fn is_valid(&mut self) -> bool {
+        self.user_id != Uuid::default()
+    }
+}
+
+impl ToSQLQueryBuilder for QueryRequest {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
         let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
+        builder.set_return_all();
 
         if let Some(ref q) = self.title {
             let cmp;
@@ -370,22 +549,25 @@ impl ToSQLQueryBuilder for QuerySchema {
             builder.add_condition(DatabaseModel::AREA_ID, PostgresCmp::Equal, i);
         }
 
+        builder.set_limit(self.limit.unwrap_or(25));
+        builder.set_offset(self.offset.unwrap_or(0));
+
         builder
     }
 }
 
 #[cfg(test)]
-mod create_schema_test {
+mod create_schema {
     use chrono::Local;
     use uuid::Uuid;
 
     use crate::util::ToSQLQueryBuilder;
 
-    use super::CreateSchema;
+    use super::CreateRequest;
 
     #[test]
     fn text_only() {
-        let mut schema = CreateSchema::default();
+        let mut schema = CreateRequest::default();
         schema.title = Some("Test Title".to_string());
         schema.notes = Some("Test Note".to_string());
 
@@ -393,16 +575,16 @@ mod create_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.projects (project_title, notes) VALUES ($1, $2) RETURNING project_id"
+            "INSERT INTO data.projects (user_id, project_title, notes) VALUES ($1, $2, $3) RETURNING project_id"
         );
-        assert_eq!(params.len(), 2);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
     fn date_time_only() {
         let now = Local::now();
 
-        let mut schema = CreateSchema::default();
+        let mut schema = CreateRequest::default();
         schema.start_date = Some(now.date_naive());
         schema.start_time = Some(now.time());
         schema.deadline = Some(now.date_naive());
@@ -411,30 +593,30 @@ mod create_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.projects (start_date, start_time, deadline) VALUES ($1, $2, $3) RETURNING project_id"
+            "INSERT INTO data.projects (user_id, start_date, start_time, deadline) VALUES ($1, $2, $3, $4) RETURNING project_id"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 4);
     }
 
     #[test]
     fn id_only() {
-        let mut schema = CreateSchema::default();
+        let mut schema = CreateRequest::default();
         schema.area_id = Some(Uuid::new_v4());
 
         let (statement, params) = schema.to_sql_builder().build_insert();
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.projects (area_id) VALUES ($1) RETURNING project_id"
+            "INSERT INTO data.projects (user_id, area_id) VALUES ($1, $2) RETURNING project_id"
         );
-        assert_eq!(params.len(), 1);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
     fn full() {
         let now = Local::now();
 
-        let mut schema = CreateSchema::default();
+        let mut schema = CreateRequest::default();
         schema.title = Some("Test Title".to_string());
         schema.notes = Some("Test Note".to_string());
         schema.start_date = Some(now.date_naive());
@@ -446,135 +628,216 @@ mod create_schema_test {
 
         assert_eq!(
             statement,
-            "INSERT INTO data.projects (project_title, notes, start_date, start_time, deadline, area_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING project_id"
+            "INSERT INTO data.projects (user_id, project_title, notes, start_date, start_time, deadline, area_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING project_id"
         );
-        assert_eq!(params.len(), 6);
+        assert_eq!(params.len(), 7);
     }
-
-    // TEST: make production example
 }
 
 #[cfg(test)]
-mod update_schema_test {
+mod retrieve_schema {
+    use uuid::Uuid;
+
+    use crate::util::ToSQLQueryBuilder;
+
+    use super::RetrieveRequest;
+
+    #[test]
+    fn is_valid() {
+        let schema = RetrieveRequest::default();
+
+        assert!(!schema.is_valid());
+
+        let schema = RetrieveRequest::new(Uuid::new_v4(), Uuid::nil());
+
+        assert!(!schema.is_valid());
+
+        let schema = RetrieveRequest::new(Uuid::nil(), Uuid::new_v4());
+
+        assert!(!schema.is_valid());
+
+        let schema = RetrieveRequest::new(Uuid::new_v4(), Uuid::new_v4());
+
+        assert!(schema.is_valid());
+    }
+
+    #[test]
+    fn full() {
+        let schema = RetrieveRequest::new(Uuid::nil(), Uuid::nil());
+
+        let (statement, params) = schema.to_sql_builder().build_select();
+
+        assert_eq!(
+            statement,
+            "SELECT * FROM data.projects WHERE user_id = $1 AND project_id = $2"
+        );
+        assert_eq!(params.len(), 2)
+    }
+}
+
+#[cfg(test)]
+mod update_schema {
     use chrono::Local;
     use uuid::Uuid;
 
     use crate::{models::UpdateMethod, util::ToSQLQueryBuilder};
 
-    use super::UpdateSchema;
+    use super::UpdateRequest;
 
     #[test]
     fn text_only() {
-        let mut schema = UpdateSchema::default();
-        schema.title = Some(UpdateMethod::Set("Test Title".to_string()));
-        schema.notes = Some(UpdateMethod::Set("Test Note".to_string()));
+        let mut schema = UpdateRequest::default();
+        schema.title = UpdateMethod::Set("Test Title".to_string());
+        schema.notes = UpdateMethod::Set("Test Note".to_string());
 
         let (statement, params) = schema.to_sql_builder().build_update();
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, project_title=$2, notes=$3 RETURNING project_id"
+            "UPDATE data.projects SET updated_on=$1, project_title=$2, notes=$3 WHERE user_id = $4 AND project_id = $5 RETURNING project_id"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 5);
     }
 
     #[test]
     fn date_time_only() {
         let now = Local::now();
 
-        let mut schema = UpdateSchema::default();
-        schema.start_date = Some(UpdateMethod::Set(now.date_naive()));
-        schema.start_time = Some(UpdateMethod::Set(now.time()));
-        schema.deadline = Some(UpdateMethod::Set(now.date_naive()));
+        let mut schema = UpdateRequest::default();
+        schema.start_date = UpdateMethod::Set(now.date_naive());
+        schema.start_time = UpdateMethod::Set(now.time());
+        schema.deadline = UpdateMethod::Set(now.date_naive());
 
         let (statement, params) = schema.to_sql_builder().build_update();
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, start_date=$2, start_time=$3, deadline=$4 RETURNING project_id"
+            "UPDATE data.projects SET updated_on=$1, start_date=$2, start_time=$3, deadline=$4 WHERE user_id = $5 AND project_id = $6 RETURNING project_id"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 6);
     }
 
     #[test]
     fn bool_only() {
-        let mut schema = UpdateSchema::default();
-        schema.completed = Some(true);
-        schema.logged = Some(true);
-        schema.trashed = Some(true);
+        let mut schema = UpdateRequest::default();
+        schema.completed = UpdateMethod::Set(true);
+        schema.logged = UpdateMethod::Set(true);
+        schema.trashed = UpdateMethod::Set(true);
 
         let (statement, params) = schema.to_sql_builder().build_update();
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, completed_on=$2, logged_on=$3, trashed_on=$4 RETURNING project_id"
+            "UPDATE data.projects SET updated_on=$1, completed_on=$2, logged_on=$3, trashed_on=$4 WHERE user_id = $5 AND project_id = $6 RETURNING project_id"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 6);
     }
 
     #[test]
     fn id_only() {
-        let mut schema = UpdateSchema::default();
-        schema.area_id = Some(UpdateMethod::Set(Uuid::new_v4()));
+        let mut schema = UpdateRequest::default();
+        schema.area_id = UpdateMethod::Set(Uuid::new_v4());
 
         let (statement, params) = schema.to_sql_builder().build_update();
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, area_id=$2 RETURNING project_id"
+            "UPDATE data.projects SET updated_on=$1, area_id=$2 WHERE user_id = $3 AND project_id = $4 RETURNING project_id"
         );
-        assert_eq!(params.len(), 2);
+        assert_eq!(params.len(), 4);
     }
 
     #[test]
     fn full() {
         let now = Local::now();
 
-        let mut schema = UpdateSchema::default();
-        schema.title = Some(UpdateMethod::Set("Test Title".to_string()));
-        schema.notes = Some(UpdateMethod::Set("Test Note".to_string()));
-        schema.start_date = Some(UpdateMethod::Set(now.date_naive()));
-        schema.start_time = Some(UpdateMethod::Set(now.time()));
-        schema.deadline = Some(UpdateMethod::Set(now.date_naive()));
-        schema.completed = Some(true);
-        schema.logged = Some(true);
-        schema.trashed = Some(true);
-        schema.area_id = Some(UpdateMethod::Set(Uuid::new_v4()));
+        let mut schema = UpdateRequest::default();
+        schema.title = UpdateMethod::Set("Test Title".to_string());
+        schema.notes = UpdateMethod::Set("Test Note".to_string());
+        schema.start_date = UpdateMethod::Set(now.date_naive());
+        schema.start_time = UpdateMethod::Set(now.time());
+        schema.deadline = UpdateMethod::Set(now.date_naive());
+        schema.completed = UpdateMethod::Set(true);
+        schema.logged = UpdateMethod::Set(true);
+        schema.trashed = UpdateMethod::Set(true);
+        schema.area_id = UpdateMethod::Set(Uuid::new_v4());
 
         let (statement, params) = schema.to_sql_builder().build_update();
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, project_title=$2, notes=$3, start_date=$4, start_time=$5, deadline=$6, completed_on=$7, logged_on=$8, trashed_on=$9, area_id=$10 RETURNING project_id"
+            "UPDATE data.projects SET updated_on=$1, project_title=$2, notes=$3, start_date=$4, start_time=$5, deadline=$6, completed_on=$7, logged_on=$8, trashed_on=$9, area_id=$10 WHERE user_id = $11 AND project_id = $12 RETURNING project_id"
         );
-        assert_eq!(params.len(), 10);
+        assert_eq!(params.len(), 12);
     }
-
-    // TEST: make production example
 }
 
 #[cfg(test)]
-mod query_schema_test {
+mod delete_schema {
+    use uuid::Uuid;
+
+    use crate::util::ToSQLQueryBuilder;
+
+    use super::DeleteRequest;
+
+    #[test]
+    fn is_valid() {
+        let schema = DeleteRequest::default();
+
+        assert!(!schema.is_valid());
+
+        let schema = DeleteRequest::new(Uuid::new_v4(), Uuid::nil());
+
+        assert!(!schema.is_valid());
+
+        let schema = DeleteRequest::new(Uuid::nil(), Uuid::new_v4());
+
+        assert!(!schema.is_valid());
+
+        let schema = DeleteRequest::new(Uuid::new_v4(), Uuid::new_v4());
+
+        assert!(schema.is_valid());
+    }
+
+    #[test]
+    fn full() {
+        let schema = DeleteRequest::new(Uuid::nil(), Uuid::nil());
+
+        let (statement, params) = schema.to_sql_builder().build_delete();
+
+        assert_eq!(
+            statement,
+            "DELETE FROM data.projects WHERE user_id = $1 AND project_id = $2"
+        );
+        assert_eq!(params.len(), 2)
+    }
+}
+
+#[cfg(test)]
+mod query_schema {
     use chrono::Local;
     use uuid::Uuid;
 
     use crate::{models::Compare, util::ToSQLQueryBuilder};
 
-    use super::{QueryMethod, QuerySchema};
+    use super::{QueryMethod, QueryRequest};
 
     #[test]
     fn empty() {
-        let schema = QuerySchema::default();
+        let schema = QueryRequest::default();
 
         let (statement, params) = schema.to_sql_builder().build_select();
 
-        assert_eq!(statement.as_str(), "SELECT * FROM data.projects");
-        assert_eq!(params.len(), 0);
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM data.projects WHERE user_id = $1 LIMIT 25 OFFSET 0"
+        );
+        assert_eq!(params.len(), 1);
     }
 
     #[test]
     fn text_only() {
-        let mut schema = QuerySchema::default();
+        let mut schema = QueryRequest::default();
         schema.title = Some(QueryMethod::Match("Test Title".to_string()));
         schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
 
@@ -582,16 +845,16 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE project_title ILIKE '%' || $1 || '%' AND notes ILIKE '%' || $2 || '%'"
+            "SELECT * FROM data.projects WHERE user_id = $1 AND project_title ILIKE '%' || $2 || '%' AND notes ILIKE '%' || $3 || '%' LIMIT 25 OFFSET 0"
         );
-        assert_eq!(params.len(), 2);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
     fn date_time_eq_only() {
         let now = Local::now();
 
-        let mut schema = QuerySchema::default();
+        let mut schema = QueryRequest::default();
         schema.start_date = Some(QueryMethod::Match(now.date_naive()));
         schema.start_time = Some(QueryMethod::Match(now.time()));
         schema.deadline = Some(QueryMethod::Match(now.date_naive()));
@@ -600,16 +863,16 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE start_date = $1 AND start_time = $2 AND deadline = $3"
+            "SELECT * FROM data.projects WHERE user_id = $1 AND start_date = $2 AND start_time = $3 AND deadline = $4 LIMIT 25 OFFSET 0"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 4);
     }
 
     #[test]
     fn date_time_cmp_only() {
         let now = Local::now();
 
-        let mut schema = QuerySchema::default();
+        let mut schema = QueryRequest::default();
         schema.start_date = Some(QueryMethod::Compare(now.date_naive(), Compare::Less));
         schema.start_time = Some(QueryMethod::Compare(now.time(), Compare::LessEq));
         schema.deadline = Some(QueryMethod::Compare(now.date_naive(), Compare::Greater));
@@ -618,14 +881,14 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE start_date < $1 AND start_time <= $2 AND deadline > $3"
+            "SELECT * FROM data.projects WHERE user_id = $1 AND start_date < $2 AND start_time <= $3 AND deadline > $4 LIMIT 25 OFFSET 0"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 4);
     }
 
     #[test]
     fn bool_t_only() {
-        let mut schema = QuerySchema::default();
+        let mut schema = QueryRequest::default();
         schema.completed = Some(true);
         schema.logged = Some(true);
         schema.trashed = Some(true);
@@ -634,14 +897,14 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE completed_on NOT NULL AND logged_on NOT NULL AND trashed_on NOT NULL"
+            "SELECT * FROM data.projects WHERE user_id = $1 AND completed_on NOT NULL AND logged_on NOT NULL AND trashed_on NOT NULL LIMIT 25 OFFSET 0"
         );
-        assert_eq!(params.len(), 0);
+        assert_eq!(params.len(), 1);
     }
 
     #[test]
     fn bool_f_only() {
-        let mut schema = QuerySchema::default();
+        let mut schema = QueryRequest::default();
         schema.completed = Some(false);
         schema.logged = Some(false);
         schema.trashed = Some(false);
@@ -650,30 +913,30 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE completed_on IS NULL AND logged_on IS NULL AND trashed_on IS NULL"
+            "SELECT * FROM data.projects WHERE user_id = $1 AND completed_on IS NULL AND logged_on IS NULL AND trashed_on IS NULL LIMIT 25 OFFSET 0"
         );
-        assert_eq!(params.len(), 0);
+        assert_eq!(params.len(), 1);
     }
 
     #[test]
     fn id_only() {
-        let mut schema = QuerySchema::default();
+        let mut schema = QueryRequest::default();
         schema.area_id = Some(Uuid::new_v4());
 
         let (statement, params) = schema.to_sql_builder().build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE area_id = $1"
+            "SELECT * FROM data.projects WHERE user_id = $1 AND area_id = $2 LIMIT 25 OFFSET 0"
         );
-        assert_eq!(params.len(), 1);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
     fn full() {
         let now = Local::now();
 
-        let mut schema = QuerySchema::default();
+        let mut schema = QueryRequest::default();
         schema.title = Some(QueryMethod::Match("Test Title".to_string()));
         schema.notes = Some(QueryMethod::Match("Test Note".to_string()));
         schema.start_date = Some(QueryMethod::Match(now.date_naive()));
@@ -688,12 +951,8 @@ mod query_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE project_title ILIKE '%' || $1 || '%' AND notes ILIKE '%' || $2 || '%' AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on IS NULL AND logged_on NOT NULL AND trashed_on IS NULL AND area_id = $6"
+            "SELECT * FROM data.projects WHERE user_id = $1 AND project_title ILIKE '%' || $2 || '%' AND notes ILIKE '%' || $3 || '%' AND start_date = $4 AND start_time = $5 AND deadline > $6 AND completed_on IS NULL AND logged_on NOT NULL AND trashed_on IS NULL AND area_id = $7 LIMIT 25 OFFSET 0"
         );
-        assert_eq!(params.len(), 6);
+        assert_eq!(params.len(), 7);
     }
-
-    // TEST: test with tags
-
-    // TEST: make production example
 }

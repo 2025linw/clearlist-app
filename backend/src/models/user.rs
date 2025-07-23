@@ -3,16 +3,17 @@ use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 use uuid::Uuid;
 
-use super::super::ToResponse;
+use super::ToResponse;
 
 /// User Database Model
 #[derive(Debug, Deserialize)]
 pub struct DatabaseModel {
     user_id: Uuid,
 
+    username: String,
     email: String,
-    password_hash: String,
-
+    // TODO: do we need the password hash in the user model?
+    // password_hash: String,
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
 }
@@ -22,6 +23,7 @@ impl DatabaseModel {
 
     pub const ID: &str = "user_id";
 
+    pub const USERNAME: &str = "username";
     pub const EMAIL: &str = "email";
     pub const PASS_HASH: &str = "password_hash";
 
@@ -30,21 +32,22 @@ impl DatabaseModel {
 }
 
 impl DatabaseModel {
-    pub fn user_id(&self) -> Uuid {
-        self.user_id
-    }
+    // pub fn user_id(&self) -> Uuid {
+    //     self.user_id
+    // }
 
-    pub fn password_hash(&self) -> &str {
-        &self.password_hash
-    }
+    // pub fn password_hash(&self) -> &str {
+    //     &self.password_hash
+    // }
 }
 
 impl From<Row> for DatabaseModel {
     fn from(value: Row) -> Self {
         Self {
             user_id: value.get(Self::ID),
+            username: value.get(Self::USERNAME),
             email: value.get(Self::EMAIL),
-            password_hash: value.get(Self::PASS_HASH),
+            // password_hash: value.get(Self::PASS_HASH),
             created_on: value.get(Self::CREATED),
             updated_on: value.get(Self::UPDATED),
         }
@@ -57,6 +60,7 @@ impl ToResponse for DatabaseModel {
     fn to_response(&self) -> Self::Response {
         Self::Response {
             id: self.user_id,
+            username: self.username.to_owned(),
             email: self.email.to_owned(),
             created_on: self.created_on,
             updated_on: self.updated_on,
@@ -69,6 +73,7 @@ impl ToResponse for DatabaseModel {
 pub struct ResponseModel {
     id: Uuid,
 
+    username: String,
     email: String,
 
     created_on: DateTime<Local>,

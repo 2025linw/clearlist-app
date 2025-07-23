@@ -187,7 +187,7 @@ impl<'a> SQLQueryBuilder<'a> {
                 Join::Full => write!(query, " FULL JOIN").unwrap(),
             }
 
-            write!(query, " {} USING ({})", table, col).unwrap();
+            write!(query, " {table} USING ({col})").unwrap();
         }
 
         // Add any conditions to select
@@ -200,30 +200,30 @@ impl<'a> SQLQueryBuilder<'a> {
                 }
 
                 match cmp {
-                    PostgresCmp::IsNull => write!(query, "{} IS NULL", col).unwrap(),
-                    PostgresCmp::NotNull => write!(query, "{} NOT NULL", col).unwrap(),
+                    PostgresCmp::IsNull => write!(query, "{col} IS NULL").unwrap(),
+                    PostgresCmp::NotNull => write!(query, "{col} NOT NULL").unwrap(),
                     PostgresCmp::Like => {
-                        write!(query, "{} LIKE '%' || ${} || '%'", col, param_n).unwrap();
+                        write!(query, "{col} LIKE '%' || ${param_n} || '%'").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::ILike => {
-                        write!(query, "{} ILIKE '%' || ${} || '%'", col, param_n).unwrap();
+                        write!(query, "{col} ILIKE '%' || ${param_n} || '%'").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::In => {
-                        write!(query, "{} = ANY(${})", col, param_n).unwrap();
+                        write!(query, "{col} = ANY(${param_n})").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::NotIn => {
-                        write!(query, "{} != ALL(${})", col, param_n).unwrap();
+                        write!(query, "{col} != ALL(${param_n})").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     _ => {
-                        write!(query, "{} {} ${}", col, cmp.as_sql_cmp(), param_n).unwrap();
+                        write!(query, "{col} {} ${param_n}", cmp.as_sql_cmp()).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
@@ -246,7 +246,7 @@ impl<'a> SQLQueryBuilder<'a> {
                     query.push_str(" AND ");
                 }
 
-                write!(query, "{} {} ${}", item, cmp.as_sql_cmp(), param_n).unwrap();
+                write!(query, "{item} {} ${param_n}", cmp.as_sql_cmp()).unwrap();
                 param_n += 1;
                 params.push(val.to_owned());
             }
@@ -254,12 +254,12 @@ impl<'a> SQLQueryBuilder<'a> {
 
         // Add limit
         if let Some(limit) = self.limit {
-            write!(query, " LIMIT {}", limit).unwrap();
+            write!(query, " LIMIT {limit}").unwrap();
         }
 
         // Add offset
         if let Some(offset) = self.offset {
-            write!(query, " OFFSET {}", offset).unwrap();
+            write!(query, " OFFSET {offset}").unwrap();
         }
 
         (query, params)
@@ -290,7 +290,7 @@ impl<'a> SQLQueryBuilder<'a> {
                 query.push_str(", ");
             }
 
-            write!(query, "${}", param_n).unwrap();
+            write!(query, "${param_n}").unwrap();
             param_n += 1;
             params.push(val.to_owned());
         }
@@ -331,7 +331,7 @@ impl<'a> SQLQueryBuilder<'a> {
                 query.push_str(", ");
             }
 
-            write!(query, "{}=${}", col, param_n).unwrap();
+            write!(query, "{col}=${param_n}").unwrap();
             param_n += 1;
             params.push(val.to_owned());
         }
@@ -346,30 +346,30 @@ impl<'a> SQLQueryBuilder<'a> {
                 }
 
                 match cmp {
-                    PostgresCmp::IsNull => write!(query, "{} IS NULL", col).unwrap(),
-                    PostgresCmp::NotNull => write!(query, "{} NOT NULL", col).unwrap(),
+                    PostgresCmp::IsNull => write!(query, "{col} IS NULL").unwrap(),
+                    PostgresCmp::NotNull => write!(query, "{col} NOT NULL").unwrap(),
                     PostgresCmp::Like => {
-                        write!(query, "{} LIKE '%' || ${} || '%'", col, param_n).unwrap();
+                        write!(query, "{col} LIKE '%' || ${param_n} || '%'").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::ILike => {
-                        write!(query, "{} ILIKE '%' || ${} || '%'", col, param_n).unwrap();
+                        write!(query, "{col} ILIKE '%' || ${param_n} || '%'").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::In => {
-                        write!(query, "{} = ANY(${})", col, param_n).unwrap();
+                        write!(query, "{col} = ANY(${param_n})").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::NotIn => {
-                        write!(query, "{} != ALL(${})", col, param_n).unwrap();
+                        write!(query, "{col} != ALL(${param_n})").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     _ => {
-                        write!(query, "{} {} ${}", col, cmp.as_sql_cmp(), param_n).unwrap();
+                        write!(query, "{col} {} ${param_n}", cmp.as_sql_cmp()).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
@@ -411,30 +411,30 @@ impl<'a> SQLQueryBuilder<'a> {
                 }
 
                 match cmp {
-                    PostgresCmp::IsNull => write!(query, "{} IS NULL", col).unwrap(),
-                    PostgresCmp::NotNull => write!(query, "{} NOT NULL", col).unwrap(),
+                    PostgresCmp::IsNull => write!(query, "{col} IS NULL").unwrap(),
+                    PostgresCmp::NotNull => write!(query, "{col} NOT NULL").unwrap(),
                     PostgresCmp::Like => {
-                        write!(query, "{} LIKE '%' || ${} || '%'", col, param_n).unwrap();
+                        write!(query, "{col} LIKE '%' || ${param_n} || '%'").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::ILike => {
-                        write!(query, "{} ILIKE '%' || ${} || '%'", col, param_n).unwrap();
+                        write!(query, "{col} ILIKE '%' || ${param_n} || '%'").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::In => {
-                        write!(query, "{} = ANY(${})", col, param_n).unwrap();
+                        write!(query, "{col} = ANY(${param_n})").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     PostgresCmp::NotIn => {
-                        write!(query, "{} != ALL(${})", col, param_n).unwrap();
+                        write!(query, "{col} != ALL(${param_n})").unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
                     _ => {
-                        write!(query, "{} {} ${}", col, cmp.as_sql_cmp(), param_n).unwrap();
+                        write!(query, "{col} {} ${param_n}", cmp.as_sql_cmp()).unwrap();
                         param_n += 1;
                         params.push(val.to_owned());
                     }
@@ -461,7 +461,7 @@ pub trait ToSQLQueryBuilder {
 }
 
 #[cfg(test)]
-mod select_builder_tests {
+mod select_builder {
     use super::{Join, NULL, PostgresCmp, SQLQueryBuilder};
 
     // TEST: as ISNULL and NOTNULL to tests
@@ -672,7 +672,7 @@ mod select_builder_tests {
 }
 
 #[cfg(test)]
-mod insert_builder_tests {
+mod insert_builder {
     use super::SQLQueryBuilder;
 
     #[test]
@@ -780,7 +780,7 @@ mod insert_builder_tests {
 }
 
 #[cfg(test)]
-mod update_builder_tests {
+mod update_builder {
     use super::{PostgresCmp, SQLQueryBuilder};
 
     // TEST: as ISNULL and NOTNULL to tests
@@ -950,7 +950,7 @@ mod update_builder_tests {
 }
 
 #[cfg(test)]
-mod delete_builder_tests {
+mod delete_builder {
     use super::{PostgresCmp, SQLQueryBuilder};
 
     // TEST: as ISNULL and NOTNULL to tests

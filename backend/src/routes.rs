@@ -3,6 +3,7 @@ mod auth;
 mod project;
 mod tag;
 mod task;
+mod user;
 
 use std::sync::Arc;
 
@@ -12,8 +13,11 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
 };
+use governor::{clock::QuantaInstant, middleware::NoOpMiddleware};
 use tower_governor::{
-    GovernorLayer, governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor,
+    GovernorLayer,
+    governor::{GovernorConfig, GovernorConfigBuilder},
+    key_extractor::SmartIpKeyExtractor,
 };
 
 use crate::AppState;
@@ -32,27 +36,38 @@ pub async fn health_check_handler() -> impl IntoResponse {
     Json(json_response)
 }
 
+/// Create a rate limiter
+fn create_rate_limiter(
+    num_requests: u32,
+    refresh_rate: u64,
+) -> GovernorConfig<SmartIpKeyExtractor, NoOpMiddleware<QuantaInstant>> {
+    GovernorConfigBuilder::default()
+        .key_extractor(SmartIpKeyExtractor)
+        .per_second(refresh_rate)
+        .burst_size(num_requests)
+        .finish()
+        .unwrap()
+}
+
 /// Create API router for project
 pub fn create_api_router() -> Router<AppState> {
-    let governor_default_conf = GovernorConfigBuilder::default()
-        .key_extractor(SmartIpKeyExtractor)
-        .per_second(1)
-        .burst_size(8)
-        .finish()
-        .unwrap();
-    let governor_secure_conf = GovernorConfigBuilder::default()
-        .key_extractor(SmartIpKeyExtractor)
-        .per_second(4)
-        .burst_size(2)
-        .finish()
-        .unwrap();
-
     let auth_routes = Router::new()
         .route("/register", post(auth::registration_handler))
         .route("/login", post(auth::login_handler))
         .route("/refresh", post(auth::refresh_handler))
+        // .route("/reset", post(auth::password_reset_handler))
         .layer(GovernorLayer {
-            config: Arc::new(governor_secure_conf),
+            config: Arc::new(create_rate_limiter(4, 2)),
+        });
+    let user_routes = Router::new()
+        .route(
+            "/{id}",
+            get(user::retrieve_handler)
+                .patch(user::update_handler)
+                .delete(user::delete_handler),
+        )
+        .layer(GovernorLayer {
+            config: Arc::new(create_rate_limiter(4, 2)),
         });
 
     let task_route = create_resource_router(
@@ -61,8 +76,7 @@ pub fn create_api_router() -> Router<AppState> {
         task::update_handler,
         task::delete_handler,
         task::query_handler,
-    )
-    .route("/{id}/tags", post(task::tag::update_tags_handler));
+    );
 
     let project_route = create_resource_router(
         project::create_handler,
@@ -70,8 +84,7 @@ pub fn create_api_router() -> Router<AppState> {
         project::update_handler,
         project::delete_handler,
         project::query_handler,
-    )
-    .route("/{id}/tags", post(project::tag::update_tags_handler));
+    );
 
     let area_route = create_resource_router(
         area::create_handler,
@@ -96,10 +109,13 @@ pub fn create_api_router() -> Router<AppState> {
         .nest("/areas", area_route)
         .nest("/tags", tag_route)
         .layer(GovernorLayer {
-            config: Arc::new(governor_default_conf),
+            config: Arc::new(create_rate_limiter(8, 1)),
         });
 
-    Router::new().nest("/auth", auth_routes).merge(api_routes)
+    Router::new()
+        .nest("/auth", auth_routes)
+        .nest("/users", user_routes)
+        .merge(api_routes)
 }
 
 fn create_resource_router<C, R, U, D, Q, T1, T2, T3, T4, T5>(

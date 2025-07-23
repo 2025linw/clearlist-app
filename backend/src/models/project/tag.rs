@@ -22,3 +22,11 @@ impl From<Row> for DatabaseModel {
         }
     }
 }
+
+// TODO: create models for retrieving project-tag relations
+// Should we make a query that returns just the relation or the full tag that relates to the project?
+// Retrieve
+
+// Update
+
+// Delete

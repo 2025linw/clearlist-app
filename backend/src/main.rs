@@ -1,9 +1,11 @@
 mod db;
 mod error;
 mod macros;
+mod util;
+
+mod data;
 mod models;
 mod routes;
-mod util;
 
 use std::{env, fs, net::SocketAddr};
 
@@ -15,9 +17,7 @@ use tokio::net::TcpListener;
 use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
 
-use models::auth::token::Claim;
-use routes::create_api_router;
-use util::auth::create_decoder;
+use crate::{models::jwt::Claim, routes::create_api_router, util::auth::create_decoder};
 
 use db::DatabaseConn;
 

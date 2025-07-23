@@ -2,6 +2,7 @@ use tokio_postgres::Row;
 use uuid::Uuid;
 
 /// Task tags database model
+#[derive(Debug)]
 pub struct DatabaseModel {
     task_id: Uuid,
     tag_id: Uuid,
@@ -23,7 +24,10 @@ impl From<Row> for DatabaseModel {
     }
 }
 
-pub struct CreateSchema {
-    task_id: Uuid,
-    tag_id: Uuid,
-}
+// TODO: create models for retrieving task-tag relations
+// Should we make a query that returns just the relation or the full tag that relates to the task?
+// Retrieve
+
+// Update
+
+// Delete

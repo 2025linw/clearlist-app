@@ -10,37 +10,57 @@ use uuid::Uuid;
 
 use crate::{
     AppState,
-    error::ErrorResponse,
+    data::{create_tag, delete_tag, query_tag, retrieve_tag, update_tag},
+    error::{ErrorResponse, INTERNAL},
     models::{
         FilterOptions, ToResponse,
-        auth::token::Claim,
-        tag::{CreateSchema, DatabaseModel, QuerySchema, ResponseModel, UpdateSchema},
+        jwt::Claim,
+        tag::{
+            CreateRequest, DeleteRequest, QueryRequest, ResponseModel, RetrieveRequest,
+            UpdateRequest,
+        },
     },
-    util::{PostgresCmp, SQLQueryBuilder, ToSQLQueryBuilder},
 };
 
 const NOT_FOUND: &str = "tag not found";
-const NO_UPDATE: &str = "no tag updates were requested";
+const NO_UPDATES: &str = "no tag updates were requested";
 
 pub async fn create_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
-    Json(body): Json<CreateSchema>,
+    Json(body): Json<CreateRequest>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let mut conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Create tag
-    let mut query_builder = body.to_sql_builder();
-    query_builder.add_column(DatabaseModel::USER_ID, &user_id);
+    let mut schema = body;
+    schema.set_user_id(user_id);
 
-    let (statement, params) = query_builder.build_insert();
+    if !schema.is_valid() {
+        return Err(ErrorResponse::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            INTERNAL,
+        ));
+    }
 
-    // TODO: should the row response be used?
-    data.db_conn.query_insert(statement, params).await?;
+    let tag_id = create_tag(&mut conn, schema).await?;
 
-    // Return
-    Ok(StatusCode::CREATED)
+    let schema = RetrieveRequest::new(tag_id, user_id);
+    let tag = match retrieve_tag(&conn, schema).await? {
+        Some(t) => t,
+        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+    };
+
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "tag": tag.to_response(),
+            })
+        })),
+    ))
 }
 
 pub async fn retrieve_handler(
@@ -48,69 +68,87 @@ pub async fn retrieve_handler(
     State(data): State<AppState>,
     Path(tag_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Retrieve tag
-    let mut query_builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &tag_id);
-    query_builder.set_return_all();
+    let schema = RetrieveRequest::new(tag_id, user_id);
 
-    let (statement, params) = query_builder.build_select();
+    if !schema.is_valid() {
+        return Err(ErrorResponse::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            INTERNAL,
+        ));
+    }
 
-    let row = match data.db_conn.query_select_one(statement, params).await? {
-        Some(r) => r,
+    let tag = match retrieve_tag(&conn, schema).await? {
+        Some(t) => t,
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
 
-    let tag: DatabaseModel = DatabaseModel::from(row);
-
-    // Return
-    Ok(Json(json!({
-        "status": "success",
-        "data": json!({
-            "tag": tag.to_response(),
-        }),
-    })))
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "tag": tag.to_response(),
+            }),
+        })),
+    ))
 }
 
 pub async fn update_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     Path(tag_id): Path<Uuid>,
-    Json(body): Json<UpdateSchema>,
+    Json(body): Json<UpdateRequest>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let mut conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // If no updates made
     if body.is_empty() {
-        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATE));
+        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATES));
     }
 
-    // Update tag
-    let mut query_builder = body.to_sql_builder();
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &tag_id);
-    query_builder.set_return_all();
+    let mut schema = body;
+    schema.set_tag_id(tag_id);
+    schema.set_user_id(user_id);
 
-    let (statement, params) = query_builder.build_update();
+    if !schema.is_valid() {
+        return Err(ErrorResponse::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            INTERNAL,
+        ));
+    }
 
-    let row = match data.db_conn.query_update(statement, params).await? {
-        Some(r) => r,
+    let tag_id = match update_tag(&mut conn, schema).await? {
+        Some(t) => {
+            assert_eq!(
+                t, tag_id,
+                "error occured with query, as the tag ids do not match after update"
+            );
+
+            t
+        }
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
 
-    let tag = DatabaseModel::from(row);
+    let schema = RetrieveRequest::new(tag_id, user_id);
+    let tag = match retrieve_tag(&conn, schema).await? {
+        Some(t) => t,
+        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+    };
 
-    // Return
-    Ok(Json(json!({
-        "status": "success",
-        "data": json!({
-            "tag": tag.to_response(),
-        }),
-    })))
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "tag": tag.to_response(),
+            }),
+        })),
+    ))
 }
 
 pub async fn delete_handler(
@@ -118,18 +156,23 @@ pub async fn delete_handler(
     State(data): State<AppState>,
     Path(tag_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let mut conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Delete tag
-    let mut query_builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &tag_id);
-    query_builder.set_return(&[DatabaseModel::ID]);
+    let mut schema = DeleteRequest::new(tag_id, user_id);
+    schema.set_user_id(user_id);
 
-    let (statement, params) = query_builder.build_delete();
+    if !schema.is_valid() {
+        return Err(ErrorResponse::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            INTERNAL,
+        ));
+    }
 
-    if !data.db_conn.query_delete(statement, params).await? {
+    if delete_tag(&mut conn, schema).await?.is_none() {
+        // TODO: consider other reasons for this function to return none
+
         return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND));
     }
 
@@ -140,39 +183,46 @@ pub async fn query_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     Query(opts): Query<FilterOptions>,
-    Json(body): Json<QuerySchema>,
+    Json(body): Json<QueryRequest>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Get pagination info
     let page = opts.page.unwrap_or(1);
     let limit = opts.limit.unwrap_or(25);
     let offset = (page - 1) * limit;
 
-    // Query tags
-    let mut query_builder = body.to_sql_builder();
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.set_limit(limit);
-    query_builder.set_offset(offset);
+    let mut schema = body;
+    schema.set_user_id(user_id);
+    schema.set_limit(limit);
+    schema.set_offset(offset);
 
-    let (statement, params) = query_builder.build_select();
+    if !schema.is_valid() {
+        return Err(ErrorResponse::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            INTERNAL,
+        ));
+    }
 
-    let rows = data.db_conn.query_select_many(statement, params).await?;
+    let tags = query_tag(&conn, schema).await?;
 
-    let tags: Vec<ResponseModel> = rows
-        .iter()
-        .map(|r| DatabaseModel::from(r.to_owned()))
-        .map(|t| t.to_response())
-        .collect();
-
-    Ok(Json(json!({
-        "status": "ok",
-        "data": json!({
-            "count": tags.len(),
-            "tags": tags,
-        }),
-    })))
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "count": tags.len(),
+                "tags": tags.into_iter().map(|t| t.to_response()).collect::<Vec<ResponseModel>>(),
+            })
+        })),
+    ))
 }
 
-// TEST: tag handlers
+#[cfg(test)]
+mod tag_handler {
+    #[test]
+    fn todo() {
+        assert!(false);
+    }
+}

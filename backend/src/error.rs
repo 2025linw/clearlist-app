@@ -7,12 +7,14 @@ use axum::{
 use tracing::error;
 
 pub const LOGIN_EXISTS: &str = "email already registered, login with password or reset password";
-pub const LOGIN_AUTH: &str = "no user with email and password combination found";
+pub const LOGIN_FAILED: &str = "no user with email and password combination found";
 
 pub const INTERNAL: &str = "unexpected error occured internally";
 pub const INTERNAL_DB: &str = "unexpected error occured retrieving data";
 
-pub const USER_REQUEST: &str = "invalid user request";
+pub const INVALID_REQUEST: &str = "invalid user request";
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// Error used with crate utility functions
 ///
@@ -44,10 +46,12 @@ impl Display for Error {
             Error::InternalDatabase(s)
             | Error::Internal(s)
             | Error::UserRequest(s)
-            | Error::UserAuth(s) => write!(f, "Error: {}", s),
+            | Error::UserAuth(s) => write!(f, "Error: {s}"),
         }
     }
 }
+
+impl std::error::Error for Error {}
 
 /// Error response for Axum handlers
 ///
@@ -89,7 +93,7 @@ impl From<Error> for ErrorResponse {
             }
             Error::UserRequest(_) => Self {
                 code: StatusCode::BAD_REQUEST,
-                msg: USER_REQUEST.to_string(),
+                msg: INVALID_REQUEST.to_string(),
             },
             Error::UserAuth(s) => Self {
                 code: StatusCode::UNAUTHORIZED,

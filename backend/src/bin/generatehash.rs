@@ -11,5 +11,5 @@ fn main() {
         .expect("unable to hash")
         .to_string();
 
-    println!("Hash: {}", hash);
+    println!("Hash: {hash}");
 }

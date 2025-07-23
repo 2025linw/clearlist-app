@@ -8,9 +8,8 @@ use crate::util::{PostgresCmp, SQLQueryBuilder, ToPostgresCmp, ToSQLQueryBuilder
 use super::{QueryMethod, ToResponse, UpdateMethod};
 
 /// Area Database Model
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct DatabaseModel {
-    #[serde(alias = "area_id")]
     id: Uuid,
 
     area_name: Option<String>,
@@ -63,7 +62,7 @@ impl ToResponse for DatabaseModel {
 }
 
 /// Area Response Model
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseModel {
     id: Uuid,
@@ -79,15 +78,29 @@ pub struct ResponseModel {
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(Default))]
 #[serde(rename_all = "camelCase")]
-pub struct CreateSchema {
+pub struct CreateRequest {
     name: Option<String>,
     icon_url: Option<String>,
+
+    #[serde(skip)]
+    user_id: Uuid,
 }
 
-impl ToSQLQueryBuilder for CreateSchema {
+impl CreateRequest {
+    pub fn set_user_id(&mut self, user_id: Uuid) {
+        self.user_id = user_id;
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.user_id != Uuid::default()
+    }
+}
+
+impl ToSQLQueryBuilder for CreateRequest {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
         let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-        builder.set_return_all();
+        builder.add_column(DatabaseModel::USER_ID, &self.user_id);
+        builder.set_return(&[DatabaseModel::ID]);
 
         if let Some(ref s) = self.name {
             builder.add_column(DatabaseModel::NAME, s);
@@ -102,33 +115,31 @@ impl ToSQLQueryBuilder for CreateSchema {
 
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(Default))]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateSchema {
-    name: Option<UpdateMethod<String>>,
-    icon_url: Option<UpdateMethod<String>>,
+pub struct RetrieveRequest {
+    area_id: Uuid,
 
-    #[serde(default)]
-    pub(crate) timestamp: DateTime<Local>,
+    #[serde(skip)]
+    user_id: Uuid,
 }
 
-impl UpdateSchema {
-    pub fn is_empty(&self) -> bool {
-        self.name.is_none() && self.icon_url.is_none()
+impl RetrieveRequest {
+    pub fn new(area_id: Uuid, user_id: Uuid) -> Self {
+        Self { area_id, user_id }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.area_id != Uuid::default() && self.user_id != Uuid::default()
     }
 }
 
-impl ToSQLQueryBuilder for UpdateSchema {
+impl ToSQLQueryBuilder for RetrieveRequest {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
         let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-        builder.add_column(DatabaseModel::UPDATED, &self.timestamp);
-        builder.set_return_all();
+        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
 
-        if let Some(ref u) = self.name {
-            builder.add_column(DatabaseModel::NAME, u);
-        }
-        if let Some(ref u) = self.icon_url {
-            builder.add_column(DatabaseModel::ICON_URL, u);
-        }
+        builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &self.area_id);
+
+        builder.set_return_all();
 
         builder
     }
@@ -137,13 +148,127 @@ impl ToSQLQueryBuilder for UpdateSchema {
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(Default))]
 #[serde(rename_all = "camelCase")]
-pub struct QuerySchema {
-    name: Option<QueryMethod<String>>,
+pub struct UpdateRequest {
+    name: Option<UpdateMethod<String>>,
+    icon_url: Option<UpdateMethod<String>>,
+
+    #[serde(default = "chrono::Local::now")]
+    timestamp: DateTime<Local>,
+
+    #[serde(skip)]
+    area_id: Uuid,
+    #[serde(skip)]
+    user_id: Uuid,
 }
 
-impl ToSQLQueryBuilder for QuerySchema {
+impl UpdateRequest {
+    pub fn is_empty(&self) -> bool {
+        self.name.is_none() && self.icon_url.is_none()
+    }
+
+    pub fn is_valid(&self) -> bool {
+        !self.is_empty() && self.area_id != Uuid::default() && self.user_id != Uuid::default()
+    }
+
+    pub fn set_area_id(&mut self, area_id: Uuid) {
+        self.area_id = area_id;
+    }
+
+    pub fn set_user_id(&mut self, user_id: Uuid) {
+        self.user_id = user_id;
+    }
+}
+
+impl ToSQLQueryBuilder for UpdateRequest {
     fn to_sql_builder(&self) -> SQLQueryBuilder {
         let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+        builder.add_column(DatabaseModel::UPDATED, &self.timestamp);
+        builder.set_return(&[DatabaseModel::ID]);
+
+        if let Some(ref u) = self.name {
+            builder.add_column(DatabaseModel::NAME, u);
+        }
+        if let Some(ref u) = self.icon_url {
+            builder.add_column(DatabaseModel::ICON_URL, u);
+        }
+
+        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
+        builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &self.area_id);
+
+        builder
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(Default))]
+pub struct DeleteRequest {
+    area_id: Uuid,
+
+    #[serde(skip)]
+    user_id: Uuid,
+}
+
+impl DeleteRequest {
+    pub fn new(area_id: Uuid, user_id: Uuid) -> Self {
+        Self { area_id, user_id }
+    }
+
+    pub fn set_user_id(&mut self, user_id: Uuid) {
+        self.user_id = user_id;
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.area_id != Uuid::default() && self.user_id != Uuid::default()
+    }
+}
+
+impl ToSQLQueryBuilder for DeleteRequest {
+    fn to_sql_builder(&self) -> SQLQueryBuilder {
+        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
+
+        builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &self.area_id);
+
+        builder
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(Default))]
+#[serde(rename_all = "camelCase")]
+pub struct QueryRequest {
+    name: Option<QueryMethod<String>>,
+
+    limit: Option<usize>,
+    offset: Option<usize>,
+
+    #[serde(skip)]
+    user_id: Uuid,
+}
+
+impl QueryRequest {
+    pub fn set_user_id(&mut self, user_id: Uuid) {
+        self.user_id = user_id;
+    }
+
+    pub fn set_limit(&mut self, limit: usize) {
+        self.limit = Some(limit);
+    }
+
+    pub fn set_offset(&mut self, offset: usize) {
+        self.offset = Some(offset);
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.user_id != Uuid::default()
+    }
+}
+
+impl ToSQLQueryBuilder for QueryRequest {
+    fn to_sql_builder(&self) -> SQLQueryBuilder {
+        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
+        builder.set_return_all();
 
         if let Some(ref q) = self.name {
             let cmp;
@@ -161,19 +286,22 @@ impl ToSQLQueryBuilder for QuerySchema {
             builder.add_condition(DatabaseModel::NAME, cmp, q);
         }
 
+        builder.set_limit(self.limit.unwrap_or(25));
+        builder.set_offset(self.offset.unwrap_or(0));
+
         builder
     }
 }
 
 #[cfg(test)]
-mod create_schema_test {
+mod create_schema {
     use crate::util::ToSQLQueryBuilder;
 
-    use super::CreateSchema;
+    use super::CreateRequest;
 
     #[test]
     fn full() {
-        let mut schema = CreateSchema::default();
+        let mut schema = CreateRequest::default();
         schema.name = Some("Test Name".to_string());
         schema.icon_url = Some("https://www.google.com/favicon.ico".to_string());
 
@@ -181,23 +309,62 @@ mod create_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.areas (area_name, icon_url) VALUES ($1, $2) RETURNING *"
+            "INSERT INTO data.areas (user_id, area_name, icon_url) VALUES ($1, $2, $3) RETURNING area_id"
         );
-        assert_eq!(params.len(), 2);
+        assert_eq!(params.len(), 3);
     }
-
-    // TEST: make production example
 }
 
 #[cfg(test)]
-mod update_schema_test {
-    use crate::{models::UpdateMethod, util::ToSQLQueryBuilder};
+mod retrieve_schema {
+    use uuid::Uuid;
 
-    use super::UpdateSchema;
+    use crate::util::ToSQLQueryBuilder;
+
+    use super::RetrieveRequest;
+
+    #[test]
+    fn is_valid() {
+        let schema = RetrieveRequest::default();
+
+        assert!(!schema.is_valid());
+
+        let schema = RetrieveRequest::new(Uuid::new_v4(), Uuid::nil());
+
+        assert!(!schema.is_valid());
+
+        let schema = RetrieveRequest::new(Uuid::nil(), Uuid::new_v4());
+
+        assert!(!schema.is_valid());
+
+        let schema = RetrieveRequest::new(Uuid::new_v4(), Uuid::new_v4());
+
+        assert!(schema.is_valid());
+    }
 
     #[test]
     fn full() {
-        let mut schema = UpdateSchema::default();
+        let schema = RetrieveRequest::new(Uuid::nil(), Uuid::nil());
+
+        let (statement, params) = schema.to_sql_builder().build_select();
+
+        assert_eq!(
+            statement,
+            "SELECT * FROM data.areas WHERE user_id = $1 AND area_id = $2"
+        );
+        assert_eq!(params.len(), 2)
+    }
+}
+
+#[cfg(test)]
+mod update_schema {
+    use crate::{models::UpdateMethod, util::ToSQLQueryBuilder};
+
+    use super::UpdateRequest;
+
+    #[test]
+    fn full() {
+        let mut schema = UpdateRequest::default();
         schema.name = Some(UpdateMethod::Set("Test Name".to_string()));
         schema.icon_url = Some(UpdateMethod::Set("https://www.mozilla.org/media/protocol/img/logos/firefox/browser/logo.eb1324e44442.svg".to_string()));
 
@@ -205,43 +372,83 @@ mod update_schema_test {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.areas SET updated_on=$1, area_name=$2, icon_url=$3 RETURNING *"
+            "UPDATE data.areas SET updated_on=$1, area_name=$2, icon_url=$3 WHERE user_id = $4 AND area_id = $5 RETURNING area_id"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 5);
     }
-
-    // TEST: make production example
 }
 
 #[cfg(test)]
-mod query_schema_test {
-    use crate::{models::QueryMethod, util::ToSQLQueryBuilder};
+mod delete_schema {
+    use uuid::Uuid;
 
-    use super::QuerySchema;
+    use crate::util::ToSQLQueryBuilder;
+
+    use super::DeleteRequest;
 
     #[test]
-    fn empty() {
-        let schema = QuerySchema::default();
+    fn is_valid() {
+        let schema = DeleteRequest::default();
 
-        let (statement, params) = schema.to_sql_builder().build_select();
+        assert!(!schema.is_valid());
 
-        assert_eq!(statement.as_str(), "SELECT * FROM data.areas");
-        assert_eq!(params.len(), 0);
+        let schema = DeleteRequest::new(Uuid::new_v4(), Uuid::nil());
+
+        assert!(!schema.is_valid());
+
+        let schema = DeleteRequest::new(Uuid::nil(), Uuid::new_v4());
+
+        assert!(!schema.is_valid());
+
+        let schema = DeleteRequest::new(Uuid::new_v4(), Uuid::new_v4());
+
+        assert!(schema.is_valid());
     }
 
     #[test]
     fn full() {
-        let mut schema = QuerySchema::default();
+        let schema = DeleteRequest::new(Uuid::nil(), Uuid::nil());
+
+        let (statement, params) = schema.to_sql_builder().build_delete();
+
+        assert_eq!(
+            statement,
+            "DELETE FROM data.areas WHERE user_id = $1 AND area_id = $2"
+        );
+        assert_eq!(params.len(), 2)
+    }
+}
+
+#[cfg(test)]
+mod query_schema {
+    use crate::{models::QueryMethod, util::ToSQLQueryBuilder};
+
+    use super::QueryRequest;
+
+    #[test]
+    fn empty() {
+        let schema = QueryRequest::default();
+
+        let (statement, params) = schema.to_sql_builder().build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM data.areas WHERE user_id = $1 LIMIT 25 OFFSET 0"
+        );
+        assert_eq!(params.len(), 1);
+    }
+
+    #[test]
+    fn full() {
+        let mut schema = QueryRequest::default();
         schema.name = Some(QueryMethod::Match("Test Name".to_string()));
 
         let (statement, params) = schema.to_sql_builder().build_select();
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.areas WHERE area_name ILIKE '%' || $1 || '%'"
+            "SELECT * FROM data.areas WHERE user_id = $1 AND area_name ILIKE '%' || $2 || '%' LIMIT 25 OFFSET 0"
         );
-        assert_eq!(params.len(), 1);
+        assert_eq!(params.len(), 2);
     }
-
-    // TEST: make production example
 }

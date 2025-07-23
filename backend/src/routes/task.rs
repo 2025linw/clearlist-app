@@ -1,5 +1,3 @@
-pub mod tag;
-
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -12,39 +10,43 @@ use uuid::Uuid;
 
 use crate::{
     AppState,
+    data::{create_task, delete_task, query_task, retrieve_task, update_task},
     error::ErrorResponse,
     models::{
         FilterOptions, ToResponse,
-        auth::token::Claim,
-        task::{CreateSchema, DatabaseModel, QuerySchema, ResponseModel, UpdateSchema},
+        jwt::Claim,
+        task::{CreateRequest, QueryRequest, ResponseModel, UpdateRequest},
     },
-    util::{PostgresCmp, SQLQueryBuilder, ToSQLQueryBuilder},
 };
 
 const NOT_FOUND: &str = "task not found";
-const NO_UPDATE: &str = "no task updates were requested";
+const NO_UPDATES: &str = "no task updates were requested";
 
 pub async fn create_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
-    Json(body): Json<CreateSchema>,
+    Json(body): Json<CreateRequest>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let mut conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Create task
-    let mut query_builder = body.to_sql_builder();
-    query_builder.add_column(DatabaseModel::USER_ID, &user_id);
+    let schema = body;
 
-    let (statement, params) = query_builder.build_insert();
+    let task_id = create_task(&mut conn, schema, user_id).await?;
 
-    // TODO: should the row response be used?
-    let task = DatabaseModel::from(data.db_conn.query_insert(statement, params).await?);
+    let task = match retrieve_task(&conn, task_id, user_id).await? {
+        Some(t) => t,
+        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+    };
 
-    // Return
-    Ok((StatusCode::CREATED,
+    Ok((
+        StatusCode::CREATED,
         Json(json!({
-            "task": task.to_response()
+            "status": "success",
+            "data": json!({
+                "task": task.to_response(),
+            })
         })),
     ))
 }
@@ -54,69 +56,66 @@ pub async fn retrieve_handler(
     State(data): State<AppState>,
     Path(task_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Retrieve task
-    let mut query_builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &task_id);
-    query_builder.set_return_all();
-
-    let (statement, params) = query_builder.build_select();
-
-    let row = match data.db_conn.query_select_one(statement, params).await? {
-        Some(r) => r,
+    let task = match retrieve_task(&conn, task_id, user_id).await? {
+        Some(t) => t,
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
 
-    let task = DatabaseModel::from(row);
-
-    // Return
-    Ok(Json(json!({
-        "status": "success",
-        "data": json!({
-            "task": task.to_response(),
-        }),
-    })))
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "task": task.to_response(),
+            })
+        })),
+    ))
 }
 
 pub async fn update_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     Path(task_id): Path<Uuid>,
-    Json(body): Json<UpdateSchema>,
+    Json(body): Json<UpdateRequest>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let mut conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // If no updates made
     if body.is_empty() {
-        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATE));
+        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATES));
     }
 
-    // Update task
-    let mut query_builder = body.to_sql_builder();
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &task_id);
-    query_builder.set_return_all();
+    let task_id = match update_task(&mut conn, task_id, user_id, body).await? {
+        Some(t) => {
+            assert_eq!(
+                t, task_id,
+                "error occured with query, as the task ids do not match after update"
+            );
 
-    let (statement, params) = query_builder.build_update();
-
-    let row = match data.db_conn.query_update(statement, params).await? {
-        Some(r) => r,
+            t
+        }
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
 
-    let task = DatabaseModel::from(row);
+    let task = match retrieve_task(&conn, task_id, user_id).await? {
+        Some(t) => t,
+        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+    };
 
-    // Return
-    Ok(Json(json!({
-        "status": "success",
-        "data": json!({
-            "task": task.to_response(),
-        }),
-    })))
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "task": task.to_response(),
+            })
+        })),
+    ))
 }
 
 pub async fn delete_handler(
@@ -124,22 +123,16 @@ pub async fn delete_handler(
     State(data): State<AppState>,
     Path(task_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let mut conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Delete task
-    let mut query_builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &task_id);
-    query_builder.set_return(&[DatabaseModel::ID]);
+    if delete_task(&mut conn, task_id, user_id).await?.is_none() {
+        // TODO: consider other reasons for this function to return none
 
-    let (statement, params) = query_builder.build_delete();
-
-    if !data.db_conn.query_delete(statement, params).await? {
         return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND));
     }
 
-    // Return
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -147,40 +140,34 @@ pub async fn query_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     Query(opts): Query<FilterOptions>,
-    Json(body): Json<QuerySchema>,
+    Json(body): Json<QueryRequest>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Get pagination info
     let page = opts.page.unwrap_or(1);
     let limit = opts.limit.unwrap_or(25);
     let offset = (page - 1) * limit;
 
-    // Query tasks
-    let mut query_builder = body.to_sql_builder();
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.set_limit(limit);
-    query_builder.set_offset(offset);
+    let tasks = query_task(&conn, user_id, body, limit, offset).await?;
 
-    let (statement, params) = query_builder.build_select();
-
-    let rows = data.db_conn.query_select_many(statement, params).await?;
-
-    let tasks: Vec<ResponseModel> = rows
-        .iter()
-        .map(|r| DatabaseModel::from(r.to_owned()))
-        .map(|t| t.to_response())
-        .collect();
-
-    // Return
-    Ok(Json(json!({
-        "status": "ok",
-        "data": json!({
-            "count": tasks.len(),
-            "tasks": tasks,
-        }),
-    })))
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "count": tasks.len(),
+                "tasks": tasks.into_iter().map(|t| t.to_response()).collect::<Vec<ResponseModel>>(),
+            }),
+        })),
+    ))
 }
 
-// TEST: task handlers
+#[cfg(test)]
+mod task_handler {
+    #[test]
+    fn todo() {
+        assert!(false);
+    }
+}

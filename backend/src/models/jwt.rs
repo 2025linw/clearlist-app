@@ -61,6 +61,5 @@ impl Default for Claim {
 #[cfg_attr(test, derive(Default))]
 #[serde(rename_all = "camelCase")]
 pub struct RefreshToken {
-    pub user_id: Uuid,
     pub refresh_jwt: String,
 }

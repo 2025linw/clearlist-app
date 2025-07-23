@@ -10,37 +10,57 @@ use uuid::Uuid;
 
 use crate::{
     AppState,
-    error::ErrorResponse,
+    data::{create_area, delete_area, query_area, retrieve_area, update_area},
+    error::{ErrorResponse, INTERNAL},
     models::{
         FilterOptions, ToResponse,
-        area::{CreateSchema, DatabaseModel, QuerySchema, ResponseModel, UpdateSchema},
-        auth::token::Claim,
+        area::{
+            CreateRequest, DeleteRequest, QueryRequest, ResponseModel, RetrieveRequest,
+            UpdateRequest,
+        },
+        jwt::Claim,
     },
-    util::{PostgresCmp, SQLQueryBuilder, ToSQLQueryBuilder},
 };
 
 const NOT_FOUND: &str = "area not found";
-const NO_UPDATE: &str = "no area updates were requested";
+const NO_UPDATES: &str = "no area updates were requested";
 
 pub async fn create_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
-    Json(body): Json<CreateSchema>,
+    Json(body): Json<CreateRequest>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let mut conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Create area
-    let mut query_builder = body.to_sql_builder();
-    query_builder.add_column(DatabaseModel::USER_ID, &user_id);
+    let mut schema = body;
+    schema.set_user_id(user_id);
 
-    let (statement, params) = query_builder.build_insert();
+    if !schema.is_valid() {
+        return Err(ErrorResponse::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            INTERNAL,
+        ));
+    }
 
-    // TODO: should the row response be used?
-    data.db_conn.query_insert(statement, params).await?;
+    let area_id = create_area(&mut conn, schema).await?;
 
-    // Return
-    Ok(StatusCode::CREATED)
+    let schema = RetrieveRequest::new(area_id, user_id);
+    let area = match retrieve_area(&conn, schema).await? {
+        Some(a) => a,
+        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+    };
+
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "area": area.to_response(),
+            })
+        })),
+    ))
 }
 
 pub async fn retrieve_handler(
@@ -48,69 +68,87 @@ pub async fn retrieve_handler(
     State(data): State<AppState>,
     Path(area_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Retrieve area
-    let mut query_builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &area_id);
-    query_builder.set_return_all();
+    let schema = RetrieveRequest::new(area_id, user_id);
 
-    let (statement, params) = query_builder.build_select();
+    if !schema.is_valid() {
+        return Err(ErrorResponse::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            INTERNAL,
+        ));
+    }
 
-    let row = match data.db_conn.query_select_one(statement, params).await? {
-        Some(r) => r,
+    let area = match retrieve_area(&conn, schema).await? {
+        Some(a) => a,
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
 
-    let area = DatabaseModel::from(row);
-
-    // Return
-    Ok(Json(json!({
-        "status": "success",
-        "data": json!({
-            "area": area.to_response(),
-        }),
-    })))
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "area": area.to_response(),
+            })
+        })),
+    ))
 }
 
 pub async fn update_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     Path(area_id): Path<Uuid>,
-    Json(body): Json<UpdateSchema>,
+    Json(body): Json<UpdateRequest>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let mut conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // If no updates made
     if body.is_empty() {
-        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATE));
+        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATES));
     }
 
-    // Update area
-    let mut query_builder = body.to_sql_builder();
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &area_id);
-    query_builder.set_return_all();
+    let mut schema = body;
+    schema.set_area_id(area_id);
+    schema.set_user_id(user_id);
 
-    let (statement, params) = query_builder.build_update();
+    if !schema.is_valid() {
+        return Err(ErrorResponse::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            INTERNAL,
+        ));
+    }
 
-    let row = match data.db_conn.query_update(statement, params).await? {
-        Some(r) => r,
+    let area_id = match update_area(&mut conn, schema).await? {
+        Some(a) => {
+            assert_eq!(
+                a, area_id,
+                "error occured with query, as the area ids do not match after update"
+            );
+
+            a
+        }
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
 
-    let area = DatabaseModel::from(row);
+    let schema = RetrieveRequest::new(area_id, user_id);
+    let area = match retrieve_area(&conn, schema).await? {
+        Some(a) => a,
+        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+    };
 
-    // Return
-    Ok(Json(json!({
-        "status": "success",
-        "data": json!({
-            "area": area.to_response(),
-        }),
-    })))
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "area": area.to_response(),
+            }),
+        })),
+    ))
 }
 
 pub async fn delete_handler(
@@ -118,22 +156,26 @@ pub async fn delete_handler(
     State(data): State<AppState>,
     Path(area_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let mut conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Delete area
-    let mut query_builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &area_id);
-    query_builder.set_return(&[DatabaseModel::ID]);
+    let mut schema = DeleteRequest::new(area_id, user_id);
+    schema.set_user_id(user_id);
 
-    let (statement, params) = query_builder.build_delete();
+    if !schema.is_valid() {
+        return Err(ErrorResponse::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            INTERNAL,
+        ));
+    }
 
-    if !data.db_conn.query_delete(statement, params).await? {
+    if delete_area(&mut conn, schema).await?.is_none() {
+        // TODO: consider other reasons for this function to return none
+
         return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND));
     }
 
-    // Return
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -141,40 +183,46 @@ pub async fn query_handler(
     Claims(claim): Claims<Claim>,
     State(data): State<AppState>,
     Query(opts): Query<FilterOptions>,
-    Json(body): Json<QuerySchema>,
+    Json(body): Json<QueryRequest>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    // Get user id
+    let conn = data.db_conn.get_conn().await?;
+
     let user_id = claim.sub;
 
-    // Get pagination info
     let page = opts.page.unwrap_or(1);
     let limit = opts.limit.unwrap_or(25);
     let offset = (page - 1) * limit;
 
-    // Query areas
-    let mut query_builder = body.to_sql_builder();
-    query_builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
-    query_builder.set_limit(limit);
-    query_builder.set_offset(offset);
+    let mut schema = body;
+    schema.set_user_id(user_id);
+    schema.set_limit(limit);
+    schema.set_offset(offset);
 
-    let (statement, params) = query_builder.build_select();
+    if !schema.is_valid() {
+        return Err(ErrorResponse::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            INTERNAL,
+        ));
+    }
 
-    let rows = data.db_conn.query_select_many(statement, params).await?;
+    let areas = query_area(&conn, schema).await?;
 
-    let areas: Vec<ResponseModel> = rows
-        .iter()
-        .map(|r| DatabaseModel::from(r.to_owned()))
-        .map(|a| a.to_response())
-        .collect();
-
-    // Return
-    Ok(Json(json!({
-        "status": "ok",
-        "data": json!({
-            "count": areas.len(),
-            "areas": areas,
-        }),
-    })))
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "status": "success",
+            "data": json!({
+                "count": areas.len(),
+                "areas": areas.into_iter().map(|a| a.to_response()).collect::<Vec<ResponseModel>>(),
+            }),
+        })),
+    ))
 }
 
-// TEST: area handlers
+#[cfg(test)]
+mod area_handler {
+    #[test]
+    fn todo() {
+        assert!(false);
+    }
+}

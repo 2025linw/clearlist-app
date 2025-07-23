@@ -1,102 +1,89 @@
-use axum::{Json, body, extract::State, http::StatusCode, response::IntoResponse};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use chrono::Duration;
 use serde_json::json;
 
 use crate::{
     AppState,
-    error::{ErrorResponse, LOGIN_AUTH, LOGIN_EXISTS},
+    data::{check_for_email, check_for_user, get_login_info, register_user},
+    error::{ErrorResponse, LOGIN_EXISTS, LOGIN_FAILED},
     models::{
-        ToResponse,
         auth::{
-            LoginSchema, ResetSchema, UserTokenResponseModel,
-            token::{RefreshToken, ResponseModel as TokenResponse},
-            user::DatabaseModel as UserModel,
+            LoginInfo,
+            LoginRequest,
+            // ResetSchema,
         },
+        jwt::{RefreshToken, ResponseModel as TokenResponse},
     },
-    util::{
-        PostgresCmp, SQLQueryBuilder,
-        auth::{create_jwt, hash_password, verify_jwt, verify_password},
-    },
+    util::auth::{create_jwt, hash_password, verify_jwt_and_get_id, verify_password},
 };
 
 const LOGIN_MISSING: &str = "missing email and/or password";
-const LOGIN_RESET: &str = "if account exists with given email, password reset link will be sent";
+// const LOGIN_RESET: &str = "if account exists with given email, password reset link will be sent";
 
 pub async fn registration_handler(
     State(data): State<AppState>,
-    Json(body): Json<LoginSchema>,
+    Json(body): Json<LoginRequest>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
+    let mut conn = data.db_conn.get_conn().await?;
+
     // Check for email and password
-    if body.email.is_empty() || body.password.is_empty() {
+    if body.email().is_empty() || body.password().is_empty() {
         return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_MISSING));
     }
 
-    let LoginSchema { email, password } = body;
+    let schema = body;
 
     // Check if user exists
-    let mut query_builder = SQLQueryBuilder::new(UserModel::TABLE);
-    query_builder.add_condition(UserModel::EMAIL, PostgresCmp::Equal, &email);
-
-    let (statement, params) = query_builder.build_select();
-
-    if data
-        .db_conn
-        .query_select_one(statement, params)
-        .await?
-        .is_some()
-    {
+    if check_for_email(&conn, schema.email()).await? {
         return Err(ErrorResponse::new(StatusCode::CONFLICT, LOGIN_EXISTS));
     }
 
     // Hash password
-    let password_hash: String = match hash_password(&password) {
+    let password_hash: String = match hash_password(schema.password()) {
         Ok(h) => h,
         Err(e) => return Err(e.into()),
     };
 
-    // Create new user
-    let mut query_builder = SQLQueryBuilder::new(UserModel::TABLE);
-    query_builder.add_column(UserModel::EMAIL, &email);
-    query_builder.add_column(UserModel::PASS_HASH, &password_hash);
-    query_builder.set_return_all();
+    // Add user
+    let schema = LoginInfo::from_request(schema, password_hash);
 
-    let (statement, params) = query_builder.build_insert();
-
-    data.db_conn.query_insert(statement, params).await?;
+    register_user(&mut conn, schema).await?;
 
     Ok(StatusCode::CREATED)
 }
 
 pub async fn login_handler(
     State(data): State<AppState>,
-    Json(body): Json<LoginSchema>,
+    Json(body): Json<LoginRequest>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
+    let conn = data.db_conn.get_conn().await?;
+
     // Check for email and password
-    if body.email.is_empty() || body.password.is_empty() {
+    if body.email().is_empty() || body.password().is_empty() {
         return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_MISSING));
     }
 
-    let LoginSchema { email, password } = body;
+    let schema = body;
 
     // Check if user exists
-    let mut query_builder = SQLQueryBuilder::new(UserModel::TABLE);
-    query_builder.add_condition(UserModel::EMAIL, PostgresCmp::Equal, &email);
-    query_builder.set_return_all();
+    if !check_for_email(&conn, schema.email()).await? {
+        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_FAILED));
+    }
 
-    let (statement, params) = query_builder.build_select();
+    // Get user
+    // let login = match get_login_info(&conn, schema.password()).await? {
+    //     Some(u) => u,
+    //     None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, LOGIN_FAILED)),
+    // };
+    let login = get_login_info(&conn, schema.email()).await?;
 
-    let row = match data.db_conn.query_select_one(statement, params).await? {
-        Some(r) => r,
-        None => return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_AUTH)),
-    };
-
-    let user = UserModel::from(row);
+    // === BELOW IS PROTECTED INFO ===
 
     // Verify password
-    verify_password(user.password_hash(), &password)?;
+    verify_password(login.password_hash(), schema.password())?;
 
     // Get access JWT
-    let access_jwt: String = match create_jwt(&data.encode_key, user.user_id(), None) {
+    let access_jwt: String = match create_jwt(&data.encode_key, login.user_id(), None) {
         Ok(s) => s,
         Err(e) => return Err(e.into()),
     };
@@ -104,9 +91,11 @@ pub async fn login_handler(
     let mut response = TokenResponse::new(access_jwt);
 
     // Get refresh JWT
+    // TODO: add an option for people not to get a refresh token somehow
+    // For example, in a 'remember me' or 'keep me logged in' option
     match create_jwt(
         &data.encode_key,
-        user.user_id(),
+        login.user_id(),
         Some(Duration::weeks(1).num_seconds() as u64),
     ) {
         Ok(s) => response.set_refresh_jwt(s),
@@ -120,28 +109,23 @@ pub async fn refresh_handler(
     State(data): State<AppState>,
     Json(body): Json<RefreshToken>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
+    let conn = data.db_conn.get_conn().await?;
+
     let token = body.refresh_jwt;
 
     // Verify jwt
-    verify_jwt(&data.decode_key, &token, body.user_id)?;
+    let user_id = verify_jwt_and_get_id(&data.decode_key, &token)?;
 
     // Check if user exists
     // TODO: what to do in this situation? if a user has a refresh token, they should've had an account
-    let mut query_builder = SQLQueryBuilder::new(UserModel::TABLE);
-    query_builder.add_condition(UserModel::ID, PostgresCmp::Equal, &body.user_id);
-    query_builder.set_return_all();
-
-    let (statement, params) = query_builder.build_select();
-
-    let row = match data.db_conn.query_select_one(statement, params).await? {
-        Some(r) => r,
-        None => return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_AUTH)),
-    };
-
-    let user = UserModel::from(row);
+    // Unless they deleted their account
+    // Return no account found?
+    if !check_for_user(&conn, user_id).await? {
+        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_MISSING));
+    }
 
     // Get access JWT
-    let access_jwt: String = match create_jwt(&data.encode_key, body.user_id, None) {
+    let access_jwt: String = match create_jwt(&data.encode_key, user_id, None) {
         Ok(s) => s,
         Err(e) => return Err(e.into()),
     };
@@ -151,32 +135,33 @@ pub async fn refresh_handler(
     // Get refresh JWT
     match create_jwt(
         &data.encode_key,
-        body.user_id,
+        user_id,
         Some(Duration::weeks(1).num_seconds() as u64),
     ) {
         Ok(s) => token.set_refresh_jwt(s),
         Err(e) => return Err(e.into()),
     };
 
-    let response = UserTokenResponseModel::new(user.to_response(), token);
-
-    Ok(Json(json!(response)))
+    Ok(Json(json!(token)))
 }
 
-pub async fn password_reset_handler(
-    State(data): State<AppState>,
-    Json(body): Json<ResetSchema>,
-) -> Result<impl IntoResponse, ErrorResponse> {
-    Ok(StatusCode::NOT_IMPLEMENTED)
-}
+// pub async fn password_reset_handler(
+//     State(_data): State<AppState>,
+//     Json(_body): Json<ResetSchema>,
+// ) -> Result<impl IntoResponse, ErrorResponse> {
+//     // TODO: Use data and body above
 
-// TODO: Add update user
+//     println!("{LOGIN_RESET}");
 
-// TODO: Add delete user
-// Make deleting be a flag rather than removal of account, just in case that user wants to reopen account
-// have delete occur after 1 month
-// utilize a `modified_date` to test when an accound was deleted
-
-// TODO: Add password reset mechanic
+//     Ok(StatusCode::NOT_IMPLEMENTED)
+// }
 
 // TEST: authentication handlers
+
+#[cfg(test)]
+mod auth_handler {
+    #[test]
+    fn todo() {
+        assert!(false);
+    }
+}
