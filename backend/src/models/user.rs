@@ -3,6 +3,11 @@ use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 use uuid::Uuid;
 
+use crate::{
+    models::UpdateMethod,
+    util::{SqlQueryBuilder, ToSqlQueryBuilder},
+};
+
 use super::ToResponse;
 
 /// User Database Model
@@ -68,7 +73,7 @@ impl ToResponse for DatabaseModel {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseModel {
     id: Uuid,
@@ -78,4 +83,37 @@ pub struct ResponseModel {
 
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct UpdateRequest {
+    username: UpdateMethod<String>,
+    email: UpdateMethod<String>,
+
+    #[serde(default = "chrono::Local::now")]
+    timestamp: DateTime<Local>,
+}
+
+impl UpdateRequest {
+    pub fn is_empty(&self) -> bool {
+        self.username.is_noop() && self.email.is_noop()
+    }
+}
+
+impl ToSqlQueryBuilder for UpdateRequest {
+    fn to_sql_builder(&self) -> SqlQueryBuilder {
+        let mut builder = SqlQueryBuilder::new(DatabaseModel::TABLE);
+        builder.add_column(DatabaseModel::UPDATED, &self.timestamp);
+        builder.set_return(&[DatabaseModel::ID]);
+
+        if !self.username.is_noop() {
+            builder.add_column(DatabaseModel::USERNAME, &self.username);
+        }
+        if !self.email.is_noop() {
+            builder.add_column(DatabaseModel::EMAIL, &self.email);
+        }
+
+        builder
+    }
 }

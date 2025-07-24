@@ -11,13 +11,10 @@ use uuid::Uuid;
 use crate::{
     AppState,
     data::{create_area, delete_area, query_area, retrieve_area, update_area},
-    error::{ErrorResponse, INTERNAL},
+    error::ErrorResponse,
     models::{
         FilterOptions, ToResponse,
-        area::{
-            CreateRequest, DeleteRequest, QueryRequest, ResponseModel, RetrieveRequest,
-            UpdateRequest,
-        },
+        area::{CreateRequest, QueryRequest, ResponseModel, UpdateRequest},
         jwt::Claim,
     },
 };
@@ -34,20 +31,9 @@ pub async fn create_handler(
 
     let user_id = claim.sub;
 
-    let mut schema = body;
-    schema.set_user_id(user_id);
+    let area_id = create_area(&mut conn, user_id, body).await?;
 
-    if !schema.is_valid() {
-        return Err(ErrorResponse::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            INTERNAL,
-        ));
-    }
-
-    let area_id = create_area(&mut conn, schema).await?;
-
-    let schema = RetrieveRequest::new(area_id, user_id);
-    let area = match retrieve_area(&conn, schema).await? {
+    let area = match retrieve_area(&conn, area_id, user_id).await? {
         Some(a) => a,
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
@@ -72,16 +58,7 @@ pub async fn retrieve_handler(
 
     let user_id = claim.sub;
 
-    let schema = RetrieveRequest::new(area_id, user_id);
-
-    if !schema.is_valid() {
-        return Err(ErrorResponse::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            INTERNAL,
-        ));
-    }
-
-    let area = match retrieve_area(&conn, schema).await? {
+    let area = match retrieve_area(&conn, area_id, user_id).await? {
         Some(a) => a,
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
@@ -111,18 +88,7 @@ pub async fn update_handler(
         return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATES));
     }
 
-    let mut schema = body;
-    schema.set_area_id(area_id);
-    schema.set_user_id(user_id);
-
-    if !schema.is_valid() {
-        return Err(ErrorResponse::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            INTERNAL,
-        ));
-    }
-
-    let area_id = match update_area(&mut conn, schema).await? {
+    let area_id = match update_area(&mut conn, area_id, user_id, body).await? {
         Some(a) => {
             assert_eq!(
                 a, area_id,
@@ -134,8 +100,7 @@ pub async fn update_handler(
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
 
-    let schema = RetrieveRequest::new(area_id, user_id);
-    let area = match retrieve_area(&conn, schema).await? {
+    let area = match retrieve_area(&conn, area_id, user_id).await? {
         Some(a) => a,
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
@@ -160,17 +125,7 @@ pub async fn delete_handler(
 
     let user_id = claim.sub;
 
-    let mut schema = DeleteRequest::new(area_id, user_id);
-    schema.set_user_id(user_id);
-
-    if !schema.is_valid() {
-        return Err(ErrorResponse::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            INTERNAL,
-        ));
-    }
-
-    if delete_area(&mut conn, schema).await?.is_none() {
+    if delete_area(&mut conn, area_id, user_id).await?.is_none() {
         // TODO: consider other reasons for this function to return none
 
         return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND));
@@ -193,19 +148,7 @@ pub async fn query_handler(
     let limit = opts.limit.unwrap_or(25);
     let offset = (page - 1) * limit;
 
-    let mut schema = body;
-    schema.set_user_id(user_id);
-    schema.set_limit(limit);
-    schema.set_offset(offset);
-
-    if !schema.is_valid() {
-        return Err(ErrorResponse::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            INTERNAL,
-        ));
-    }
-
-    let areas = query_area(&conn, schema).await?;
+    let areas = query_area(&conn, user_id, body, limit, offset).await?;
 
     Ok((
         StatusCode::OK,
@@ -223,6 +166,6 @@ pub async fn query_handler(
 mod area_handler {
     #[test]
     fn todo() {
-        assert!(false);
+        todo!();
     }
 }

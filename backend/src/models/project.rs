@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     models::tag as tag_model,
-    util::{NULL, PostgresCmp, SQLQueryBuilder, ToPostgresCmp, ToSQLQueryBuilder},
+    util::{NULL, PostgresCmp, SqlQueryBuilder, ToPostgresCmp, ToSqlQueryBuilder},
 };
 
 use super::{QueryMethod, ToResponse, UpdateMethod};
@@ -36,6 +36,10 @@ pub struct DatabaseModel {
 }
 
 impl DatabaseModel {
+    pub fn id(&self) -> Uuid {
+        self.id
+    }
+
     pub fn id_as_ref(&self) -> &Uuid {
         &self.id
     }
@@ -146,30 +150,18 @@ pub struct CreateRequest {
     deadline: Option<NaiveDate>,
 
     area_id: Option<Uuid>,
-    tag_ids: Vec<Uuid>,
-
-    #[serde(skip)]
-    user_id: Uuid,
+    tag_ids: Option<Vec<Uuid>>,
 }
 
 impl CreateRequest {
-    pub fn tag_ids(&self) -> &[Uuid] {
-        &self.tag_ids
-    }
-
-    pub fn set_user_id(&mut self, user_id: Uuid) {
-        self.user_id = user_id;
-    }
-
-    pub fn is_valid(&self) -> bool {
-        self.user_id != Uuid::default()
+    pub fn tag_ids(&self) -> Option<&[Uuid]> {
+        self.tag_ids.as_deref()
     }
 }
 
-impl ToSQLQueryBuilder for CreateRequest {
-    fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-        builder.add_column(DatabaseModel::USER_ID, &self.user_id);
+impl ToSqlQueryBuilder for CreateRequest {
+    fn to_sql_builder(&self) -> SqlQueryBuilder {
+        let mut builder = SqlQueryBuilder::new(DatabaseModel::TABLE);
         builder.set_return(&[DatabaseModel::ID]);
 
         if let Some(ref s) = self.title {
@@ -196,41 +188,6 @@ impl ToSQLQueryBuilder for CreateRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[cfg_attr(test, derive(Default))]
-pub struct RetrieveRequest {
-    project_id: Uuid,
-
-    #[serde(skip)]
-    user_id: Uuid,
-}
-
-impl RetrieveRequest {
-    pub fn new(project_id: Uuid, user_id: Uuid) -> Self {
-        Self {
-            project_id,
-            user_id,
-        }
-    }
-
-    pub fn is_valid(&self) -> bool {
-        self.project_id != Uuid::default() && self.user_id != Uuid::default()
-    }
-}
-
-impl ToSQLQueryBuilder for RetrieveRequest {
-    fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
-
-        builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &self.project_id);
-
-        builder.set_return_all();
-
-        builder
-    }
-}
-
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct UpdateRequest {
@@ -249,11 +206,6 @@ pub struct UpdateRequest {
 
     #[serde(default = "chrono::Local::now")]
     timestamp: DateTime<Local>,
-
-    #[serde(skip)]
-    project_id: Uuid,
-    #[serde(skip)]
-    user_id: Uuid,
 }
 
 impl UpdateRequest {
@@ -270,10 +222,6 @@ impl UpdateRequest {
             && self.tag_ids.is_noop()
     }
 
-    pub fn is_valid(&self) -> bool {
-        !self.is_empty() && self.project_id != Uuid::default() && self.user_id != Uuid::default()
-    }
-
     pub fn tag_ids(&self) -> Option<&[Uuid]> {
         if let UpdateMethod::Set(ref tag_ids) = self.tag_ids {
             Some(tag_ids)
@@ -281,19 +229,11 @@ impl UpdateRequest {
             None
         }
     }
-
-    pub fn set_project_id(&mut self, project_id: Uuid) {
-        self.project_id = project_id;
-    }
-
-    pub fn set_user_id(&mut self, user_id: Uuid) {
-        self.user_id = user_id;
-    }
 }
 
-impl ToSQLQueryBuilder for UpdateRequest {
-    fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+impl ToSqlQueryBuilder for UpdateRequest {
+    fn to_sql_builder(&self) -> SqlQueryBuilder {
+        let mut builder = SqlQueryBuilder::new(DatabaseModel::TABLE);
         builder.add_column(DatabaseModel::UPDATED, &self.timestamp);
         builder.set_return(&[DatabaseModel::ID]);
 
@@ -351,46 +291,6 @@ impl ToSQLQueryBuilder for UpdateRequest {
             builder.add_column(DatabaseModel::AREA_ID, &self.area_id);
         }
 
-        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
-        builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &self.project_id);
-
-        builder
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[cfg_attr(test, derive(Default))]
-pub struct DeleteRequest {
-    project_id: Uuid,
-
-    #[serde(skip)]
-    user_id: Uuid,
-}
-
-impl DeleteRequest {
-    pub fn new(project_id: Uuid, user_id: Uuid) -> Self {
-        Self {
-            project_id,
-            user_id,
-        }
-    }
-
-    pub fn set_user_id(&mut self, user_id: Uuid) {
-        self.user_id = user_id;
-    }
-
-    pub fn is_valid(&self) -> bool {
-        self.project_id != Uuid::default() && self.user_id != Uuid::default()
-    }
-}
-
-impl ToSQLQueryBuilder for DeleteRequest {
-    fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
-
-        builder.add_condition(DatabaseModel::ID, PostgresCmp::Equal, &self.project_id);
-
         builder
     }
 }
@@ -411,40 +311,17 @@ pub struct QueryRequest {
 
     area_id: Option<Uuid>,
     tag_ids: Vec<Uuid>,
-
-    limit: Option<usize>,
-    offset: Option<usize>,
-
-    #[serde(skip)]
-    user_id: Uuid,
 }
 
 impl QueryRequest {
     pub fn tag_ids(&self) -> &[Uuid] {
         &self.tag_ids
     }
-
-    pub fn set_user_id(&mut self, user_id: Uuid) {
-        self.user_id = user_id;
-    }
-
-    pub fn set_limit(&mut self, limit: usize) {
-        self.limit = Some(limit);
-    }
-
-    pub fn set_offset(&mut self, offset: usize) {
-        self.offset = Some(offset);
-    }
-
-    pub fn is_valid(&mut self) -> bool {
-        self.user_id != Uuid::default()
-    }
 }
 
-impl ToSQLQueryBuilder for QueryRequest {
-    fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
-        builder.add_condition(DatabaseModel::USER_ID, PostgresCmp::Equal, &self.user_id);
+impl ToSqlQueryBuilder for QueryRequest {
+    fn to_sql_builder(&self) -> SqlQueryBuilder {
+        let mut builder = SqlQueryBuilder::new(DatabaseModel::TABLE);
         builder.set_return_all();
 
         if let Some(ref q) = self.title {
@@ -549,9 +426,6 @@ impl ToSQLQueryBuilder for QueryRequest {
             builder.add_condition(DatabaseModel::AREA_ID, PostgresCmp::Equal, i);
         }
 
-        builder.set_limit(self.limit.unwrap_or(25));
-        builder.set_offset(self.offset.unwrap_or(0));
-
         builder
     }
 }
@@ -561,7 +435,7 @@ mod create_schema {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::util::ToSQLQueryBuilder;
+    use crate::util::ToSqlQueryBuilder;
 
     use super::CreateRequest;
 
@@ -575,9 +449,9 @@ mod create_schema {
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.projects (user_id, project_title, notes) VALUES ($1, $2, $3) RETURNING project_id"
+            "INSERT INTO data.projects (project_title, notes) VALUES ($1, $2) RETURNING project_id"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
@@ -593,9 +467,9 @@ mod create_schema {
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.projects (user_id, start_date, start_time, deadline) VALUES ($1, $2, $3, $4) RETURNING project_id"
+            "INSERT INTO data.projects (start_date, start_time, deadline) VALUES ($1, $2, $3) RETURNING project_id"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -607,9 +481,9 @@ mod create_schema {
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.projects (user_id, area_id) VALUES ($1, $2) RETURNING project_id"
+            "INSERT INTO data.projects (area_id) VALUES ($1) RETURNING project_id"
         );
-        assert_eq!(params.len(), 2);
+        assert_eq!(params.len(), 1);
     }
 
     #[test]
@@ -628,50 +502,9 @@ mod create_schema {
 
         assert_eq!(
             statement,
-            "INSERT INTO data.projects (user_id, project_title, notes, start_date, start_time, deadline, area_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING project_id"
+            "INSERT INTO data.projects (project_title, notes, start_date, start_time, deadline, area_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING project_id"
         );
-        assert_eq!(params.len(), 7);
-    }
-}
-
-#[cfg(test)]
-mod retrieve_schema {
-    use uuid::Uuid;
-
-    use crate::util::ToSQLQueryBuilder;
-
-    use super::RetrieveRequest;
-
-    #[test]
-    fn is_valid() {
-        let schema = RetrieveRequest::default();
-
-        assert!(!schema.is_valid());
-
-        let schema = RetrieveRequest::new(Uuid::new_v4(), Uuid::nil());
-
-        assert!(!schema.is_valid());
-
-        let schema = RetrieveRequest::new(Uuid::nil(), Uuid::new_v4());
-
-        assert!(!schema.is_valid());
-
-        let schema = RetrieveRequest::new(Uuid::new_v4(), Uuid::new_v4());
-
-        assert!(schema.is_valid());
-    }
-
-    #[test]
-    fn full() {
-        let schema = RetrieveRequest::new(Uuid::nil(), Uuid::nil());
-
-        let (statement, params) = schema.to_sql_builder().build_select();
-
-        assert_eq!(
-            statement,
-            "SELECT * FROM data.projects WHERE user_id = $1 AND project_id = $2"
-        );
-        assert_eq!(params.len(), 2)
+        assert_eq!(params.len(), 6);
     }
 }
 
@@ -680,9 +513,16 @@ mod update_schema {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::{models::UpdateMethod, util::ToSQLQueryBuilder};
+    use crate::{models::UpdateMethod, util::ToSqlQueryBuilder};
 
     use super::UpdateRequest;
+
+    #[test]
+    fn is_empty() {
+        let schema = UpdateRequest::default();
+
+        assert!(schema.is_empty());
+    }
 
     #[test]
     fn text_only() {
@@ -694,9 +534,9 @@ mod update_schema {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, project_title=$2, notes=$3 WHERE user_id = $4 AND project_id = $5 RETURNING project_id"
+            "UPDATE data.projects SET updated_on=$1, project_title=$2, notes=$3 RETURNING project_id"
         );
-        assert_eq!(params.len(), 5);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -712,9 +552,9 @@ mod update_schema {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, start_date=$2, start_time=$3, deadline=$4 WHERE user_id = $5 AND project_id = $6 RETURNING project_id"
+            "UPDATE data.projects SET updated_on=$1, start_date=$2, start_time=$3, deadline=$4 RETURNING project_id"
         );
-        assert_eq!(params.len(), 6);
+        assert_eq!(params.len(), 4);
     }
 
     #[test]
@@ -728,9 +568,9 @@ mod update_schema {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, completed_on=$2, logged_on=$3, trashed_on=$4 WHERE user_id = $5 AND project_id = $6 RETURNING project_id"
+            "UPDATE data.projects SET updated_on=$1, completed_on=$2, logged_on=$3, trashed_on=$4 RETURNING project_id"
         );
-        assert_eq!(params.len(), 6);
+        assert_eq!(params.len(), 4);
     }
 
     #[test]
@@ -742,9 +582,9 @@ mod update_schema {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, area_id=$2 WHERE user_id = $3 AND project_id = $4 RETURNING project_id"
+            "UPDATE data.projects SET updated_on=$1, area_id=$2 RETURNING project_id"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
@@ -766,50 +606,9 @@ mod update_schema {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.projects SET updated_on=$1, project_title=$2, notes=$3, start_date=$4, start_time=$5, deadline=$6, completed_on=$7, logged_on=$8, trashed_on=$9, area_id=$10 WHERE user_id = $11 AND project_id = $12 RETURNING project_id"
+            "UPDATE data.projects SET updated_on=$1, project_title=$2, notes=$3, start_date=$4, start_time=$5, deadline=$6, completed_on=$7, logged_on=$8, trashed_on=$9, area_id=$10 RETURNING project_id"
         );
-        assert_eq!(params.len(), 12);
-    }
-}
-
-#[cfg(test)]
-mod delete_schema {
-    use uuid::Uuid;
-
-    use crate::util::ToSQLQueryBuilder;
-
-    use super::DeleteRequest;
-
-    #[test]
-    fn is_valid() {
-        let schema = DeleteRequest::default();
-
-        assert!(!schema.is_valid());
-
-        let schema = DeleteRequest::new(Uuid::new_v4(), Uuid::nil());
-
-        assert!(!schema.is_valid());
-
-        let schema = DeleteRequest::new(Uuid::nil(), Uuid::new_v4());
-
-        assert!(!schema.is_valid());
-
-        let schema = DeleteRequest::new(Uuid::new_v4(), Uuid::new_v4());
-
-        assert!(schema.is_valid());
-    }
-
-    #[test]
-    fn full() {
-        let schema = DeleteRequest::new(Uuid::nil(), Uuid::nil());
-
-        let (statement, params) = schema.to_sql_builder().build_delete();
-
-        assert_eq!(
-            statement,
-            "DELETE FROM data.projects WHERE user_id = $1 AND project_id = $2"
-        );
-        assert_eq!(params.len(), 2)
+        assert_eq!(params.len(), 10);
     }
 }
 
@@ -818,7 +617,7 @@ mod query_schema {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::{models::Compare, util::ToSQLQueryBuilder};
+    use crate::{models::Compare, util::ToSqlQueryBuilder};
 
     use super::{QueryMethod, QueryRequest};
 
@@ -828,11 +627,8 @@ mod query_schema {
 
         let (statement, params) = schema.to_sql_builder().build_select();
 
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.projects WHERE user_id = $1 LIMIT 25 OFFSET 0"
-        );
-        assert_eq!(params.len(), 1);
+        assert_eq!(statement.as_str(), "SELECT * FROM data.projects");
+        assert_eq!(params.len(), 0);
     }
 
     #[test]
@@ -845,9 +641,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE user_id = $1 AND project_title ILIKE '%' || $2 || '%' AND notes ILIKE '%' || $3 || '%' LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.projects WHERE project_title ILIKE '%' || $1 || '%' AND notes ILIKE '%' || $2 || '%'"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
@@ -863,9 +659,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE user_id = $1 AND start_date = $2 AND start_time = $3 AND deadline = $4 LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.projects WHERE start_date = $1 AND start_time = $2 AND deadline = $3"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -881,9 +677,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE user_id = $1 AND start_date < $2 AND start_time <= $3 AND deadline > $4 LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.projects WHERE start_date < $1 AND start_time <= $2 AND deadline > $3"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -897,9 +693,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE user_id = $1 AND completed_on NOT NULL AND logged_on NOT NULL AND trashed_on NOT NULL LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.projects WHERE completed_on NOT NULL AND logged_on NOT NULL AND trashed_on NOT NULL"
         );
-        assert_eq!(params.len(), 1);
+        assert_eq!(params.len(), 0);
     }
 
     #[test]
@@ -913,9 +709,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE user_id = $1 AND completed_on IS NULL AND logged_on IS NULL AND trashed_on IS NULL LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.projects WHERE completed_on IS NULL AND logged_on IS NULL AND trashed_on IS NULL"
         );
-        assert_eq!(params.len(), 1);
+        assert_eq!(params.len(), 0);
     }
 
     #[test]
@@ -927,9 +723,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE user_id = $1 AND area_id = $2 LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.projects WHERE area_id = $1"
         );
-        assert_eq!(params.len(), 2);
+        assert_eq!(params.len(), 1);
     }
 
     #[test]
@@ -951,8 +747,8 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.projects WHERE user_id = $1 AND project_title ILIKE '%' || $2 || '%' AND notes ILIKE '%' || $3 || '%' AND start_date = $4 AND start_time = $5 AND deadline > $6 AND completed_on IS NULL AND logged_on NOT NULL AND trashed_on IS NULL AND area_id = $7 LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.projects WHERE project_title ILIKE '%' || $1 || '%' AND notes ILIKE '%' || $2 || '%' AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on IS NULL AND logged_on NOT NULL AND trashed_on IS NULL AND area_id = $6"
         );
-        assert_eq!(params.len(), 7);
+        assert_eq!(params.len(), 6);
     }
 }

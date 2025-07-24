@@ -11,14 +11,11 @@ use uuid::Uuid;
 use crate::{
     AppState,
     data::{create_tag, delete_tag, query_tag, retrieve_tag, update_tag},
-    error::{ErrorResponse, INTERNAL},
+    error::ErrorResponse,
     models::{
         FilterOptions, ToResponse,
         jwt::Claim,
-        tag::{
-            CreateRequest, DeleteRequest, QueryRequest, ResponseModel, RetrieveRequest,
-            UpdateRequest,
-        },
+        tag::{CreateRequest, QueryRequest, ResponseModel, UpdateRequest},
     },
 };
 
@@ -34,20 +31,9 @@ pub async fn create_handler(
 
     let user_id = claim.sub;
 
-    let mut schema = body;
-    schema.set_user_id(user_id);
+    let tag_id = create_tag(&mut conn, user_id, body).await?;
 
-    if !schema.is_valid() {
-        return Err(ErrorResponse::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            INTERNAL,
-        ));
-    }
-
-    let tag_id = create_tag(&mut conn, schema).await?;
-
-    let schema = RetrieveRequest::new(tag_id, user_id);
-    let tag = match retrieve_tag(&conn, schema).await? {
+    let tag = match retrieve_tag(&conn, tag_id, user_id).await? {
         Some(t) => t,
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
@@ -72,16 +58,7 @@ pub async fn retrieve_handler(
 
     let user_id = claim.sub;
 
-    let schema = RetrieveRequest::new(tag_id, user_id);
-
-    if !schema.is_valid() {
-        return Err(ErrorResponse::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            INTERNAL,
-        ));
-    }
-
-    let tag = match retrieve_tag(&conn, schema).await? {
+    let tag = match retrieve_tag(&conn, tag_id, user_id).await? {
         Some(t) => t,
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
@@ -111,18 +88,7 @@ pub async fn update_handler(
         return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATES));
     }
 
-    let mut schema = body;
-    schema.set_tag_id(tag_id);
-    schema.set_user_id(user_id);
-
-    if !schema.is_valid() {
-        return Err(ErrorResponse::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            INTERNAL,
-        ));
-    }
-
-    let tag_id = match update_tag(&mut conn, schema).await? {
+    let tag_id = match update_tag(&mut conn, tag_id, user_id, body).await? {
         Some(t) => {
             assert_eq!(
                 t, tag_id,
@@ -134,8 +100,7 @@ pub async fn update_handler(
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
 
-    let schema = RetrieveRequest::new(tag_id, user_id);
-    let tag = match retrieve_tag(&conn, schema).await? {
+    let tag = match retrieve_tag(&conn, tag_id, user_id).await? {
         Some(t) => t,
         None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
     };
@@ -160,17 +125,7 @@ pub async fn delete_handler(
 
     let user_id = claim.sub;
 
-    let mut schema = DeleteRequest::new(tag_id, user_id);
-    schema.set_user_id(user_id);
-
-    if !schema.is_valid() {
-        return Err(ErrorResponse::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            INTERNAL,
-        ));
-    }
-
-    if delete_tag(&mut conn, schema).await?.is_none() {
+    if delete_tag(&mut conn, tag_id, user_id).await?.is_none() {
         // TODO: consider other reasons for this function to return none
 
         return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND));
@@ -193,19 +148,7 @@ pub async fn query_handler(
     let limit = opts.limit.unwrap_or(25);
     let offset = (page - 1) * limit;
 
-    let mut schema = body;
-    schema.set_user_id(user_id);
-    schema.set_limit(limit);
-    schema.set_offset(offset);
-
-    if !schema.is_valid() {
-        return Err(ErrorResponse::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            INTERNAL,
-        ));
-    }
-
-    let tags = query_tag(&conn, schema).await?;
+    let tags = query_tag(&conn, user_id, body, limit, offset).await?;
 
     Ok((
         StatusCode::OK,
@@ -223,6 +166,6 @@ pub async fn query_handler(
 mod tag_handler {
     #[test]
     fn todo() {
-        assert!(false);
+        todo!();
     }
 }

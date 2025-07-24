@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     models::user,
-    util::{SQLQueryBuilder, ToSQLQueryBuilder},
+    util::{SqlQueryBuilder, ToSqlQueryBuilder},
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -52,9 +52,9 @@ impl LoginInfo {
     }
 }
 
-impl ToSQLQueryBuilder for LoginInfo {
-    fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(user::DatabaseModel::TABLE);
+impl ToSqlQueryBuilder for LoginInfo {
+    fn to_sql_builder(&self) -> SqlQueryBuilder {
+        let mut builder = SqlQueryBuilder::new(user::DatabaseModel::TABLE);
         builder.add_column(user::DatabaseModel::EMAIL, &self.email);
         builder.add_column(user::DatabaseModel::PASS_HASH, &self.password_hash);
 

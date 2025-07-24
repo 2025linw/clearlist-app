@@ -156,8 +156,6 @@ pub async fn refresh_handler(
 //     Ok(StatusCode::NOT_IMPLEMENTED)
 // }
 
-// TEST: authentication handlers
-
 #[cfg(test)]
 mod auth_handler {
     #[test]

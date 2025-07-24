@@ -1,44 +1,34 @@
-use deadpool_postgres::Object;
+use deadpool_postgres::{Object, Transaction};
 use uuid::Uuid;
 
 use crate::{
     error::{Error, Result},
     models::{area, auth, project, tag, task, user},
-    util::{Join, PostgresCmp, SQLQueryBuilder, ToSQLQueryBuilder},
+    util::{Join, PostgresCmp, SqlQueryBuilder, ToSqlQueryBuilder},
 };
 
 // Task
 pub async fn create_task(
     conn: &mut Object,
-    schema: task::CreateRequest,
     user_id: Uuid,
+    schema: task::CreateRequest,
 ) -> Result<Uuid> {
     let transaction = conn.transaction().await?;
 
     let mut builder = schema.to_sql_builder();
     builder.add_column(task::DatabaseModel::USER_ID, &user_id);
 
-    // Insert task
     let (statement, params) = builder.build_insert();
 
+    // Insert task
     let task_id: Uuid = transaction
         .query_one(&statement, &params)
         .await?
         .get(task::DatabaseModel::ID);
 
     // Insert task-tags
-    for tag_id in schema.tag_ids() {
-        let mut builder = SQLQueryBuilder::new(task::tag::DatabaseModel::TABLE);
-        builder.add_column(task::tag::DatabaseModel::TASK_ID, &task_id);
-        builder.add_column(task::tag::DatabaseModel::TAG_ID, &tag_id);
-
-        let (statement, params) = builder.build_insert();
-
-        if transaction.execute(&statement, &params).await? != 1 {
-            return Err(Error::Internal(String::from(
-                "expected only one element to be added",
-            )));
-        }
+    if let Some(tag_ids) = schema.tag_ids() {
+        update_task_tags(&transaction, task_id, tag_ids).await?;
     }
 
     transaction.commit().await?;
@@ -51,7 +41,7 @@ pub async fn retrieve_task(
     task_id: Uuid,
     user_id: Uuid,
 ) -> Result<Option<task::DatabaseModel>> {
-    let mut builder = SQLQueryBuilder::new(task::DatabaseModel::TABLE);
+    let mut builder = SqlQueryBuilder::new(task::DatabaseModel::TABLE);
     builder.add_condition(task::DatabaseModel::ID, PostgresCmp::Equal, &task_id);
     builder.add_condition(task::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
 
@@ -63,27 +53,8 @@ pub async fn retrieve_task(
         None => return Ok(None),
     };
 
-    let mut builder = SQLQueryBuilder::new(task::tag::DatabaseModel::TABLE);
-    builder.add_condition(
-        task::tag::DatabaseModel::TASK_ID,
-        PostgresCmp::Equal,
-        task.id_as_ref(),
-    );
-    builder.add_join(
-        Join::Right,
-        tag::DatabaseModel::TABLE,
-        tag::DatabaseModel::ID,
-    );
-
-    let (statement, params) = builder.build_select();
-
     // Get task-tags
-    let tags: Vec<tag::DatabaseModel> = conn
-        .query(&statement, &params)
-        .await?
-        .into_iter()
-        .map(|r| r.into())
-        .collect();
+    let tags = get_task_tags(conn, task_id).await?;
 
     task.set_tags(tags);
 
@@ -112,26 +83,7 @@ pub async fn update_task(
 
     // Update task-tags
     if let Some(tag_ids) = schema.tag_ids() {
-        let statement = format!(
-            "DELETE FROM {} WHERE {} = $1",
-            task::tag::DatabaseModel::TABLE,
-            task::tag::DatabaseModel::TASK_ID
-        );
-        transaction.execute(&statement, &[&task_id]).await?;
-
-        for tag_id in tag_ids {
-            let mut builder = SQLQueryBuilder::new(task::tag::DatabaseModel::TABLE);
-            builder.add_column(task::tag::DatabaseModel::TASK_ID, &task_id);
-            builder.add_column(task::tag::DatabaseModel::TAG_ID, &tag_id);
-
-            let (statement, params) = builder.build_insert();
-
-            if transaction.execute(&statement, &params).await? != 1 {
-                return Err(Error::Internal(String::from(
-                    "expected only one element to be added",
-                )));
-            }
-        }
+        update_task_tags(&transaction, task_id, tag_ids).await?;
     }
 
     transaction.commit().await?;
@@ -142,7 +94,7 @@ pub async fn update_task(
 pub async fn delete_task(conn: &mut Object, task_id: Uuid, user_id: Uuid) -> Result<Option<()>> {
     let transaction = conn.transaction().await?;
 
-    let mut builder = SQLQueryBuilder::new(task::DatabaseModel::TABLE);
+    let mut builder = SqlQueryBuilder::new(task::DatabaseModel::TABLE);
     builder.add_condition(task::DatabaseModel::ID, PostgresCmp::Equal, &task_id);
     builder.add_condition(task::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
 
@@ -172,7 +124,7 @@ pub async fn query_task(
     offset: usize,
 ) -> Result<Vec<task::DatabaseModel>> {
     let mut builder = schema.to_sql_builder();
-    builder.add_column(task::DatabaseModel::USER_ID, &user_id);
+    builder.add_condition(task::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
     builder.set_limit(limit);
     builder.set_offset(offset);
 
@@ -189,11 +141,11 @@ pub async fn query_task(
     // Get all task ids with filtered tags
     let temp = schema.tag_ids();
     let num = temp.len() as i64;
-    let mut builder = SQLQueryBuilder::new(task::tag::DatabaseModel::TABLE);
-    builder.add_condition(task::tag::DatabaseModel::TAG_ID, PostgresCmp::In, &temp);
-    builder.set_group_by(&[task::tag::DatabaseModel::TASK_ID]);
+    let mut builder = SqlQueryBuilder::new(task::tag::TABLE);
+    builder.add_condition(task::tag::TAG_ID, PostgresCmp::In, &temp);
+    builder.set_group_by(&[task::tag::TASK_ID]);
     builder.set_having("COUNT(tag_id)", PostgresCmp::Equal, &num);
-    builder.set_return(&[task::tag::DatabaseModel::TASK_ID]);
+    builder.set_return(&[task::tag::TASK_ID]);
 
     let (statement, params) = builder.build_select();
 
@@ -201,7 +153,7 @@ pub async fn query_task(
         .query(&statement, &params)
         .await?
         .into_iter()
-        .map(|r| r.get(task::tag::DatabaseModel::TASK_ID))
+        .map(|r| r.get(task::tag::TASK_ID))
         .collect();
 
     // Filter tasks
@@ -212,26 +164,7 @@ pub async fn query_task(
 
     // Get tags for each task
     for task in tasks.iter_mut() {
-        let mut builder = SQLQueryBuilder::new(task::tag::DatabaseModel::TABLE);
-        builder.add_condition(
-            task::tag::DatabaseModel::TASK_ID,
-            PostgresCmp::Equal,
-            task.id_as_ref(),
-        );
-        builder.add_join(
-            Join::Right,
-            tag::DatabaseModel::TABLE,
-            task::tag::DatabaseModel::TAG_ID,
-        );
-
-        let (statement, params) = builder.build_select();
-
-        let tags: Vec<tag::DatabaseModel> = conn
-            .query(&statement, &params)
-            .await?
-            .into_iter()
-            .map(|r| r.into())
-            .collect();
+        let tags = get_task_tags(conn, task.id()).await?;
 
         task.set_tags(tags);
     }
@@ -239,31 +172,72 @@ pub async fn query_task(
     Ok(tasks)
 }
 
+async fn get_task_tags(conn: &Object, task_id: Uuid) -> Result<Vec<tag::DatabaseModel>> {
+    let mut builder = SqlQueryBuilder::new(task::tag::TABLE);
+    builder.add_condition(task::tag::TASK_ID, PostgresCmp::Equal, &task_id);
+    builder.add_join(Join::Right, tag::DatabaseModel::TABLE, task::tag::TAG_ID);
+
+    let (statement, params) = builder.build_select();
+
+    Ok(conn
+        .query(&statement, &params)
+        .await?
+        .into_iter()
+        .map(|r| r.into())
+        .collect())
+}
+
+async fn update_task_tags(
+    transaction: &Transaction<'_>,
+    task_id: Uuid,
+    tag_ids: &[Uuid],
+) -> Result<()> {
+    transaction
+        .execute(
+            &format!(
+                "DELETE FROM {} WHERE {} = $1",
+                task::tag::TABLE,
+                task::tag::TASK_ID
+            ),
+            &[&task_id],
+        )
+        .await?;
+
+    for tag_id in tag_ids {
+        let mut builder = SqlQueryBuilder::new(task::tag::TABLE);
+        builder.add_column(task::tag::TASK_ID, &task_id);
+        builder.add_column(task::tag::TAG_ID, tag_id);
+
+        let (statement, params) = builder.build_insert();
+
+        transaction.execute(&statement, &params).await?;
+    }
+
+    Ok(())
+}
+
 // Project
-pub async fn create_project(conn: &mut Object, schema: project::CreateRequest) -> Result<Uuid> {
+pub async fn create_project(
+    conn: &mut Object,
+    user_id: Uuid,
+    schema: project::CreateRequest,
+) -> Result<Uuid> {
     let transaction = conn.transaction().await?;
 
-    // Insert project
-    let (statement, params) = schema.to_sql_builder().build_insert();
+    let mut builder = schema.to_sql_builder();
+    builder.add_column(project::DatabaseModel::USER_ID, &user_id);
 
+    let (statement, params) = builder.build_insert();
+
+    // Insert project
     let project_id: Uuid = transaction
         .query_one(&statement, &params)
         .await?
         .get(project::DatabaseModel::ID);
 
     // Insert project-tags
-    for tag_id in schema.tag_ids() {
-        let mut builder = SQLQueryBuilder::new(project::tag::DatabaseModel::TABLE);
-        builder.add_column(project::tag::DatabaseModel::PROJECT_ID, &project_id);
-        builder.add_column(project::tag::DatabaseModel::TAG_ID, tag_id);
-
-        let (statement, params) = builder.build_insert();
-
-        if transaction.execute(&statement, &params).await? != 1 {
-            return Err(Error::Internal(String::from(
-                "expected only one element to be added",
-            )));
-        }
+    if let Some(tag_ids) = schema.tag_ids() {
+        update_project_tags(&transaction, project_id, tag_ids).await?;
     }
 
     transaction.commit().await?;
@@ -273,37 +247,27 @@ pub async fn create_project(conn: &mut Object, schema: project::CreateRequest) -
 
 pub async fn retrieve_project(
     conn: &Object,
-    schema: project::RetrieveRequest,
+    project_id: Uuid,
+    user_id: Uuid,
 ) -> Result<Option<project::DatabaseModel>> {
-    // Get project
-    let (statement, params) = schema.to_sql_builder().build_select();
+    let mut builder = SqlQueryBuilder::new(project::DatabaseModel::TABLE);
+    builder.add_condition(project::DatabaseModel::ID, PostgresCmp::Equal, &project_id);
+    builder.add_condition(
+        project::DatabaseModel::USER_ID,
+        PostgresCmp::Equal,
+        &user_id,
+    );
 
+    let (statement, params) = builder.build_select();
+
+    // Get project
     let mut project: project::DatabaseModel = match conn.query_opt(&statement, &params).await? {
         Some(r) => r.into(),
         None => return Ok(None),
     };
 
     // Get project-tags
-    let mut builder = SQLQueryBuilder::new(project::tag::DatabaseModel::TABLE);
-    builder.add_condition(
-        project::tag::DatabaseModel::PROJECT_ID,
-        PostgresCmp::Equal,
-        project.id_as_ref(),
-    );
-    builder.add_join(
-        Join::Right,
-        tag::DatabaseModel::TABLE,
-        tag::DatabaseModel::ID,
-    );
-
-    let (statement, params) = builder.build_select();
-
-    let tags: Vec<tag::DatabaseModel> = conn
-        .query(&statement, &params)
-        .await?
-        .into_iter()
-        .map(|r| r.into())
-        .collect();
+    let tags = get_project_tags(conn, project_id).await?;
 
     project.set_tags(tags);
 
@@ -312,13 +276,23 @@ pub async fn retrieve_project(
 
 pub async fn update_project(
     conn: &mut Object,
+    project_id: Uuid,
+    user_id: Uuid,
     schema: project::UpdateRequest,
 ) -> Result<Option<Uuid>> {
     let transaction = conn.transaction().await?;
 
-    // Update project
-    let (statement, params) = schema.to_sql_builder().build_update();
+    let mut builder = schema.to_sql_builder();
+    builder.add_condition(project::DatabaseModel::ID, PostgresCmp::Equal, &project_id);
+    builder.add_condition(
+        project::DatabaseModel::USER_ID,
+        PostgresCmp::Equal,
+        &user_id,
+    );
 
+    let (statement, params) = builder.build_update();
+
+    // Update project
     let project_id: Uuid = match transaction.query_opt(&statement, &params).await? {
         Some(r) => r.get(project::DatabaseModel::ID),
         None => return Ok(None),
@@ -326,26 +300,7 @@ pub async fn update_project(
 
     // Update project-tags
     if let Some(tag_ids) = schema.tag_ids() {
-        let statement = format!(
-            "DELETE FROM {} WHERE {} = $1",
-            project::tag::DatabaseModel::TABLE,
-            project::tag::DatabaseModel::PROJECT_ID,
-        );
-        transaction.execute(&statement, &[&project_id]).await?;
-
-        for tag_id in tag_ids {
-            let mut builder = SQLQueryBuilder::new(project::tag::DatabaseModel::TABLE);
-            builder.add_column(project::tag::DatabaseModel::PROJECT_ID, &project_id);
-            builder.add_column(project::tag::DatabaseModel::TAG_ID, &tag_id);
-
-            let (statement, params) = builder.build_insert();
-
-            if transaction.execute(&statement, &params).await? != 1 {
-                return Err(Error::Internal(String::from(
-                    "expected only one element to be added",
-                )));
-            }
-        }
+        update_project_tags(&transaction, project_id, tag_ids).await?;
     }
 
     transaction.commit().await?;
@@ -355,13 +310,22 @@ pub async fn update_project(
 
 pub async fn delete_project(
     conn: &mut Object,
-    schema: project::DeleteRequest,
+    project_id: Uuid,
+    user_id: Uuid,
 ) -> Result<Option<()>> {
     let transaction = conn.transaction().await?;
 
-    // Delete project
-    let (statement, params) = schema.to_sql_builder().build_delete();
+    let mut builder = SqlQueryBuilder::new(project::DatabaseModel::TABLE);
+    builder.add_condition(project::DatabaseModel::ID, PostgresCmp::Equal, &project_id);
+    builder.add_condition(
+        project::DatabaseModel::USER_ID,
+        PostgresCmp::Equal,
+        &user_id,
+    );
 
+    let (statement, params) = builder.build_delete();
+
+    // Delete project
     match transaction.execute(&statement, &params).await? {
         0 => return Ok(None),
         1 => (),
@@ -379,11 +343,23 @@ pub async fn delete_project(
 
 pub async fn query_project(
     conn: &Object,
+    user_id: Uuid,
     schema: project::QueryRequest,
+    limit: usize,
+    offset: usize,
 ) -> Result<Vec<project::DatabaseModel>> {
-    // Query projects
+    let mut builder = schema.to_sql_builder();
+    builder.add_condition(
+        project::DatabaseModel::USER_ID,
+        PostgresCmp::Equal,
+        &user_id,
+    );
+    builder.set_limit(limit);
+    builder.set_offset(offset);
+
     let (statement, params) = schema.to_sql_builder().build_select();
 
+    // Query projects
     let projects: Vec<project::DatabaseModel> = conn
         .query(&statement, &params)
         .await?
@@ -394,11 +370,11 @@ pub async fn query_project(
     // Get all project ids with filtered tags
     let temp = schema.tag_ids();
     let num = temp.len() as i64;
-    let mut builder = SQLQueryBuilder::new(project::tag::DatabaseModel::TABLE);
-    builder.add_condition(project::tag::DatabaseModel::TAG_ID, PostgresCmp::In, &temp);
-    builder.set_group_by(&[project::tag::DatabaseModel::PROJECT_ID]);
+    let mut builder = SqlQueryBuilder::new(project::tag::TABLE);
+    builder.add_condition(project::tag::TAG_ID, PostgresCmp::In, &temp);
+    builder.set_group_by(&[project::tag::PROJECT_ID]);
     builder.set_having("COUNT(tag_id)", PostgresCmp::Equal, &num);
-    builder.set_return(&[project::tag::DatabaseModel::PROJECT_ID]);
+    builder.set_return(&[project::tag::PROJECT_ID]);
 
     let (statement, params) = builder.build_select();
 
@@ -406,7 +382,7 @@ pub async fn query_project(
         .query(&statement, &params)
         .await?
         .into_iter()
-        .map(|r| r.get(project::tag::DatabaseModel::PROJECT_ID))
+        .map(|r| r.get(project::tag::PROJECT_ID))
         .collect();
 
     // Filter projects
@@ -417,26 +393,7 @@ pub async fn query_project(
 
     // Get tags for each project
     for project in projects.iter_mut() {
-        let mut builder = SQLQueryBuilder::new(project::tag::DatabaseModel::TABLE);
-        builder.add_condition(
-            project::tag::DatabaseModel::PROJECT_ID,
-            PostgresCmp::Equal,
-            project.id_as_ref(),
-        );
-        builder.add_join(
-            Join::Right,
-            tag::DatabaseModel::TABLE,
-            project::tag::DatabaseModel::TAG_ID,
-        );
-
-        let (statement, params) = builder.build_select();
-
-        let tags: Vec<tag::DatabaseModel> = conn
-            .query(&statement, &params)
-            .await?
-            .into_iter()
-            .map(|r| r.into())
-            .collect();
+        let tags = get_project_tags(conn, project.id()).await?;
 
         project.set_tags(tags);
     }
@@ -444,13 +401,68 @@ pub async fn query_project(
     Ok(projects)
 }
 
+async fn get_project_tags(conn: &Object, project_id: Uuid) -> Result<Vec<tag::DatabaseModel>> {
+    let mut builder = SqlQueryBuilder::new(project::tag::TABLE);
+    builder.add_condition(project::tag::PROJECT_ID, PostgresCmp::Equal, &project_id);
+    builder.add_join(
+        Join::Right,
+        tag::DatabaseModel::TABLE,
+        project::tag::PROJECT_ID,
+    );
+
+    let (statement, params) = builder.build_select();
+
+    Ok(conn
+        .query(&statement, &params)
+        .await?
+        .into_iter()
+        .map(|r| r.into())
+        .collect())
+}
+
+async fn update_project_tags(
+    transaction: &Transaction<'_>,
+    project_id: Uuid,
+    tag_ids: &[Uuid],
+) -> Result<()> {
+    transaction
+        .execute(
+            &format!(
+                "DELETE FROM {} WHERE {} = $1",
+                project::tag::TABLE,
+                project::tag::PROJECT_ID
+            ),
+            &[&project_id],
+        )
+        .await?;
+
+    for tag_id in tag_ids {
+        let mut builder = SqlQueryBuilder::new(task::tag::TABLE);
+        builder.add_column(project::tag::PROJECT_ID, &project_id);
+        builder.add_column(project::tag::TAG_ID, tag_id);
+
+        let (statement, params) = builder.build_insert();
+
+        transaction.execute(&statement, &params).await?;
+    }
+
+    Ok(())
+}
+
 // Area
-pub async fn create_area(conn: &mut Object, schema: area::CreateRequest) -> Result<Uuid> {
+pub async fn create_area(
+    conn: &mut Object,
+    user_id: Uuid,
+    schema: area::CreateRequest,
+) -> Result<Uuid> {
     let transaction = conn.transaction().await?;
 
-    // Insert area
-    let (statement, params) = schema.to_sql_builder().build_insert();
+    let mut builder = schema.to_sql_builder();
+    builder.add_column(area::DatabaseModel::USER_ID, &user_id);
 
+    let (statement, params) = builder.build_insert();
+
+    // Insert area
     let area_id: Uuid = transaction
         .query_one(&statement, &params)
         .await?
@@ -463,11 +475,16 @@ pub async fn create_area(conn: &mut Object, schema: area::CreateRequest) -> Resu
 
 pub async fn retrieve_area(
     conn: &Object,
-    schema: area::RetrieveRequest,
+    area_id: Uuid,
+    user_id: Uuid,
 ) -> Result<Option<area::DatabaseModel>> {
-    // Get area
-    let (statement, params) = schema.to_sql_builder().build_select();
+    let mut builder = SqlQueryBuilder::new(area::DatabaseModel::TABLE);
+    builder.add_condition(area::DatabaseModel::ID, PostgresCmp::Equal, &area_id);
+    builder.add_condition(area::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
 
+    let (statement, params) = builder.build_select();
+
+    // Get area
     let area: area::DatabaseModel = match conn.query_opt(&statement, &params).await? {
         Some(r) => r.into(),
         None => return Ok(None),
@@ -476,12 +493,21 @@ pub async fn retrieve_area(
     Ok(Some(area))
 }
 
-pub async fn update_area(conn: &mut Object, schema: area::UpdateRequest) -> Result<Option<Uuid>> {
+pub async fn update_area(
+    conn: &mut Object,
+    area_id: Uuid,
+    user_id: Uuid,
+    schema: area::UpdateRequest,
+) -> Result<Option<Uuid>> {
     let transaction = conn.transaction().await?;
 
-    // Update area
-    let (statement, params) = schema.to_sql_builder().build_update();
+    let mut builder = schema.to_sql_builder();
+    builder.add_condition(area::DatabaseModel::ID, PostgresCmp::Equal, &area_id);
+    builder.add_condition(area::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
 
+    let (statement, params) = builder.build_update();
+
+    // Update area
     let area_id: Uuid = match transaction.query_opt(&statement, &params).await? {
         Some(r) => r.get(area::DatabaseModel::ID),
         None => return Ok(None),
@@ -492,12 +518,16 @@ pub async fn update_area(conn: &mut Object, schema: area::UpdateRequest) -> Resu
     Ok(Some(area_id))
 }
 
-pub async fn delete_area(conn: &mut Object, schema: area::DeleteRequest) -> Result<Option<()>> {
+pub async fn delete_area(conn: &mut Object, area_id: Uuid, user_id: Uuid) -> Result<Option<()>> {
     let transaction = conn.transaction().await?;
 
-    // Delete area
-    let (statement, params) = schema.to_sql_builder().build_delete();
+    let mut builder = SqlQueryBuilder::new(area::DatabaseModel::TABLE);
+    builder.add_condition(area::DatabaseModel::ID, PostgresCmp::Equal, &area_id);
+    builder.add_condition(area::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
 
+    let (statement, params) = builder.build_delete();
+
+    // Delete area
     match transaction.execute(&statement, &params).await? {
         0 => return Ok(None),
         1 => (),
@@ -515,11 +545,19 @@ pub async fn delete_area(conn: &mut Object, schema: area::DeleteRequest) -> Resu
 
 pub async fn query_area(
     conn: &Object,
+    user_id: Uuid,
     schema: area::QueryRequest,
+    limit: usize,
+    offset: usize,
 ) -> Result<Vec<area::DatabaseModel>> {
-    // Query areas
+    let mut builder = schema.to_sql_builder();
+    builder.add_condition(area::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
+    builder.set_limit(limit);
+    builder.set_offset(offset);
+
     let (statement, params) = schema.to_sql_builder().build_select();
 
+    // Query areas
     let areas: Vec<area::DatabaseModel> = conn
         .query(&statement, &params)
         .await?
@@ -531,12 +569,19 @@ pub async fn query_area(
 }
 
 // Tag
-pub async fn create_tag(conn: &mut Object, schema: tag::CreateRequest) -> Result<Uuid> {
+pub async fn create_tag(
+    conn: &mut Object,
+    user_id: Uuid,
+    schema: tag::CreateRequest,
+) -> Result<Uuid> {
     let transaction = conn.transaction().await?;
 
-    // Insert tag
-    let (statement, params) = schema.to_sql_builder().build_insert();
+    let mut builder = schema.to_sql_builder();
+    builder.add_column(tag::DatabaseModel::USER_ID, &user_id);
 
+    let (statement, params) = builder.build_insert();
+
+    // Insert tag
     let tag_id: Uuid = transaction
         .query_one(&statement, &params)
         .await?
@@ -549,11 +594,16 @@ pub async fn create_tag(conn: &mut Object, schema: tag::CreateRequest) -> Result
 
 pub async fn retrieve_tag(
     conn: &Object,
-    schema: tag::RetrieveRequest,
+    tag_id: Uuid,
+    user_id: Uuid,
 ) -> Result<Option<tag::DatabaseModel>> {
-    // Get tag
-    let (statement, params) = schema.to_sql_builder().build_select();
+    let mut builder = SqlQueryBuilder::new(area::DatabaseModel::TABLE);
+    builder.add_condition(tag::DatabaseModel::ID, PostgresCmp::Equal, &tag_id);
+    builder.add_condition(tag::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
 
+    let (statement, params) = builder.build_select();
+
+    // Get tag
     let tag: tag::DatabaseModel = match conn.query_opt(&statement, &params).await? {
         Some(r) => r.into(),
         None => return Ok(None),
@@ -562,12 +612,21 @@ pub async fn retrieve_tag(
     Ok(Some(tag))
 }
 
-pub async fn update_tag(conn: &mut Object, schema: tag::UpdateRequest) -> Result<Option<Uuid>> {
+pub async fn update_tag(
+    conn: &mut Object,
+    tag_id: Uuid,
+    user_id: Uuid,
+    schema: tag::UpdateRequest,
+) -> Result<Option<Uuid>> {
     let transaction = conn.transaction().await?;
 
-    // Update tag
+    let mut builder = schema.to_sql_builder();
+    builder.add_condition(tag::DatabaseModel::ID, PostgresCmp::Equal, &tag_id);
+    builder.add_condition(tag::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
+
     let (statement, params) = schema.to_sql_builder().build_update();
 
+    // Update tag
     let tag_id: Uuid = match transaction.query_opt(&statement, &params).await? {
         Some(r) => r.get(tag::DatabaseModel::ID),
         None => return Ok(None),
@@ -578,12 +637,16 @@ pub async fn update_tag(conn: &mut Object, schema: tag::UpdateRequest) -> Result
     Ok(Some(tag_id))
 }
 
-pub async fn delete_tag(conn: &mut Object, schema: tag::DeleteRequest) -> Result<Option<()>> {
+pub async fn delete_tag(conn: &mut Object, tag_id: Uuid, user_id: Uuid) -> Result<Option<()>> {
     let transaction = conn.transaction().await?;
 
-    // Delete area
-    let (statement, params) = schema.to_sql_builder().build_delete();
+    let mut builder = SqlQueryBuilder::new(tag::DatabaseModel::TABLE);
+    builder.add_condition(tag::DatabaseModel::ID, PostgresCmp::Equal, &tag_id);
+    builder.add_condition(tag::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
 
+    let (statement, params) = builder.build_delete();
+
+    // Delete tag
     match transaction.execute(&statement, &params).await? {
         0 => return Ok(None),
         1 => (),
@@ -601,11 +664,19 @@ pub async fn delete_tag(conn: &mut Object, schema: tag::DeleteRequest) -> Result
 
 pub async fn query_tag(
     conn: &Object,
+    user_id: Uuid,
     schema: tag::QueryRequest,
+    limit: usize,
+    offset: usize,
 ) -> Result<Vec<tag::DatabaseModel>> {
-    // Query tags
+    let mut builder = schema.to_sql_builder();
+    builder.add_condition(tag::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
+    builder.set_limit(limit);
+    builder.set_offset(offset);
+
     let (statement, params) = schema.to_sql_builder().build_select();
 
+    // Query tags
     let tags: Vec<tag::DatabaseModel> = conn
         .query(&statement, &params)
         .await?
@@ -618,7 +689,7 @@ pub async fn query_tag(
 
 // Auth
 pub async fn check_for_email(conn: &Object, email: &str) -> Result<bool> {
-    let mut builder = SQLQueryBuilder::new(user::DatabaseModel::TABLE);
+    let mut builder = SqlQueryBuilder::new(user::DatabaseModel::TABLE);
     builder.add_condition(user::DatabaseModel::EMAIL, PostgresCmp::Equal, &email);
     builder.set_return(&[user::DatabaseModel::EMAIL]);
 
@@ -631,7 +702,7 @@ pub async fn check_for_email(conn: &Object, email: &str) -> Result<bool> {
 }
 
 pub async fn check_for_user(conn: &Object, user_id: Uuid) -> Result<bool> {
-    let mut builder = SQLQueryBuilder::new(user::DatabaseModel::TABLE);
+    let mut builder = SqlQueryBuilder::new(user::DatabaseModel::TABLE);
     builder.add_condition(user::DatabaseModel::ID, PostgresCmp::Equal, &user_id);
     builder.set_return(&[user::DatabaseModel::EMAIL]);
 
@@ -656,7 +727,7 @@ pub async fn register_user(conn: &mut Object, schema: auth::LoginInfo) -> Result
 }
 
 pub async fn get_login_info(conn: &Object, email: &str) -> Result<auth::LoginInfo> {
-    let mut builder = SQLQueryBuilder::new(user::DatabaseModel::TABLE);
+    let mut builder = SqlQueryBuilder::new(user::DatabaseModel::TABLE);
     builder.add_condition(user::DatabaseModel::EMAIL, PostgresCmp::Equal, &email);
     builder.set_return(&[
         user::DatabaseModel::ID,
@@ -675,26 +746,64 @@ pub async fn get_login_info(conn: &Object, email: &str) -> Result<auth::LoginInf
 }
 
 // User
-// TODO: decide whether this is important
+pub async fn retrieve_user(conn: &Object, user_id: Uuid) -> Result<Option<user::DatabaseModel>> {
+    let mut builder = SqlQueryBuilder::new(user::DatabaseModel::TABLE);
+    builder.add_condition(user::DatabaseModel::ID, PostgresCmp::Equal, &user_id);
 
-// pub async fn retrieve_user(conn: &Object, user_id: Uuid) -> Result<Option<user::DatabaseModel>> {
-//     let mut builder = SQLQueryBuilder::new(user::DatabaseModel::TABLE);
-//     builder.add_condition(user::DatabaseModel::ID, PostgresCmp::Equal, &user_id);
+    let (statement, params) = builder.build_select();
 
-//     let (statement, params) = builder.build_select();
+    // Get user
+    let user: user::DatabaseModel = match conn.query_opt(&statement, &params).await? {
+        Some(r) => r.into(),
+        None => return Ok(None),
+    };
 
-//     let user: user::DatabaseModel = match conn.query_opt(&statement, &params).await? {
-//         Some(r) => r.into(),
-//         None => return Ok(None),
-//     };
+    Ok(Some(user))
+}
 
-//     Ok(Some(user))
-// }
+pub async fn update_user(
+    conn: &mut Object,
+    user_id: Uuid,
+    schema: user::UpdateRequest,
+) -> Result<Option<Uuid>> {
+    let transaction = conn.transaction().await?;
 
-// pub async fn update_user(conn: &mut Object, user_id: Uuid) -> Result<Option<Uuid>> {
-//     todo!()
-// }
+    let mut builder = schema.to_sql_builder();
+    builder.add_condition(user::DatabaseModel::ID, PostgresCmp::Equal, &user_id);
 
-// pub async fn delete_user(conn: &mut Object, user_id: Uuid) -> Result<Option<()>> {
-//     todo!()
-// }
+    let (statement, params) = builder.build_update();
+
+    // Update user
+    let user_id: Uuid = match transaction.query_opt(&statement, &params).await? {
+        Some(r) => r.get(user::DatabaseModel::ID),
+        None => return Ok(None),
+    };
+
+    transaction.commit().await?;
+
+    Ok(Some(user_id))
+}
+
+pub async fn delete_user(conn: &mut Object, user_id: Uuid) -> Result<Option<()>> {
+    let transaction = conn.transaction().await?;
+
+    let mut builder = SqlQueryBuilder::new(user::DatabaseModel::TABLE);
+    builder.add_condition(user::DatabaseModel::TABLE, PostgresCmp::Equal, &user_id);
+
+    let (statement, params) = builder.build_delete();
+
+    // Delete user
+    match transaction.execute(&statement, &params).await? {
+        0 => return Ok(None),
+        1 => (),
+        n => {
+            return Err(Error::Internal(format!(
+                "unexpected number of users removed (expected: 1, actual: {n}), no changes commited"
+            )));
+        }
+    }
+
+    transaction.commit().await?;
+
+    Ok(Some(()))
+}

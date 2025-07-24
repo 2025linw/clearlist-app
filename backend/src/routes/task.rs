@@ -31,9 +31,7 @@ pub async fn create_handler(
 
     let user_id = claim.sub;
 
-    let schema = body;
-
-    let task_id = create_task(&mut conn, schema, user_id).await?;
+    let task_id = create_task(&mut conn, user_id, body).await?;
 
     let task = match retrieve_task(&conn, task_id, user_id).await? {
         Some(t) => t,
@@ -168,6 +166,6 @@ pub async fn query_handler(
 mod task_handler {
     #[test]
     fn todo() {
-        assert!(false);
+        todo!();
     }
 }

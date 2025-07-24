@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     models::tag as tag_model,
-    util::{NULL, PostgresCmp, SQLQueryBuilder, ToPostgresCmp, ToSQLQueryBuilder},
+    util::{NULL, PostgresCmp, SqlQueryBuilder, ToPostgresCmp, ToSqlQueryBuilder},
 };
 
 use super::{QueryMethod, ToResponse, UpdateMethod};
@@ -37,6 +37,10 @@ pub struct DatabaseModel {
 }
 
 impl DatabaseModel {
+    pub fn id(&self) -> Uuid {
+        self.id
+    }
+
     pub fn id_as_ref(&self) -> &Uuid {
         &self.id
     }
@@ -152,18 +156,18 @@ pub struct CreateRequest {
 
     area_id: Option<Uuid>,
     project_id: Option<Uuid>,
-    tag_ids: Vec<Uuid>,
+    tag_ids: Option<Vec<Uuid>>,
 }
 
 impl CreateRequest {
-    pub fn tag_ids(&self) -> &[Uuid] {
-        &self.tag_ids
+    pub fn tag_ids(&self) -> Option<&[Uuid]> {
+        self.tag_ids.as_deref()
     }
 }
 
-impl ToSQLQueryBuilder for CreateRequest {
-    fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+impl ToSqlQueryBuilder for CreateRequest {
+    fn to_sql_builder(&self) -> SqlQueryBuilder {
+        let mut builder = SqlQueryBuilder::new(DatabaseModel::TABLE);
         builder.set_return(&[DatabaseModel::ID]);
 
         if let Some(ref s) = self.title {
@@ -239,9 +243,9 @@ impl UpdateRequest {
     }
 }
 
-impl ToSQLQueryBuilder for UpdateRequest {
-    fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+impl ToSqlQueryBuilder for UpdateRequest {
+    fn to_sql_builder(&self) -> SqlQueryBuilder {
+        let mut builder = SqlQueryBuilder::new(DatabaseModel::TABLE);
         builder.add_column(DatabaseModel::UPDATED, &self.timestamp);
         builder.set_return(&[DatabaseModel::ID]);
 
@@ -306,7 +310,8 @@ impl ToSQLQueryBuilder for UpdateRequest {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(Default))]
 #[serde(rename_all = "camelCase")]
 pub struct QueryRequest {
     title: Option<QueryMethod<String>>,
@@ -330,9 +335,9 @@ impl QueryRequest {
     }
 }
 
-impl ToSQLQueryBuilder for QueryRequest {
-    fn to_sql_builder(&self) -> SQLQueryBuilder {
-        let mut builder = SQLQueryBuilder::new(DatabaseModel::TABLE);
+impl ToSqlQueryBuilder for QueryRequest {
+    fn to_sql_builder(&self) -> SqlQueryBuilder {
+        let mut builder = SqlQueryBuilder::new(DatabaseModel::TABLE);
         builder.set_return_all();
 
         if let Some(ref q) = self.title {
@@ -449,7 +454,7 @@ mod create_schema {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::util::ToSQLQueryBuilder;
+    use crate::util::ToSqlQueryBuilder;
 
     use super::CreateRequest;
 
@@ -463,9 +468,9 @@ mod create_schema {
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.tasks (user_id, task_title, notes) VALUES ($1, $2, $3) RETURNING task_id"
+            "INSERT INTO data.tasks (task_title, notes) VALUES ($1, $2) RETURNING task_id"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
@@ -481,9 +486,9 @@ mod create_schema {
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.tasks (user_id, start_date, start_time, deadline) VALUES ($1, $2, $3, $4) RETURNING task_id"
+            "INSERT INTO data.tasks (start_date, start_time, deadline) VALUES ($1, $2, $3) RETURNING task_id"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -496,9 +501,9 @@ mod create_schema {
 
         assert_eq!(
             statement.as_str(),
-            "INSERT INTO data.tasks (user_id, area_id, project_id) VALUES ($1, $2, $3) RETURNING task_id"
+            "INSERT INTO data.tasks (area_id, project_id) VALUES ($1, $2) RETURNING task_id"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
@@ -518,9 +523,9 @@ mod create_schema {
 
         assert_eq!(
             statement,
-            "INSERT INTO data.tasks (user_id, task_title, notes, start_date, start_time, deadline, area_id, project_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING task_id"
+            "INSERT INTO data.tasks (task_title, notes, start_date, start_time, deadline, area_id, project_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING task_id"
         );
-        assert_eq!(params.len(), 8);
+        assert_eq!(params.len(), 7);
     }
 }
 
@@ -529,13 +534,15 @@ mod update_schema {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::{models::UpdateMethod, util::ToSQLQueryBuilder};
+    use crate::{models::UpdateMethod, util::ToSqlQueryBuilder};
 
     use super::UpdateRequest;
 
     #[test]
     fn is_empty() {
-        todo!()
+        let schema = UpdateRequest::default();
+
+        assert!(schema.is_empty());
     }
 
     #[test]
@@ -548,9 +555,9 @@ mod update_schema {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.tasks SET updated_on=$1, task_title=$2, notes=$3 WHERE user_id = $4 AND task_id = $5 RETURNING task_id"
+            "UPDATE data.tasks SET updated_on=$1, task_title=$2, notes=$3 RETURNING task_id"
         );
-        assert_eq!(params.len(), 5);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -566,9 +573,9 @@ mod update_schema {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.tasks SET updated_on=$1, start_date=$2, start_time=$3, deadline=$4 WHERE user_id = $5 AND task_id = $6 RETURNING task_id"
+            "UPDATE data.tasks SET updated_on=$1, start_date=$2, start_time=$3, deadline=$4 RETURNING task_id"
         );
-        assert_eq!(params.len(), 6);
+        assert_eq!(params.len(), 4);
     }
 
     #[test]
@@ -582,9 +589,9 @@ mod update_schema {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.tasks SET updated_on=$1, completed_on=$2, logged_on=$3, trashed_on=$4 WHERE user_id = $5 AND task_id = $6 RETURNING task_id"
+            "UPDATE data.tasks SET updated_on=$1, completed_on=$2, logged_on=$3, trashed_on=$4 RETURNING task_id"
         );
-        assert_eq!(params.len(), 6);
+        assert_eq!(params.len(), 4);
     }
 
     #[test]
@@ -597,9 +604,9 @@ mod update_schema {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.tasks SET updated_on=$1, area_id=$2, project_id=$3 WHERE user_id = $4 AND task_id = $5 RETURNING task_id"
+            "UPDATE data.tasks SET updated_on=$1, area_id=$2, project_id=$3 RETURNING task_id"
         );
-        assert_eq!(params.len(), 5);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -622,9 +629,9 @@ mod update_schema {
 
         assert_eq!(
             statement.as_str(),
-            "UPDATE data.tasks SET updated_on=$1, task_title=$2, notes=$3, start_date=$4, start_time=$5, deadline=$6, completed_on=$7, logged_on=$8, trashed_on=$9, area_id=$10, project_id=$11 WHERE user_id = $12 AND task_id = $13 RETURNING task_id"
+            "UPDATE data.tasks SET updated_on=$1, task_title=$2, notes=$3, start_date=$4, start_time=$5, deadline=$6, completed_on=$7, logged_on=$8, trashed_on=$9, area_id=$10, project_id=$11 RETURNING task_id"
         );
-        assert_eq!(params.len(), 13);
+        assert_eq!(params.len(), 11);
     }
 }
 
@@ -633,7 +640,7 @@ mod query_schema {
     use chrono::Local;
     use uuid::Uuid;
 
-    use crate::{models::Compare, util::ToSQLQueryBuilder};
+    use crate::{models::Compare, util::ToSqlQueryBuilder};
 
     use super::{QueryMethod, QueryRequest};
 
@@ -643,11 +650,8 @@ mod query_schema {
 
         let (statement, params) = schema.to_sql_builder().build_select();
 
-        assert_eq!(
-            statement.as_str(),
-            "SELECT * FROM data.tasks WHERE user_id = $1 LIMIT 25 OFFSET 0"
-        );
-        assert_eq!(params.len(), 1);
+        assert_eq!(statement.as_str(), "SELECT * FROM data.tasks");
+        assert_eq!(params.len(), 0);
     }
 
     #[test]
@@ -660,9 +664,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE user_id = $1 AND task_title ILIKE '%' || $2 || '%' AND notes ILIKE '%' || $3 || '%' LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.tasks WHERE task_title ILIKE '%' || $1 || '%' AND notes ILIKE '%' || $2 || '%'"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
@@ -678,9 +682,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE user_id = $1 AND start_date = $2 AND start_time = $3 AND deadline = $4 LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.tasks WHERE start_date = $1 AND start_time = $2 AND deadline = $3"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -696,9 +700,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE user_id = $1 AND start_date < $2 AND start_time <= $3 AND deadline > $4 LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.tasks WHERE start_date < $1 AND start_time <= $2 AND deadline > $3"
         );
-        assert_eq!(params.len(), 4);
+        assert_eq!(params.len(), 3);
     }
 
     #[test]
@@ -712,9 +716,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE user_id = $1 AND completed_on NOT NULL AND logged_on NOT NULL AND trashed_on NOT NULL LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.tasks WHERE completed_on NOT NULL AND logged_on NOT NULL AND trashed_on NOT NULL"
         );
-        assert_eq!(params.len(), 1);
+        assert_eq!(params.len(), 0);
     }
 
     #[test]
@@ -728,9 +732,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE user_id = $1 AND completed_on IS NULL AND logged_on IS NULL AND trashed_on IS NULL LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.tasks WHERE completed_on IS NULL AND logged_on IS NULL AND trashed_on IS NULL"
         );
-        assert_eq!(params.len(), 1);
+        assert_eq!(params.len(), 0);
     }
 
     #[test]
@@ -743,9 +747,9 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE user_id = $1 AND area_id = $2 AND project_id = $3 LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.tasks WHERE area_id = $1 AND project_id = $2"
         );
-        assert_eq!(params.len(), 3);
+        assert_eq!(params.len(), 2);
     }
 
     #[test]
@@ -768,8 +772,8 @@ mod query_schema {
 
         assert_eq!(
             statement.as_str(),
-            "SELECT * FROM data.tasks WHERE user_id = $1 AND task_title ILIKE '%' || $2 || '%' AND notes ILIKE '%' || $3 || '%' AND start_date = $4 AND start_time = $5 AND deadline > $6 AND completed_on IS NULL AND logged_on NOT NULL AND trashed_on IS NULL AND area_id = $7 AND project_id = $8 LIMIT 25 OFFSET 0"
+            "SELECT * FROM data.tasks WHERE task_title ILIKE '%' || $1 || '%' AND notes ILIKE '%' || $2 || '%' AND start_date = $3 AND start_time = $4 AND deadline > $5 AND completed_on IS NULL AND logged_on NOT NULL AND trashed_on IS NULL AND area_id = $6 AND project_id = $7"
         );
-        assert_eq!(params.len(), 8);
+        assert_eq!(params.len(), 7);
     }
 }
