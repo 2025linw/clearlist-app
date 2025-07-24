@@ -407,7 +407,7 @@ async fn get_project_tags(conn: &Object, project_id: Uuid) -> Result<Vec<tag::Da
     builder.add_join(
         Join::Right,
         tag::DatabaseModel::TABLE,
-        project::tag::PROJECT_ID,
+        project::tag::TAG_ID,
     );
 
     let (statement, params) = builder.build_select();
@@ -437,7 +437,7 @@ async fn update_project_tags(
         .await?;
 
     for tag_id in tag_ids {
-        let mut builder = SqlQueryBuilder::new(task::tag::TABLE);
+        let mut builder = SqlQueryBuilder::new(project::tag::TABLE);
         builder.add_column(project::tag::PROJECT_ID, &project_id);
         builder.add_column(project::tag::TAG_ID, tag_id);
 
@@ -597,7 +597,7 @@ pub async fn retrieve_tag(
     tag_id: Uuid,
     user_id: Uuid,
 ) -> Result<Option<tag::DatabaseModel>> {
-    let mut builder = SqlQueryBuilder::new(area::DatabaseModel::TABLE);
+    let mut builder = SqlQueryBuilder::new(tag::DatabaseModel::TABLE);
     builder.add_condition(tag::DatabaseModel::ID, PostgresCmp::Equal, &tag_id);
     builder.add_condition(tag::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
 
@@ -624,7 +624,7 @@ pub async fn update_tag(
     builder.add_condition(tag::DatabaseModel::ID, PostgresCmp::Equal, &tag_id);
     builder.add_condition(tag::DatabaseModel::USER_ID, PostgresCmp::Equal, &user_id);
 
-    let (statement, params) = schema.to_sql_builder().build_update();
+    let (statement, params) = builder.build_update();
 
     // Update tag
     let tag_id: Uuid = match transaction.query_opt(&statement, &params).await? {

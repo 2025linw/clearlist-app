@@ -114,7 +114,7 @@ impl ToSqlQueryBuilder for CreateRequest {
 }
 
 #[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct UpdateRequest {
     label: UpdateMethod<String>,
     color: UpdateMethod<String>,
