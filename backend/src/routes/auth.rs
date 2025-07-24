@@ -4,12 +4,13 @@ use serde_json::json;
 
 use crate::{
     AppState,
-    data::{check_for_email, check_for_user, get_login_info, register_user},
+    data::{check_for_email, check_for_user, get_user_login, register_user},
     error::{ErrorResponse, LOGIN_EXISTS, LOGIN_FAILED},
     models::{
         auth::{
             LoginInfo,
             LoginRequest,
+            UserLogin,
             // ResetSchema,
         },
         jwt::{RefreshToken, ResponseModel as TokenResponse},
@@ -31,23 +32,22 @@ pub async fn registration_handler(
         return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_MISSING));
     }
 
-    let schema = body;
-
     // Check if user exists
-    if check_for_email(&conn, schema.email()).await? {
+    if check_for_email(&conn, body.email()).await? {
         return Err(ErrorResponse::new(StatusCode::CONFLICT, LOGIN_EXISTS));
     }
+    let email = body.email().to_string();
 
     // Hash password
-    let password_hash: String = match hash_password(schema.password()) {
+    let password_hash: String = match hash_password(body.password()) {
         Ok(h) => h,
         Err(e) => return Err(e.into()),
     };
 
     // Add user
-    let schema = LoginInfo::from_request(schema, password_hash);
+    let login_info = LoginInfo::new(email, password_hash);
 
-    register_user(&mut conn, schema).await?;
+    register_user(&mut conn, login_info).await?;
 
     Ok(StatusCode::CREATED)
 }
@@ -63,24 +63,18 @@ pub async fn login_handler(
         return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_MISSING));
     }
 
-    let schema = body;
-
     // Check if user exists
-    if !check_for_email(&conn, schema.email()).await? {
+    if !check_for_email(&conn, body.email()).await? {
         return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_FAILED));
     }
 
     // Get user
-    // let login = match get_login_info(&conn, schema.password()).await? {
-    //     Some(u) => u,
-    //     None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, LOGIN_FAILED)),
-    // };
-    let login = get_login_info(&conn, schema.email()).await?;
+    let login: UserLogin = get_user_login(&conn, body.email()).await?;
 
     // === BELOW IS PROTECTED INFO ===
 
     // Verify password
-    verify_password(login.password_hash(), schema.password())?;
+    verify_password(login.password_hash(), body.password())?;
 
     // Get access JWT
     let access_jwt: String = match create_jwt(&data.encode_key, login.user_id(), None) {
@@ -149,17 +143,8 @@ pub async fn refresh_handler(
 //     State(_data): State<AppState>,
 //     Json(_body): Json<ResetSchema>,
 // ) -> Result<impl IntoResponse, ErrorResponse> {
-//     // TODO: Use data and body above
 
 //     println!("{LOGIN_RESET}");
 
 //     Ok(StatusCode::NOT_IMPLEMENTED)
 // }
-
-#[cfg(test)]
-mod auth_handler {
-    #[test]
-    fn todo() {
-        assert!(false);
-    }
-}

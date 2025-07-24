@@ -17,8 +17,7 @@ pub struct DatabaseModel {
 
     username: String,
     email: String,
-    // TODO: do we need the password hash in the user model?
-    // password_hash: String,
+
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
 }
@@ -52,7 +51,6 @@ impl From<Row> for DatabaseModel {
             user_id: value.get(Self::ID),
             username: value.get(Self::USERNAME),
             email: value.get(Self::EMAIL),
-            // password_hash: value.get(Self::PASS_HASH),
             created_on: value.get(Self::CREATED),
             updated_on: value.get(Self::UPDATED),
         }

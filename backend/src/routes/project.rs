@@ -164,11 +164,3 @@ pub async fn query_handler(
         })),
     ))
 }
-
-#[cfg(test)]
-mod project_handler {
-    #[test]
-    fn todo() {
-        todo!();
-    }
-}

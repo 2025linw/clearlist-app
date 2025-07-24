@@ -726,7 +726,7 @@ pub async fn register_user(conn: &mut Object, schema: auth::LoginInfo) -> Result
     Ok(())
 }
 
-pub async fn get_login_info(conn: &Object, email: &str) -> Result<auth::LoginInfo> {
+pub async fn get_user_login(conn: &Object, email: &str) -> Result<auth::UserLogin> {
     let mut builder = SqlQueryBuilder::new(user::DatabaseModel::TABLE);
     builder.add_condition(user::DatabaseModel::EMAIL, PostgresCmp::Equal, &email);
     builder.set_return(&[

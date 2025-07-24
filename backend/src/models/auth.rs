@@ -29,26 +29,16 @@ impl LoginRequest {
 #[cfg_attr(test, derive(Default))]
 #[serde(rename_all = "camelCase")]
 pub struct LoginInfo {
-    user_id: Uuid,
     email: String,
     password_hash: String,
 }
 
 impl LoginInfo {
-    pub fn from_request(request: LoginRequest, password_hash: String) -> Self {
+    pub fn new(email: String, password_hash: String) -> Self {
         Self {
-            user_id: Uuid::nil(),
-            email: request.email,
+            email,
             password_hash,
         }
-    }
-
-    pub fn user_id(&self) -> Uuid {
-        self.user_id
-    }
-
-    pub fn password_hash(&self) -> &str {
-        &self.password_hash
     }
 }
 
@@ -64,11 +54,27 @@ impl ToSqlQueryBuilder for LoginInfo {
     }
 }
 
-impl From<Row> for LoginInfo {
+pub struct UserLogin {
+    user_id: Uuid,
+    _email: String, // TODO: do we need this?
+    password_hash: String,
+}
+
+impl UserLogin {
+    pub fn user_id(&self) -> Uuid {
+        self.user_id
+    }
+
+    pub fn password_hash(&self) -> &str {
+        &self.password_hash
+    }
+}
+
+impl From<Row> for UserLogin {
     fn from(value: Row) -> Self {
         Self {
             user_id: value.get(user::DatabaseModel::ID),
-            email: value.get(user::DatabaseModel::EMAIL),
+            _email: value.get(user::DatabaseModel::EMAIL),
             password_hash: value.get(user::DatabaseModel::PASS_HASH),
         }
     }

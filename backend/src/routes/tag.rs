@@ -161,11 +161,3 @@ pub async fn query_handler(
         })),
     ))
 }
-
-#[cfg(test)]
-mod tag_handler {
-    #[test]
-    fn todo() {
-        todo!();
-    }
-}

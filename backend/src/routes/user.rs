@@ -86,7 +86,7 @@ pub async fn delete_handler(
     let user_id = claim.sub;
 
     if delete_user(&mut conn, user_id).await?.is_none() {
-        // TODO: consider other reasons for this function to return non
+        // TODO: consider other reasons for this function to return none
 
         return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND));
     }
