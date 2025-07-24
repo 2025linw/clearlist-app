@@ -102,7 +102,7 @@ pub async fn update_handler(
 
     let tag = match retrieve_tag(&conn, tag_id, user_id).await? {
         Some(t) => t,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => unreachable!("tag should exist after update"),
     };
 
     Ok((

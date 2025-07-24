@@ -102,7 +102,7 @@ pub async fn update_handler(
 
     let task = match retrieve_task(&conn, task_id, user_id).await? {
         Some(t) => t,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => unreachable!("task should exist after update"),
     };
 
     Ok((

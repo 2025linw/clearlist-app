@@ -102,7 +102,7 @@ pub async fn update_handler(
 
     let project = match retrieve_project(&conn, project_id, user_id).await? {
         Some(p) => p,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => unreachable!("project should exist after update"),
     };
 
     Ok((

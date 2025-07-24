@@ -102,7 +102,7 @@ pub async fn update_handler(
 
     let area = match retrieve_area(&conn, area_id, user_id).await? {
         Some(a) => a,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => unreachable!("area should exist after update"),
     };
 
     Ok((
