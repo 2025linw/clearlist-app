@@ -10,6 +10,7 @@ on:
       - 'backend/Cargo.toml'
       - 'backend/Cargo.lock'
 
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -36,9 +37,11 @@ jobs:
     - name: Upload binary to proxy
       uses: appleboy/scp-action@v0.1.7
       with:
-        host: ${{ secrets.PROXY_HOST }}
-        username: ${{ secrets.PROXY_USER }}
-        key: ${{ secrets.PROXY_KEY }}
+        host: ${{ secrets.DEPLOY_USER }}
+        username: ${{ secrets.DEPLOY_USER }}
+        proxy_host: ${{ secrets.PROXY_HOST }}
+        proxy_username: ${{ secrets.PROXY_USER }}
+        proxy_key: ${{ secrets.PROXY_KEY }}
         source: backend/target/release/todo-api
         target: /tmp/todo-api/
         strip_components: 3
@@ -46,14 +49,12 @@ jobs:
     - name: Forward binary to server and restart service
       uses: appleboy/ssh-action@v1.0.0
       with:
-        host: ${{ secrets.PROXY_HOST }}
-        username: ${{ secrets.PROXY_USER }}
-        key: ${{ secrets.PROXY_KEY }}
+        host: ${{ secrets.DEPLOY_USER }}
+        username: ${{ secrets.DEPLOY_USER }}
+        proxy_host: ${{ secrets.PROXY_HOST }}
+        proxy_username: ${{ secrets.PROXY_USER }}
+        proxy_key: ${{ secrets.PROXY_KEY }}
         script: |
-          scp /tmp/todo-api/todo-api ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/
-
-          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
-            mv /tmp/todo-api /home/linw000/services/clearlist/
-            
-            sudo systemctl restart clearlist-api.service
-          EOF
+          systemctl stop clearlist-api.service
+          cp /tmp/todo-api/todo-api ${{ secrets.DEPLOY_PATH }}
+          systemctl restart clearlist-api.service
