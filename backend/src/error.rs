@@ -1,10 +1,9 @@
 use std::fmt::Display;
 
-use axum::{
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
-use tracing::error;
+use axum::http::StatusCode;
+use tracing::{error, warn};
+
+use crate::response::{ERR, Response};
 
 pub const LOGIN_EXISTS: &str = "email already registered, login with password or reset password";
 pub const LOGIN_FAILED: &str = "no user with email and password combination found";
@@ -53,58 +52,31 @@ impl Display for Error {
 
 impl std::error::Error for Error {}
 
-/// Error response for Axum handlers
-///
-/// These errors are returned back to the client
-///
-/// The error type is not used with any internal function except for handlers
-pub struct ErrorResponse {
-    code: StatusCode,
-    msg: String,
-}
-
-impl ErrorResponse {
-    pub fn new(code: StatusCode, msg: &str) -> Self {
-        Self {
-            code,
-            msg: msg.to_string(),
-        }
-    }
-}
+pub type ErrorResponse = Response;
 
 impl From<Error> for ErrorResponse {
     fn from(value: Error) -> Self {
         match value {
             Error::InternalDatabase(s) => {
-                error!("Database error: {}", s);
+                error!("Database error: {s}");
 
-                Self {
-                    code: StatusCode::INTERNAL_SERVER_ERROR,
-                    msg: INTERNAL_DB.to_string(),
-                }
+                Self::with_msg(StatusCode::INTERNAL_SERVER_ERROR, ERR, INTERNAL_DB)
             }
             Error::Internal(s) => {
-                error!("Internal error: {}", s);
+                error!("Internal error: {s}");
 
-                Self {
-                    code: StatusCode::INTERNAL_SERVER_ERROR,
-                    msg: INTERNAL.to_string(),
-                }
+                Self::with_msg(StatusCode::INTERNAL_SERVER_ERROR, ERR, INTERNAL)
             }
-            Error::UserRequest(_) => Self {
-                code: StatusCode::BAD_REQUEST,
-                msg: INVALID_REQUEST.to_string(),
-            },
-            Error::UserAuth(s) => Self {
-                code: StatusCode::UNAUTHORIZED,
-                msg: s,
-            },
-        }
-    }
-}
+            Error::UserRequest(s) => {
+                warn!("Request error: {s}");
 
-impl IntoResponse for ErrorResponse {
-    fn into_response(self) -> Response {
-        (self.code, self.msg).into_response()
+                Self::with_msg(StatusCode::BAD_REQUEST, ERR, INVALID_REQUEST)
+            }
+            Error::UserAuth(s) => {
+                warn!("Authentication error: {s}");
+
+                Self::with_msg(StatusCode::UNAUTHORIZED, ERR, s.as_str())
+            }
+        }
     }
 }

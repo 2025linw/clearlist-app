@@ -17,6 +17,7 @@ use crate::{
         jwt::Claim,
         project::{CreateRequest, QueryRequest, ResponseModel, UpdateRequest},
     },
+    response::{ERR, OK, Response, SUCCESS},
 };
 
 const NOT_FOUND: &str = "project not found";
@@ -35,17 +36,21 @@ pub async fn create_handler(
 
     let project = match retrieve_project(&conn, project_id, user_id).await? {
         Some(p) => p,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::CREATED,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "project": project.to_response(),
-            })
-        })),
+        SUCCESS,
+        json!({
+            "project": project.to_response(),
+        }),
     ))
 }
 
@@ -60,17 +65,21 @@ pub async fn retrieve_handler(
 
     let project = match retrieve_project(&conn, project_id, user_id).await? {
         Some(p) => p,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::OK,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "project": project.to_response(),
-            })
-        })),
+        SUCCESS,
+        json!({
+            "project": project.to_response(),
+        }),
     ))
 }
 
@@ -85,7 +94,11 @@ pub async fn update_handler(
     let user_id = claim.sub;
 
     if body.is_empty() {
-        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATES));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::BAD_REQUEST,
+            ERR,
+            NO_UPDATES,
+        ));
     }
 
     let project_id = match update_project(&mut conn, project_id, user_id, body).await? {
@@ -97,7 +110,13 @@ pub async fn update_handler(
 
             p
         }
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
     let project = match retrieve_project(&conn, project_id, user_id).await? {
@@ -105,14 +124,12 @@ pub async fn update_handler(
         None => unreachable!("project should exist after update"),
     };
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::OK,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "project": project.to_response(),
-            })
-        })),
+        SUCCESS,
+        json!({
+            "project": project.to_response(),
+        }),
     ))
 }
 
@@ -131,10 +148,14 @@ pub async fn delete_handler(
     {
         // TODO: consider other reasons for this function to return none
 
-        return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::NOT_FOUND,
+            ERR,
+            NOT_FOUND,
+        ));
     }
 
-    Ok(StatusCode::NO_CONTENT)
+    Ok(Response::empty(StatusCode::NO_CONTENT, SUCCESS))
 }
 
 pub async fn query_handler(
@@ -153,14 +174,12 @@ pub async fn query_handler(
 
     let projects = query_project(&conn, user_id, body, limit, offset).await?;
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::OK,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "count": projects.len(),
-                "projects": projects.into_iter().map(|p| p.to_response()).collect::<Vec<ResponseModel>>(),
-            }),
-        })),
+        OK,
+        json!({
+            "count": projects.len(),
+            "projects": projects.into_iter().map(|p| p.to_response()).collect::<Vec<ResponseModel>>(),
+        }),
     ))
 }

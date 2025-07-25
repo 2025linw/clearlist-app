@@ -7,6 +7,7 @@ use crate::{
     data::{delete_user, retrieve_user, update_user},
     error::ErrorResponse,
     models::{ToResponse, jwt::Claim, user::UpdateRequest},
+    response::{ERR, Response, SUCCESS},
 };
 
 const NOT_FOUND: &str = "user not found";
@@ -22,17 +23,21 @@ pub async fn retrieve_handler(
 
     let user = match retrieve_user(&conn, user_id).await? {
         Some(u) => u,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::OK,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "user": user.to_response(),
-            })
-        })),
+        SUCCESS,
+        json!({
+            "user": user.to_response(),
+        }),
     ))
 }
 
@@ -46,7 +51,11 @@ pub async fn update_handler(
     let user_id = claim.sub;
 
     if body.is_empty() {
-        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATES));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::BAD_REQUEST,
+            ERR,
+            NO_UPDATES,
+        ));
     }
 
     let user_id = match update_user(&mut conn, user_id, body).await? {
@@ -58,22 +67,32 @@ pub async fn update_handler(
 
             u
         }
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
     let user = match retrieve_user(&conn, user_id).await? {
         Some(u) => u,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::OK,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "user": user.to_response(),
-            }),
-        })),
+        SUCCESS,
+        json!({
+            "user": user.to_response(),
+        }),
     ))
 }
 
@@ -88,8 +107,12 @@ pub async fn delete_handler(
     if delete_user(&mut conn, user_id).await?.is_none() {
         // TODO: consider other reasons for this function to return none
 
-        return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::NOT_FOUND,
+            ERR,
+            NOT_FOUND,
+        ));
     }
 
-    Ok(StatusCode::NO_CONTENT)
+    Ok(Response::empty(StatusCode::NO_CONTENT, SUCCESS))
 }

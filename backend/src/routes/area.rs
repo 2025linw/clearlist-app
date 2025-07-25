@@ -17,6 +17,7 @@ use crate::{
         area::{CreateRequest, QueryRequest, ResponseModel, UpdateRequest},
         jwt::Claim,
     },
+    response::{ERR, OK, Response, SUCCESS},
 };
 
 const NOT_FOUND: &str = "area not found";
@@ -35,17 +36,21 @@ pub async fn create_handler(
 
     let area = match retrieve_area(&conn, area_id, user_id).await? {
         Some(a) => a,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::CREATED,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "area": area.to_response(),
-            })
-        })),
+        SUCCESS,
+        json!({
+            "area": area.to_response(),
+        }),
     ))
 }
 
@@ -60,17 +65,21 @@ pub async fn retrieve_handler(
 
     let area = match retrieve_area(&conn, area_id, user_id).await? {
         Some(a) => a,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::OK,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "area": area.to_response(),
-            })
-        })),
+        SUCCESS,
+        json!({
+            "area": area.to_response(),
+        }),
     ))
 }
 
@@ -85,7 +94,11 @@ pub async fn update_handler(
     let user_id = claim.sub;
 
     if body.is_empty() {
-        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATES));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::BAD_REQUEST,
+            ERR,
+            NO_UPDATES,
+        ));
     }
 
     let area_id = match update_area(&mut conn, area_id, user_id, body).await? {
@@ -97,7 +110,13 @@ pub async fn update_handler(
 
             a
         }
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
     let area = match retrieve_area(&conn, area_id, user_id).await? {
@@ -105,14 +124,12 @@ pub async fn update_handler(
         None => unreachable!("area should exist after update"),
     };
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::OK,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "area": area.to_response(),
-            }),
-        })),
+        SUCCESS,
+        json!({
+            "area": area.to_response(),
+        }),
     ))
 }
 
@@ -128,10 +145,14 @@ pub async fn delete_handler(
     if delete_area(&mut conn, area_id, user_id).await?.is_none() {
         // TODO: consider other reasons for this function to return none
 
-        return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::NOT_FOUND,
+            ERR,
+            NOT_FOUND,
+        ));
     }
 
-    Ok(StatusCode::NO_CONTENT)
+    Ok(Response::empty(StatusCode::NO_CONTENT, SUCCESS))
 }
 
 pub async fn query_handler(
@@ -150,14 +171,12 @@ pub async fn query_handler(
 
     let areas = query_area(&conn, user_id, body, limit, offset).await?;
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::OK,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "count": areas.len(),
-                "areas": areas.into_iter().map(|a| a.to_response()).collect::<Vec<ResponseModel>>(),
-            }),
-        })),
+        OK,
+        json!({
+            "count": areas.len(),
+            "areas": areas.into_iter().map(|a| a.to_response()).collect::<Vec<ResponseModel>>(),
+        }),
     ))
 }

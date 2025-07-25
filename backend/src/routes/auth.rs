@@ -15,6 +15,7 @@ use crate::{
         },
         jwt::{RefreshToken, ResponseModel as TokenResponse},
     },
+    response::{ERR, Response, SUCCESS},
     util::auth::{create_jwt, hash_password, verify_jwt_and_get_id, verify_password},
 };
 
@@ -29,12 +30,20 @@ pub async fn registration_handler(
 
     // Check for email and password
     if body.email().is_empty() || body.password().is_empty() {
-        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_MISSING));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::BAD_REQUEST,
+            ERR,
+            LOGIN_MISSING,
+        ));
     }
 
     // Check if user exists
     if check_for_email(&conn, body.email()).await? {
-        return Err(ErrorResponse::new(StatusCode::CONFLICT, LOGIN_EXISTS));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::CONFLICT,
+            ERR,
+            LOGIN_EXISTS,
+        ));
     }
     let email = body.email().to_string();
 
@@ -49,7 +58,7 @@ pub async fn registration_handler(
 
     register_user(&mut conn, login_info).await?;
 
-    Ok(StatusCode::CREATED)
+    Ok(Response::empty(StatusCode::CREATED, SUCCESS))
 }
 
 pub async fn login_handler(
@@ -60,12 +69,20 @@ pub async fn login_handler(
 
     // Check for email and password
     if body.email().is_empty() || body.password().is_empty() {
-        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_MISSING));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::BAD_REQUEST,
+            ERR,
+            LOGIN_MISSING,
+        ));
     }
 
     // Check if user exists
     if !check_for_email(&conn, body.email()).await? {
-        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_FAILED));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::BAD_REQUEST,
+            ERR,
+            LOGIN_FAILED,
+        ));
     }
 
     // Get user
@@ -82,7 +99,7 @@ pub async fn login_handler(
         Err(e) => return Err(e.into()),
     };
 
-    let mut response = TokenResponse::new(access_jwt);
+    let mut token = TokenResponse::new(access_jwt);
 
     // Get refresh JWT
     // TODO: add an option for people not to get a refresh token somehow
@@ -92,11 +109,17 @@ pub async fn login_handler(
         login.user_id(),
         Some(Duration::weeks(1).num_seconds() as u64),
     ) {
-        Ok(s) => response.set_refresh_jwt(s),
+        Ok(s) => token.set_refresh_jwt(s),
         Err(e) => return Err(e.into()),
     };
 
-    Ok(Json(json!(response)))
+    Ok(Response::with_data(
+        StatusCode::OK,
+        SUCCESS,
+        json!({
+            "auth": token,
+        }),
+    ))
 }
 
 pub async fn refresh_handler(
@@ -115,7 +138,11 @@ pub async fn refresh_handler(
     // Unless they deleted their account
     // Return no account found?
     if !check_for_user(&conn, user_id).await? {
-        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, LOGIN_MISSING));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::BAD_REQUEST,
+            ERR,
+            LOGIN_MISSING,
+        ));
     }
 
     // Get access JWT
@@ -136,7 +163,13 @@ pub async fn refresh_handler(
         Err(e) => return Err(e.into()),
     };
 
-    Ok(Json(json!(token)))
+    Ok(Response::with_data(
+        StatusCode::OK,
+        SUCCESS,
+        json!({
+            "auth": token,
+        }),
+    ))
 }
 
 // pub async fn password_reset_handler(

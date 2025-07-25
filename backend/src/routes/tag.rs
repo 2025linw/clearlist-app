@@ -17,6 +17,7 @@ use crate::{
         jwt::Claim,
         tag::{CreateRequest, QueryRequest, ResponseModel, UpdateRequest},
     },
+    response::{ERR, OK, Response, SUCCESS},
 };
 
 const NOT_FOUND: &str = "tag not found";
@@ -35,17 +36,21 @@ pub async fn create_handler(
 
     let tag = match retrieve_tag(&conn, tag_id, user_id).await? {
         Some(t) => t,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::CREATED,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "tag": tag.to_response(),
-            })
-        })),
+        SUCCESS,
+        json!({
+            "tag": tag.to_response(),
+        }),
     ))
 }
 
@@ -60,17 +65,21 @@ pub async fn retrieve_handler(
 
     let tag = match retrieve_tag(&conn, tag_id, user_id).await? {
         Some(t) => t,
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::OK,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "tag": tag.to_response(),
-            }),
-        })),
+        SUCCESS,
+        json!({
+            "tag": tag.to_response(),
+        }),
     ))
 }
 
@@ -85,7 +94,11 @@ pub async fn update_handler(
     let user_id = claim.sub;
 
     if body.is_empty() {
-        return Err(ErrorResponse::new(StatusCode::BAD_REQUEST, NO_UPDATES));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::BAD_REQUEST,
+            ERR,
+            NO_UPDATES,
+        ));
     }
 
     let tag_id = match update_tag(&mut conn, tag_id, user_id, body).await? {
@@ -97,7 +110,13 @@ pub async fn update_handler(
 
             t
         }
-        None => return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND)),
+        None => {
+            return Err(ErrorResponse::with_msg(
+                StatusCode::NOT_FOUND,
+                ERR,
+                NOT_FOUND,
+            ));
+        }
     };
 
     let tag = match retrieve_tag(&conn, tag_id, user_id).await? {
@@ -105,14 +124,12 @@ pub async fn update_handler(
         None => unreachable!("tag should exist after update"),
     };
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::OK,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "tag": tag.to_response(),
-            }),
-        })),
+        SUCCESS,
+        json!({
+            "tag": tag.to_response(),
+        }),
     ))
 }
 
@@ -128,10 +145,14 @@ pub async fn delete_handler(
     if delete_tag(&mut conn, tag_id, user_id).await?.is_none() {
         // TODO: consider other reasons for this function to return none
 
-        return Err(ErrorResponse::new(StatusCode::NOT_FOUND, NOT_FOUND));
+        return Err(ErrorResponse::with_msg(
+            StatusCode::NOT_FOUND,
+            ERR,
+            NOT_FOUND,
+        ));
     }
 
-    Ok(StatusCode::NO_CONTENT)
+    Ok(Response::empty(StatusCode::NO_CONTENT, SUCCESS))
 }
 
 pub async fn query_handler(
@@ -150,14 +171,12 @@ pub async fn query_handler(
 
     let tags = query_tag(&conn, user_id, body, limit, offset).await?;
 
-    Ok((
+    Ok(Response::with_data(
         StatusCode::OK,
-        Json(json!({
-            "status": "success",
-            "data": json!({
-                "count": tags.len(),
-                "tags": tags.into_iter().map(|t| t.to_response()).collect::<Vec<ResponseModel>>(),
-            })
-        })),
+        OK,
+        json!({
+            "count": tags.len(),
+            "tags": tags.into_iter().map(|t| t.to_response()).collect::<Vec<ResponseModel>>(),
+        }),
     ))
 }
