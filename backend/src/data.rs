@@ -404,11 +404,7 @@ pub async fn query_project(
 async fn get_project_tags(conn: &Object, project_id: Uuid) -> Result<Vec<tag::DatabaseModel>> {
     let mut builder = SqlQueryBuilder::new(project::tag::TABLE);
     builder.add_condition(project::tag::PROJECT_ID, PostgresCmp::Equal, &project_id);
-    builder.add_join(
-        Join::Right,
-        tag::DatabaseModel::TABLE,
-        project::tag::TAG_ID,
-    );
+    builder.add_join(Join::Right, tag::DatabaseModel::TABLE, project::tag::TAG_ID);
 
     let (statement, params) = builder.build_select();
 
