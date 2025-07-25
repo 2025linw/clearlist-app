@@ -37,7 +37,7 @@ jobs:
     - name: Upload binary
       uses: appleboy/scp-action@v0.1.7
       with:
-        host: ${{ secrets.DEPLOY_USER }}
+        host: ${{ secrets.DEPLOY_HOST }}
         username: ${{ secrets.DEPLOY_USER }}
         key: ${{ secrets.DEPLOY_KEY }}
         proxy_host: ${{ secrets.PROXY_HOST }}
@@ -50,7 +50,7 @@ jobs:
     - name: Setup server binary and restart
       uses: appleboy/ssh-action@v1.0.0
       with:
-        host: ${{ secrets.DEPLOY_USER }}
+        host: ${{ secrets.DEPLOY_HOST }}
         username: ${{ secrets.DEPLOY_USER }}
         key: ${{ secrets.DEPLOY_KEY }}
         proxy_host: ${{ secrets.PROXY_HOST }}
