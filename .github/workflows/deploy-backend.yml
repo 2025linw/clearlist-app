@@ -34,11 +34,12 @@ jobs:
     - name: Test app
       run: cargo test --bin todo-api --release --verbose
 
-    - name: Upload binary to proxy
+    - name: Upload binary
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.DEPLOY_USER }}
         username: ${{ secrets.DEPLOY_USER }}
+        key: ${{ secrets.DEPLOY_KEY }}
         proxy_host: ${{ secrets.PROXY_HOST }}
         proxy_username: ${{ secrets.PROXY_USER }}
         proxy_key: ${{ secrets.PROXY_KEY }}
@@ -46,11 +47,12 @@ jobs:
         target: /tmp/todo-api/
         strip_components: 3
 
-    - name: Forward binary to server and restart service
+    - name: Setup server binary and restart
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.DEPLOY_USER }}
         username: ${{ secrets.DEPLOY_USER }}
+        key: ${{ secrets.DEPLOY_KEY }}
         proxy_host: ${{ secrets.PROXY_HOST }}
         proxy_username: ${{ secrets.PROXY_USER }}
         proxy_key: ${{ secrets.PROXY_KEY }}
