@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 use uuid::Uuid;
 
-use crate::util::{PostgresCmp, SqlQueryBuilder, ToPostgresCmp, ToSqlQueryBuilder};
+use crate::util::{NULL, PostgresCmp, SqlQueryBuilder, ToPostgresCmp, ToSqlQueryBuilder};
 
 use super::{QueryMethod, ToResponse, UpdateMethod};
 
@@ -18,8 +18,10 @@ pub struct DatabaseModel {
     category: Option<String>,
 
     user_id: Uuid,
+
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
+    deleted_on: Option<DateTime<Local>>,
 }
 
 impl DatabaseModel {
@@ -33,8 +35,10 @@ impl DatabaseModel {
     pub const CATEGORY: &str = "category";
 
     pub const USER_ID: &str = "user_id";
+
     pub const CREATED: &str = "created_on";
     pub const UPDATED: &str = "updated_on";
+    pub const DELETED: &str = "deleted_on";
 }
 
 impl From<Row> for DatabaseModel {
@@ -47,6 +51,7 @@ impl From<Row> for DatabaseModel {
             user_id: value.get(Self::USER_ID),
             created_on: value.get(Self::CREATED),
             updated_on: value.get(Self::UPDATED),
+            deleted_on: value.get(Self::DELETED),
         }
     }
 }
@@ -63,6 +68,7 @@ impl ToResponse for DatabaseModel {
             user_id: self.user_id,
             created_on: self.created_on,
             updated_on: self.updated_on,
+            deleted_on: self.deleted_on,
         }
     }
 }
@@ -79,8 +85,10 @@ pub struct ResponseModel {
     category: String,
 
     user_id: Uuid,
+
     created_on: DateTime<Local>,
     updated_on: DateTime<Local>,
+    deleted_on: Option<DateTime<Local>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -121,13 +129,18 @@ pub struct UpdateRequest {
 
     category: UpdateMethod<String>,
 
+    deleted: UpdateMethod<bool>,
+
     #[serde(default = "chrono::Local::now")]
     timestamp: DateTime<Local>,
 }
 
 impl UpdateRequest {
     pub fn is_empty(&self) -> bool {
-        self.label.is_noop() && self.color.is_noop() && self.category.is_noop()
+        self.label.is_noop()
+            && self.color.is_noop()
+            && self.category.is_noop()
+            && self.deleted.is_noop()
     }
 }
 
@@ -148,6 +161,18 @@ impl ToSqlQueryBuilder for UpdateRequest {
             builder.add_column(DatabaseModel::CATEGORY, &self.category);
         }
 
+        if !self.deleted.is_noop() {
+            match self.deleted {
+                UpdateMethod::Set(true) => {
+                    builder.add_column(DatabaseModel::DELETED, &self.timestamp);
+                }
+                UpdateMethod::Set(false) | UpdateMethod::Remove => {
+                    builder.add_column(DatabaseModel::DELETED, &None::<DateTime<Local>>);
+                }
+                UpdateMethod::NoOp => unreachable!(),
+            }
+        }
+
         builder
     }
 }
@@ -159,6 +184,8 @@ pub struct QueryRequest {
     label: Option<QueryMethod<String>>,
 
     category: Option<QueryMethod<String>>,
+
+    deleted: Option<bool>,
 }
 
 impl ToSqlQueryBuilder for QueryRequest {
@@ -196,6 +223,14 @@ impl ToSqlQueryBuilder for QueryRequest {
                 QueryMethod::Compare(_, c) => cmp = c.to_postgres_cmp(),
             }
             builder.add_condition(DatabaseModel::CATEGORY, cmp, q);
+        }
+
+        if let Some(b) = self.deleted {
+            if b {
+                builder.add_condition(DatabaseModel::DELETED, PostgresCmp::NotNull, &NULL);
+            } else {
+                builder.add_condition(DatabaseModel::DELETED, PostgresCmp::IsNull, &NULL);
+            }
         }
 
         builder
@@ -239,7 +274,7 @@ mod update_schema {
     }
 
     #[test]
-    fn full() {
+    fn text_only() {
         let mut schema = UpdateRequest::default();
         schema.label = UpdateMethod::Set("Test Label".to_string());
         schema.color = UpdateMethod::Set("#2f78ed".to_string());
@@ -252,6 +287,51 @@ mod update_schema {
             "UPDATE data.tags SET updated_on=$1, tag_label=$2, color=$3, category=$4 RETURNING tag_id"
         );
         assert_eq!(params.len(), 4);
+    }
+
+    #[test]
+    fn bool_t_only() {
+        let mut schema = UpdateRequest::default();
+        schema.deleted = UpdateMethod::Set(true);
+
+        let (statement, params) = schema.to_sql_builder().build_update();
+
+        assert_eq!(
+            statement.as_str(),
+            "UPDATE data.tags SET updated_on=$1, deleted_on=$2 RETURNING tag_id"
+        );
+        assert_eq!(params.len(), 2);
+    }
+
+    #[test]
+    fn bool_f_only() {
+        let mut schema = UpdateRequest::default();
+        schema.deleted = UpdateMethod::Set(true);
+
+        let (statement, params) = schema.to_sql_builder().build_update();
+
+        assert_eq!(
+            statement.as_str(),
+            "UPDATE data.tags SET updated_on=$1, deleted_on=$2 RETURNING tag_id"
+        );
+        assert_eq!(params.len(), 2);
+    }
+
+    #[test]
+    fn full() {
+        let mut schema = UpdateRequest::default();
+        schema.label = UpdateMethod::Set("Test Label".to_string());
+        schema.color = UpdateMethod::Set("#2f78ed".to_string());
+        schema.category = UpdateMethod::Set("Priority".to_string());
+        schema.deleted = UpdateMethod::Set(true);
+
+        let (statement, params) = schema.to_sql_builder().build_update();
+
+        assert_eq!(
+            statement.as_str(),
+            "UPDATE data.tags SET updated_on=$1, tag_label=$2, color=$3, category=$4, deleted_on=$5 RETURNING tag_id"
+        );
+        assert_eq!(params.len(), 5);
     }
 }
 
@@ -272,7 +352,7 @@ mod query_schema {
     }
 
     #[test]
-    fn full() {
+    fn text_only() {
         let mut schema = QueryRequest::default();
         schema.label = Some(QueryMethod::Match("Test Label".to_string()));
         schema.category = Some(QueryMethod::Match("Priority".to_string()));
@@ -282,6 +362,50 @@ mod query_schema {
         assert_eq!(
             statement.as_str(),
             "SELECT * FROM data.tags WHERE tag_label ILIKE '%' || $1 || '%' AND category ILIKE '%' || $2 || '%'"
+        );
+        assert_eq!(params.len(), 2);
+    }
+
+    #[test]
+    fn bool_t_only() {
+        let mut schema = QueryRequest::default();
+        schema.deleted = Some(true);
+
+        let (statement, params) = schema.to_sql_builder().build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM data.tags WHERE deleted_on NOT NULL",
+        );
+        assert_eq!(params.len(), 0);
+    }
+
+    #[test]
+    fn bool_f_only() {
+        let mut schema = QueryRequest::default();
+        schema.deleted = Some(false);
+
+        let (statement, params) = schema.to_sql_builder().build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM data.tags WHERE deleted_on IS NULL",
+        );
+        assert_eq!(params.len(), 0);
+    }
+
+    #[test]
+    fn full() {
+        let mut schema = QueryRequest::default();
+        schema.label = Some(QueryMethod::Match("Test Label".to_string()));
+        schema.category = Some(QueryMethod::Match("Priority".to_string()));
+        schema.deleted = Some(true);
+
+        let (statement, params) = schema.to_sql_builder().build_select();
+
+        assert_eq!(
+            statement.as_str(),
+            "SELECT * FROM data.tags WHERE tag_label ILIKE '%' || $1 || '%' AND category ILIKE '%' || $2 || '%' AND deleted_on NOT NULL"
         );
         assert_eq!(params.len(), 2);
     }

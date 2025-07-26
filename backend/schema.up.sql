@@ -103,8 +103,10 @@ CREATE TABLE IF NOT EXISTS data.areas
 	icon_url text,
 
 	user_id uuid NOT NULL,
+
     created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    deleted_on timestamptz(0)
 
 	PRIMARY	KEY(area_id),
 	FOREIGN	KEY(user_id) REFERENCES auth.users(user_id)
@@ -126,13 +128,14 @@ CREATE TABLE IF NOT EXISTS data.projects
 	deadline date,
 	completed_on timestamptz(0),
 	logged_on timestamptz(0),
-	trashed_on timestamptz(0),
 
     area_id uuid,
 
     user_id	uuid NOT NULL,
+
 	created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    deleted_on timestamptz(0),
 
 	PRIMARY KEY(project_id),
     FOREIGN KEY(area_id) REFERENCES data.areas(area_id),
@@ -155,14 +158,15 @@ CREATE TABLE IF NOT EXISTS data.tasks
 	deadline date,
 	completed_on timestamptz(0),
 	logged_on timestamptz(0),
-	trashed_on timestamptz(0),
 
     area_id uuid,
 	project_id uuid,
 
     user_id	uuid NOT NULL,
+
 	created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    deleted_on timestamptz(0),
 
 	PRIMARY KEY(task_id),
 	FOREIGN KEY(area_id) REFERENCES data.areas(area_id) ON DELETE SET NULL,
