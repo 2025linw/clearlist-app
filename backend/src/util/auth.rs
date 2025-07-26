@@ -2,7 +2,7 @@ use std::sync::{Arc, LazyLock};
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum_jwt_auth::{JwtDecoderState, LocalDecoder};
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use jsonwebtoken::{
     Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode, errors::ErrorKind,
 };
@@ -65,15 +65,10 @@ pub fn create_decoder(decode_key: &DecodingKey) -> Result<JwtDecoderState<Claim>
     })
 }
 
-pub fn create_jwt(encode_key: &EncodingKey, user_id: Uuid, exp: Option<u64>) -> Result<String> {
-    let exp = match exp {
-        Some(n) => Utc::now().timestamp() as u64 + n,
-        None => (Utc::now() + Duration::hours(1)).timestamp() as u64,
-    };
-
+pub fn create_jwt(encode_key: &EncodingKey, user_id: Uuid, exp: u64) -> Result<String> {
     let header = Header::new(Algorithm::EdDSA);
 
-    let claims = Claim::new(user_id, exp);
+    let claims = Claim::new(user_id, Utc::now().timestamp() as u64 + exp);
 
     encode::<Claim>(&header, &claims, encode_key).map_err(|e| Error::Internal(e.to_string()))
 }

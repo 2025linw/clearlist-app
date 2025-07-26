@@ -1,6 +1,8 @@
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
-use chrono::Duration;
+use chrono::{Duration, Utc};
+use jsonwebtoken::EncodingKey;
 use serde_json::json;
+use uuid::Uuid;
 
 use crate::{
     AppState,
@@ -16,8 +18,27 @@ use crate::{
         jwt::{RefreshToken, ResponseModel as TokenResponse},
     },
     response::{ERR, Response, SUCCESS},
-    util::auth::{create_jwt, hash_password, verify_jwt_and_get_id, verify_password},
+    util::auth::{
+        create_jwt, hash_password, verify_jwt_and_get_id,
+        verify_password,
+    },
 };
+
+fn create_access_jwt(encode_key: &EncodingKey, user_id: Uuid) -> crate::error::Result<String> {
+    create_jwt(
+        encode_key,
+        user_id,
+        (Utc::now() + Duration::hours(1)).timestamp() as u64,
+    )
+}
+
+fn create_refresh_jwt(encode_key: &EncodingKey, user_id: Uuid) -> crate::error::Result<String> {
+    create_jwt(
+        encode_key,
+        user_id,
+        (Utc::now() + Duration::weeks(1)).timestamp() as u64,
+    )
+}
 
 const LOGIN_MISSING: &str = "missing email and/or password";
 // const LOGIN_RESET: &str = "if account exists with given email, password reset link will be sent";
@@ -94,7 +115,7 @@ pub async fn login_handler(
     verify_password(login.password_hash(), body.password())?;
 
     // Get access JWT
-    let access_jwt: String = match create_jwt(&data.encode_key, login.user_id(), None) {
+    let access_jwt: String = match create_access_jwt(&data.encode_key, login.user_id()) {
         Ok(s) => s,
         Err(e) => return Err(e.into()),
     };
@@ -104,11 +125,7 @@ pub async fn login_handler(
     // Get refresh JWT
     // TODO: add an option for people not to get a refresh token somehow
     // For example, in a 'remember me' or 'keep me logged in' option
-    match create_jwt(
-        &data.encode_key,
-        login.user_id(),
-        Some(Duration::weeks(1).num_seconds() as u64),
-    ) {
+    match create_refresh_jwt(&data.encode_key, login.user_id()) {
         Ok(s) => token.set_refresh_jwt(s),
         Err(e) => return Err(e.into()),
     };
@@ -146,7 +163,7 @@ pub async fn refresh_handler(
     }
 
     // Get access JWT
-    let access_jwt: String = match create_jwt(&data.encode_key, user_id, None) {
+    let access_jwt: String = match create_access_jwt(&data.encode_key, user_id) {
         Ok(s) => s,
         Err(e) => return Err(e.into()),
     };
@@ -154,11 +171,7 @@ pub async fn refresh_handler(
     let mut token = TokenResponse::new(access_jwt);
 
     // Get refresh JWT
-    match create_jwt(
-        &data.encode_key,
-        user_id,
-        Some(Duration::weeks(1).num_seconds() as u64),
-    ) {
+    match create_refresh_jwt(&data.encode_key, user_id) {
         Ok(s) => token.set_refresh_jwt(s),
         Err(e) => return Err(e.into()),
     };
