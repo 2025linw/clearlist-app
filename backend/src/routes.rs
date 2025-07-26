@@ -8,19 +8,24 @@ mod user;
 use std::sync::Arc;
 
 use axum::{
-    Json, Router,
+    Router,
     handler::Handler,
+    http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
 };
 use governor::{clock::QuantaInstant, middleware::NoOpMiddleware};
+use serde_json::json;
 use tower_governor::{
     GovernorLayer,
     governor::{GovernorConfig, GovernorConfigBuilder},
     key_extractor::SmartIpKeyExtractor,
 };
 
-use crate::AppState;
+use crate::{
+    AppState,
+    response::{OK, Response},
+};
 
 /// Handler for API health check
 ///
@@ -28,12 +33,8 @@ use crate::AppState;
 pub async fn health_check_handler() -> impl IntoResponse {
     const MESSAGE: &str = "Todo List API Services";
 
-    let json_response = serde_json::json!({
-        "status": "ok",
-        "message": MESSAGE
-    });
-
-    Json(json_response)
+    Response::with_msg(StatusCode::OK, OK, MESSAGE)
+        .add_kv("version", json!(env!("CARGO_PKG_VERSION")))
 }
 
 /// Create a rate limiter
@@ -103,7 +104,6 @@ pub fn create_api_router() -> Router<AppState> {
     );
 
     let api_routes = Router::new()
-        .route("/healthcheck", get(health_check_handler))
         .nest("/tasks", task_route)
         .nest("/projects", project_route)
         .nest("/areas", area_route)

@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response as AxumResponse},
 };
-use serde_json::json;
+use serde_json::{Value, json};
 
 pub const OK: &str = "ok";
 pub const SUCCESS: &str = "success";
@@ -39,6 +39,14 @@ impl Response {
                 "data": data,
             })),
         )
+    }
+
+    pub fn add_kv(mut self, key: &str, value: Value) -> Self {
+        if let Value::Object(ref mut map) = self.1.0 {
+            map.insert(key.to_string(), value);
+        }
+
+        self
     }
 }
 

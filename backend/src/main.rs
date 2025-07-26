@@ -10,7 +10,7 @@ mod routes;
 
 use std::{env, fs, net::SocketAddr};
 
-use axum::{Router, extract::FromRef};
+use axum::{Router, extract::FromRef, routing::get};
 use axum_jwt_auth::JwtDecoderState;
 use dotenvy::dotenv;
 use jsonwebtoken::{DecodingKey, EncodingKey};
@@ -18,7 +18,11 @@ use tokio::net::TcpListener;
 use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
 
-use crate::{models::jwt::Claim, routes::create_api_router, util::auth::create_decoder};
+use crate::{
+    models::jwt::Claim,
+    routes::{create_api_router, health_check_handler},
+    util::auth::create_decoder,
+};
 
 use db::DatabaseConn;
 
@@ -107,7 +111,9 @@ async fn main() {
     };
 
     // Get server routes
-    let router = Router::new().nest("/api", create_api_router());
+    let router = Router::new()
+        .route("/health", get(health_check_handler))
+        .nest("/api", create_api_router());
 
     debug!("Binding listener to port {srv_port}");
     let url = format!("0.0.0.0:{srv_port}");

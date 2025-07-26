@@ -18,10 +18,7 @@ use crate::{
         jwt::{RefreshToken, ResponseModel as TokenResponse},
     },
     response::{ERR, Response, SUCCESS},
-    util::auth::{
-        create_jwt, hash_password, verify_jwt_and_get_id,
-        verify_password,
-    },
+    util::auth::{create_jwt, hash_password, verify_jwt_and_get_id, verify_password},
 };
 
 fn create_access_jwt(encode_key: &EncodingKey, user_id: Uuid) -> crate::error::Result<String> {
