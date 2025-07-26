@@ -9,13 +9,14 @@ use crate::{
     data::{check_for_email, check_for_user, get_user_login, register_user},
     error::{ErrorResponse, LOGIN_EXISTS, LOGIN_FAILED},
     models::{
+        ToResponse,
         auth::{
             LoginInfo,
             LoginRequest,
-            UserLogin,
-            // ResetSchema,
+            TokenResponse,
+            UserLogin, // ResetSchema,
         },
-        jwt::{RefreshToken, ResponseModel as TokenResponse},
+        jwt::RefreshToken,
     },
     response::{ERR, Response, SUCCESS},
     util::auth::{create_jwt, hash_password, verify_jwt_and_get_id, verify_password},
@@ -111,19 +112,19 @@ pub async fn login_handler(
     // Verify password
     verify_password(login.password_hash(), body.password())?;
 
+    let mut response = login.to_response();
+
     // Get access JWT
-    let access_jwt: String = match create_access_jwt(&data.encode_key, login.user_id()) {
-        Ok(s) => s,
+    match create_access_jwt(&data.encode_key, login.user_id()) {
+        Ok(s) => response.set_access_jwt(s),
         Err(e) => return Err(e.into()),
     };
-
-    let mut token = TokenResponse::new(access_jwt);
 
     // Get refresh JWT
     // TODO: add an option for people not to get a refresh token somehow
     // For example, in a 'remember me' or 'keep me logged in' option
     match create_refresh_jwt(&data.encode_key, login.user_id()) {
-        Ok(s) => token.set_refresh_jwt(s),
+        Ok(s) => response.set_refresh_jwt(s),
         Err(e) => return Err(e.into()),
     };
 
@@ -131,7 +132,7 @@ pub async fn login_handler(
         StatusCode::OK,
         SUCCESS,
         json!({
-            "auth": token,
+            "auth": response,
         }),
     ))
 }
@@ -165,11 +166,11 @@ pub async fn refresh_handler(
         Err(e) => return Err(e.into()),
     };
 
-    let mut token = TokenResponse::new(access_jwt);
+    let mut response = TokenResponse::new(access_jwt);
 
     // Get refresh JWT
     match create_refresh_jwt(&data.encode_key, user_id) {
-        Ok(s) => token.set_refresh_jwt(s),
+        Ok(s) => response.set_refresh_jwt(s),
         Err(e) => return Err(e.into()),
     };
 
@@ -177,7 +178,7 @@ pub async fn refresh_handler(
         StatusCode::OK,
         SUCCESS,
         json!({
-            "auth": token,
+            "auth": response,
         }),
     ))
 }

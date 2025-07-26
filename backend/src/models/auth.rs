@@ -1,9 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 use uuid::Uuid;
 
 use crate::{
-    models::user,
+    models::{ToResponse, user},
     util::{SqlQueryBuilder, ToSqlQueryBuilder},
 };
 
@@ -56,7 +56,7 @@ impl ToSqlQueryBuilder for LoginInfo {
 
 pub struct UserLogin {
     user_id: Uuid,
-    _email: String, // TODO: do we need this?
+    email: String, // TODO: do we need this?
     password_hash: String,
 }
 
@@ -74,9 +74,60 @@ impl From<Row> for UserLogin {
     fn from(value: Row) -> Self {
         Self {
             user_id: value.get(user::DatabaseModel::ID),
-            _email: value.get(user::DatabaseModel::EMAIL),
+            email: value.get(user::DatabaseModel::EMAIL),
             password_hash: value.get(user::DatabaseModel::PASS_HASH),
         }
+    }
+}
+
+impl ToResponse for UserLogin {
+    type Response = LoginResponse;
+
+    fn to_response(&self) -> Self::Response {
+        Self::Response {
+            user_id: self.user_id,
+            email: self.email.clone(),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoginResponse {
+    user_id: Uuid,
+    email: String,
+    #[serde(flatten)]
+    tokens: TokenResponse,
+}
+
+impl LoginResponse {
+    pub fn set_access_jwt(&mut self, access_jwt: String) {
+        self.tokens.access_jwt = access_jwt;
+    }
+
+    pub fn set_refresh_jwt(&mut self, refresh_jwt: String) {
+        self.tokens.refresh_jwt = Some(refresh_jwt);
+    }
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenResponse {
+    access_jwt: String,
+    refresh_jwt: Option<String>,
+}
+
+impl TokenResponse {
+    pub fn new(access_jwt: String) -> Self {
+        Self {
+            access_jwt,
+            ..Default::default()
+        }
+    }
+
+    pub fn set_refresh_jwt(&mut self, refresh_jwt: String) {
+        self.refresh_jwt = Some(refresh_jwt);
     }
 }
 
