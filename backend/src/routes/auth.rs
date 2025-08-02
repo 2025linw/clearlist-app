@@ -131,9 +131,7 @@ pub async fn login_handler(
     Ok(Response::with_data(
         StatusCode::OK,
         SUCCESS,
-        json!({
-            "auth": response,
-        }),
+        json!(response),
     ))
 }
 
@@ -177,9 +175,7 @@ pub async fn refresh_handler(
     Ok(Response::with_data(
         StatusCode::OK,
         SUCCESS,
-        json!({
-            "auth": response,
-        }),
+        json!(response),
     ))
 }
 

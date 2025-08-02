@@ -48,9 +48,7 @@ pub async fn create_handler(
     Ok(Response::with_data(
         StatusCode::CREATED,
         SUCCESS,
-        json!({
-            "task": task.to_response(),
-        }),
+        json!(task.to_response()),
     ))
 }
 
@@ -77,9 +75,7 @@ pub async fn retrieve_handler(
     Ok(Response::with_data(
         StatusCode::OK,
         SUCCESS,
-        json!({
-            "task": task.to_response(),
-        }),
+        json!(task.to_response()),
     ))
 }
 
@@ -127,9 +123,7 @@ pub async fn update_handler(
     Ok(Response::with_data(
         StatusCode::OK,
         SUCCESS,
-        json!({
-            "task": task.to_response(),
-        }),
+        json!(task.to_response()),
     ))
 }
 

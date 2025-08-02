@@ -35,9 +35,7 @@ pub async fn retrieve_handler(
     Ok(Response::with_data(
         StatusCode::OK,
         SUCCESS,
-        json!({
-            "user": user.to_response(),
-        }),
+        json!(user.to_response()),
     ))
 }
 
@@ -90,9 +88,7 @@ pub async fn update_handler(
     Ok(Response::with_data(
         StatusCode::OK,
         SUCCESS,
-        json!({
-            "user": user.to_response(),
-        }),
+        json!(user.to_response()),
     ))
 }
 
