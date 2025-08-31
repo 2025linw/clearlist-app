@@ -457,7 +457,7 @@ impl<'a> SqlQueryBuilder<'a> {
 }
 
 pub trait ToSqlQueryBuilder {
-    fn to_sql_builder(&self) -> SqlQueryBuilder;
+    fn to_sql_builder(&self) -> SqlQueryBuilder<'_>;
 }
 
 #[cfg(test)]

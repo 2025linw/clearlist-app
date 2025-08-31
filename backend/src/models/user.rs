@@ -100,7 +100,7 @@ impl UpdateRequest {
 }
 
 impl ToSqlQueryBuilder for UpdateRequest {
-    fn to_sql_builder(&self) -> SqlQueryBuilder {
+    fn to_sql_builder(&self) -> SqlQueryBuilder<'_> {
         let mut builder = SqlQueryBuilder::new(DatabaseModel::TABLE);
         builder.add_column(DatabaseModel::UPDATED, &self.timestamp);
         builder.set_return(&[DatabaseModel::ID]);

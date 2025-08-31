@@ -102,7 +102,7 @@ pub struct CreateRequest {
 }
 
 impl ToSqlQueryBuilder for CreateRequest {
-    fn to_sql_builder(&self) -> SqlQueryBuilder {
+    fn to_sql_builder(&self) -> SqlQueryBuilder<'_> {
         let mut builder = SqlQueryBuilder::new(DatabaseModel::TABLE);
         builder.set_return(&[DatabaseModel::ID]);
 
@@ -145,7 +145,7 @@ impl UpdateRequest {
 }
 
 impl ToSqlQueryBuilder for UpdateRequest {
-    fn to_sql_builder(&self) -> SqlQueryBuilder {
+    fn to_sql_builder(&self) -> SqlQueryBuilder<'_> {
         let mut builder = SqlQueryBuilder::new(DatabaseModel::TABLE);
         builder.add_column(DatabaseModel::UPDATED, &self.timestamp);
         builder.set_return(&[DatabaseModel::ID]);
@@ -189,7 +189,7 @@ pub struct QueryRequest {
 }
 
 impl ToSqlQueryBuilder for QueryRequest {
-    fn to_sql_builder(&self) -> SqlQueryBuilder {
+    fn to_sql_builder(&self) -> SqlQueryBuilder<'_> {
         let mut builder = SqlQueryBuilder::new(DatabaseModel::TABLE);
         builder.set_return_all();
 

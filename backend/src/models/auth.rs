@@ -43,7 +43,7 @@ impl LoginInfo {
 }
 
 impl ToSqlQueryBuilder for LoginInfo {
-    fn to_sql_builder(&self) -> SqlQueryBuilder {
+    fn to_sql_builder(&self) -> SqlQueryBuilder<'_> {
         let mut builder = SqlQueryBuilder::new(user::DatabaseModel::TABLE);
         builder.add_column(user::DatabaseModel::EMAIL, &self.email);
         builder.add_column(user::DatabaseModel::PASS_HASH, &self.password_hash);
