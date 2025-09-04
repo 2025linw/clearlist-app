@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-import { isAndroid, isIOS, isNative, isWeb } from '#/util/platformDetect';
+import { isAndroid, isIOS, isNative, isWeb } from '#/util/detectPlatform';
 
 export function web(value: any): any | undefined {
   if (isWeb) {

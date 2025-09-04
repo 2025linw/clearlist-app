@@ -1,4 +1,4 @@
-import { isAndroid } from '#/util/platformDetect';
+import { isAndroid } from '#/util/detectPlatform';
 
 // TODO check if this is needed
 export const TRACKING = isAndroid ? 0.1 : 0;
