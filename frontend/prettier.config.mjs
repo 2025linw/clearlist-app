@@ -1,6 +1,7 @@
 const config = {
   plugins: ['@trivago/prettier-plugin-sort-imports'],
 
+  // General
   tabWidth: 2,
   useTabs: false,
 
@@ -13,11 +14,10 @@ const config = {
   bracketSpacing: true,
   objectWrap: 'collapse',
   quoteProps: 'as-needed',
+  bracketSameLine: false,
 
   // React JSX Elements
   jsxSingleQuote: false,
-
-  bracketSameLine: false,
 
   // @trivago/prettier-plugin-organize-imports
   importOrder: [

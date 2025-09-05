@@ -31,11 +31,14 @@ export default ts.config(
     plugins: { 'unused-imports': unusedImports, 'react-native': reactNative },
 
     rules: {
-      // JS/TS
+      // Javascript
       'prefer-const': 'warn',
       'no-empty-pattern': 'warn',
+
+      // Typescript
       '@typescript-eslint/array-type': ['warn', { default: 'array-simple' }],
       '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': 'warn',
 
       // React
       'react/react-in-jsx-scope': 'off',
@@ -43,7 +46,6 @@ export default ts.config(
       // React Native
       'react-native/no-inline-styles': 'warn',
 
-      '@typescript-eslint/no-unused-vars': 'warn',
     },
   },
 
