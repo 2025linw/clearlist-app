@@ -1,6 +1,8 @@
 import { Text, View, StyleSheet } from 'react-native';
 
-type Props = {};
+import { AllNavigationProp } from '#/types/routes';
+
+type Props = { navigation: AllNavigationProp };
 export default function CalendarScreen({}: Props) {
   return (
     <View style={styles.container}>

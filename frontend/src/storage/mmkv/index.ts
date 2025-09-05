@@ -2,9 +2,7 @@ import { MMKV } from 'react-native-mmkv';
 
 import { StorageInterface } from '#/storage';
 
-const CLIST_SESSION = 'clist_session';
-
-class Storage<Schema> implements StorageInterface<Schema> {
+export class MMKVStorage<Schema> implements StorageInterface<Schema> {
   protected store: MMKV;
 
   constructor({ id }: { id?: string }) {
@@ -16,22 +14,32 @@ class Storage<Schema> implements StorageInterface<Schema> {
   }
 
   set<Key extends keyof Schema>(key: Key, data: Schema[Key]) {
-    this.store.set(key, JSON.stringify({ data }));
+    this.store.set(key.toString(), JSON.stringify({ data }));
   }
 
   get<Key extends keyof Schema>(key: Key): Schema[Key] | undefined {
-    const res = this.store.getString(key);
+    const res = this.store.getString(key.toString());
     if (!res) return undefined;
 
     return JSON.parse(res).data;
   }
 
-  getMany<Key extends keyof Schema>(keys: Key[]) {
-    keys.map(key => this.get(key));
+  getMany<Key extends keyof Schema>(
+    keys: Key[],
+  ): Array<Schema[Key]> | undefined {
+    const values: Array<Schema[Key]> = [];
+    for (const key of keys) {
+      const value = this.get(key);
+      if (!value) return undefined;
+
+      values.push(value);
+    }
+
+    return values;
   }
 
   remove<Key extends keyof Schema>(key: Key) {
-    this.store.delete(key);
+    this.store.delete(key.toString());
   }
 
   removeMany<Key extends keyof Schema>(keys: Key[]) {
@@ -42,6 +50,3 @@ class Storage<Schema> implements StorageInterface<Schema> {
     this.store.clearAll();
   }
 }
-
-export const device = new Storage<Device>();
-export const session = new Storage<Session>({ id: CLIST_SESSION });

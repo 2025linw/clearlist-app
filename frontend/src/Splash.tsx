@@ -1,11 +1,9 @@
 import * as SplashScreen from 'expo-splash-screen';
-import React, { useEffect } from 'react';
+import { useEffect, PropsWithChildren } from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 
-import { useSession } from '#/state/session';
-
 type Props = { isReady: boolean };
-export default function Splash(props: React.PropsWithChildren<Props>) {
+export default function Splash(props: PropsWithChildren<Props>) {
   const isReady = props.isReady;
 
   useEffect(() => {

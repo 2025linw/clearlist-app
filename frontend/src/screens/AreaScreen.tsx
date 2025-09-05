@@ -1,9 +1,9 @@
 import { NavigationProp } from '@react-navigation/native';
 import { Text, View, StyleSheet } from 'react-native';
 
-import { TodoTabNavigatorParams } from '#/types/routes';
+import { TodoListNavigatorParams } from '#/types/routes';
 
-type Props = { navigation: NavigationProp<TodoTabNavigatorParams> };
+type Props = { navigation: NavigationProp<TodoListNavigatorParams> };
 export default function AreaScreen({ navigation }: Props) {
   return (
     <View style={[styles.container]}>

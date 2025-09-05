@@ -7,10 +7,10 @@ import {
   useState,
 } from 'react';
 
-import { type Theme, type ColorMode, type ThemeName } from '#/types/theme';
+import { type Theme, type ColorMode, type ThemeName } from '#/alf/types';
 
 import { createThemes, defaultTheme } from './themes';
-import { type Device } from '#/storage';
+import { type Device } from '#/storage/schemas';
 import {
   computeFontScaleMultiplier,
   getFontFamily,

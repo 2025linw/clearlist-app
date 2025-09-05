@@ -1,9 +1,10 @@
 import { ColorSchemeName, useColorScheme } from 'react-native';
 
-import { SystemColorMode } from '#/types/persisted';
-import { DarkThemes, ThemeName } from '#/types/theme';
+import { DarkThemes, ThemeName } from '#/alf/types';
 
 import * as persisted from '#/storage/async-storage';
+import { device } from '#/storage';
+import { SystemColorMode } from '#/storage/schemas';
 
 export function useColorTheme(): ThemeName {
   const theme = useThemeName();
@@ -13,8 +14,8 @@ export function useColorTheme(): ThemeName {
 
 export function useThemeName(): ThemeName {
   const colorScheme = useColorScheme();
-  const colorMode = persisted.get('colorMode');
-  const darkTheme = persisted.get('darkTheme');
+  const colorMode = device.get('colorMode')!;
+  const darkTheme = device.get('darkTheme')!;
 
   return getThemeName(colorScheme, colorMode, darkTheme);
 }

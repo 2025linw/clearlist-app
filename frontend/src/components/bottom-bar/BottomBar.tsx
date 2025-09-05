@@ -20,13 +20,13 @@ export function BottomBar({ navigation }: BottomTabBarProps) {
 
   const onPressTodo = useCallback(() => {
     navigation.navigate('TodoTab');
-  });
+  }, []);
   const onPressCalendar = useCallback(() => {
     navigation.navigate('CalendarTab');
-  });
+  }, []);
   const onPressSearch = useCallback(() => {
     navigation.navigate('SearchTab');
-  });
+  }, []);
 
   return (
     <Animated.View
@@ -39,10 +39,11 @@ export function BottomBar({ navigation }: BottomTabBarProps) {
   );
 }
 
-type BtnProps = ButtonProps & { page: string };
+type BtnProps = Pick<ButtonProps, 'onPress'> & { page: string };
 function Btn({ page, onPress }: BtnProps) {
   return (
     <Button
+      label={page + "Nav"}
       size="large"
       color="transparent"
       shape="square"
@@ -56,13 +57,13 @@ function Btn({ page, onPress }: BtnProps) {
 }
 
 const styles = StyleSheet.create({
-  bottomBar: [
-    a.absolute,
-    a.bottom_0,
-    a.left_0,
-    a.right_0,
-    a.flex_row,
-    a.border_t,
-    a.px_xl,
-  ],
+  bottomBar: {
+    ...a.absolute,
+    ...a.bottom_0,
+    ...a.left_0,
+    ...a.right_0,
+    ...a.flex_row,
+    ...a.border_t,
+    ...a.px_xl,
+  },
 });

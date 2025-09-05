@@ -1,16 +1,15 @@
-import React from 'react';
+import { useState } from 'react';
 import { Text, View, StyleSheet, TextInput } from 'react-native';
 
 import { useSessionApi } from '#/state/session';
 
 import { Button, ButtonText } from '#/components/Button';
 
-type Props = {};
-export default function LoginScreen({}: Props) {
-  // const [email, onChangeEmail] = React.useState('');
-  // TODO: change this when not testing
-  const [email, onChangeEmail] = React.useState('testuser1@email.com');
-  const [password, onChangePassword] = React.useState('testpassword');
+// TODO: does LoginScreen need Props
+// type Props = {};
+export default function LoginScreen() {
+  const [email, setEmail] = useState(__DEV__ ? 'testuser1@email.com' : '');
+  const [password, setPassword] = useState(__DEV__ ? 'testpassword' : '');
 
   const { login, createAccount } = useSessionApi();
 
@@ -19,7 +18,7 @@ export default function LoginScreen({}: Props) {
       <Text>Login</Text>
       <TextInput
         style={styles.input}
-        onChangeText={onChangeEmail}
+        onChangeText={setEmail}
         value={email}
         placeholder="Email"
         placeholderTextColor="black"
@@ -30,7 +29,7 @@ export default function LoginScreen({}: Props) {
       />
       <TextInput
         style={styles.input}
-        onChangeText={onChangePassword}
+        onChangeText={setPassword}
         value={password}
         placeholder="Password"
         placeholderTextColor="black"

@@ -1,7 +1,7 @@
 import { NavigationProp } from '@react-navigation/native';
 import { type ComponentType } from 'react';
 
-import { TodoTabNavigatorParams } from '#/types/routes';
+import { TodoListNavigatorParams } from '#/types/routes';
 
 import { atoms as a } from '#/alf';
 
@@ -15,7 +15,7 @@ import { Calendar as X } from '#/components/icons/Calendar';
 import { Props as IconProps } from '#/components/icons/common';
 import Layout from '#/components/layout';
 
-type Props = { navigation: NavigationProp<TodoTabNavigatorParams> };
+type Props = { navigation: NavigationProp<TodoListNavigatorParams> };
 export default function TodoScreen({ navigation }: Props) {
   return (
     <Layout>
@@ -77,6 +77,7 @@ export default function TodoScreen({ navigation }: Props) {
           icon={X}
           label="settings"
           onPress={() => navigation.navigate('Setting')}
+          style={a.mt_lg}
         />
       </Layout.Content>
     </Layout>

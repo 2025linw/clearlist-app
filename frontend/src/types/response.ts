@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+// TODO: don't use zod for now
 const baseResponseSchema = z.strictObject({
   status: z.enum(['ok', 'success', 'error']),
 

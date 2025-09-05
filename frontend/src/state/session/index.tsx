@@ -1,17 +1,24 @@
-import React from 'react';
+import {
+  createContext,
+  useReducer,
+  useCallback,
+  useEffect,
+  useMemo,
+  useContext,
+} from 'react';
 
 import * as persisted from '#/storage/async-storage';
 
-import * as accountF from './account';
 import { getInitialState, reducer } from './reducer';
 import { type SessionStateContext, type SessionApiContext } from './types';
+import * as accountF from './utils';
 
-const StateContext = React.createContext<SessionStateContext>({
+const StateContext = createContext<SessionStateContext>({
   account: undefined,
   hasSession: false,
 });
 
-const ApiContext = React.createContext<SessionApiContext>({
+const ApiContext = createContext<SessionApiContext>({
   createAccount: async () => {},
   login: async () => {},
   logout: async () => {},
@@ -19,13 +26,13 @@ const ApiContext = React.createContext<SessionApiContext>({
 });
 
 export function Provider({ children }: React.PropsWithChildren<unknown>) {
-  const [state, dispatch] = React.useReducer(reducer, null, () => {
-    const initialState = getInitialState(persisted.get('session').account);
+  const [state, dispatch] = useReducer(reducer, null, () => {
+    const initialState = getInitialState(persisted.get('account'));
 
     return initialState;
   });
 
-  const createAccount = React.useCallback<SessionApiContext['createAccount']>(
+  const createAccount = useCallback<SessionApiContext['createAccount']>(
     async params => {
       const account = await accountF.createAccount(params);
 
@@ -33,15 +40,15 @@ export function Provider({ children }: React.PropsWithChildren<unknown>) {
     },
     [],
   );
-  const login = React.useCallback<SessionApiContext['login']>(async params => {
+  const login = useCallback<SessionApiContext['login']>(async params => {
     const account = await accountF.loginAccount(params);
 
     dispatch({ type: 'logged-in', newAccount: account });
   }, []);
-  const logout = React.useCallback<SessionApiContext['logout']>(async () => {
+  const logout = useCallback<SessionApiContext['logout']>(async () => {
     dispatch({ type: 'logged-out' });
   }, []);
-  const resumeSession = React.useCallback<SessionApiContext['resumeSession']>(
+  const resumeSession = useCallback<SessionApiContext['resumeSession']>(
     async params => {
       const account = await accountF.resumeAccount(params);
 
@@ -50,24 +57,23 @@ export function Provider({ children }: React.PropsWithChildren<unknown>) {
     [],
   );
 
-  // Track if data needs to be persisted
-  React.useEffect(() => {
+  // Persist data if needed
+  useEffect(() => {
     if (state.needsPersist) {
       state.needsPersist = false;
 
-      const persistedData = { account: state.account };
-      persisted.write('session', persistedData);
+      persisted.write('account', state.account);
     }
   }, [state]);
 
   // Keep the account state context
-  const stateContext = React.useMemo(
+  const stateContext = useMemo(
     () => ({ account: state.account, hasSession: !!state.account?.refreshJwt }),
     [state],
   );
 
   // Keep the account api context
-  const api = React.useMemo(
+  const api = useMemo(
     () => ({ createAccount, login, logout, resumeSession }),
     [createAccount, login, logout, resumeSession],
   );
@@ -80,9 +86,9 @@ export function Provider({ children }: React.PropsWithChildren<unknown>) {
 }
 
 export function useSession() {
-  return React.useContext(StateContext);
+  return useContext(StateContext);
 }
 
 export function useSessionApi() {
-  return React.useContext(ApiContext);
+  return useContext(ApiContext);
 }

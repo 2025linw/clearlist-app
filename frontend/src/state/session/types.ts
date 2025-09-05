@@ -1,14 +1,6 @@
-import { z } from 'zod';
+import { AccountSchema } from '#/storage/schemas';
 
-export const schema = z.strictObject({
-  userId: z.string(),
-
-  email: z.string(),
-
-  accessJwt: z.string().optional(),
-  refreshJwt: z.string().optional(),
-});
-export type AccountSchema = z.infer<typeof schema>;
+export { AccountSchema } from '#/storage/schemas';
 
 export type SessionStateContext = {
   account: AccountSchema | undefined;
@@ -17,8 +9,8 @@ export type SessionStateContext = {
 };
 
 export type SessionApiContext = {
-  createAccount: (props: { email: string; password: string }) => Promise<void>;
-  login: (props: { email: string; password: string }) => Promise<void>;
-  logout: () => void;
-  resumeSession: (account: AccountSchema) => Promise<void>;
+  createAccount(props: { email: string; password: string }): Promise<void>;
+  login(props: { email: string; password: string }): Promise<void>;
+  logout(): void;
+  resumeSession(account: AccountSchema): Promise<void>;
 };

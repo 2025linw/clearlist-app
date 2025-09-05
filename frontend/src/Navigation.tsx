@@ -7,16 +7,16 @@ import {
   NavigationContainer,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import React, { useCallback, JSX, PropsWithChildren } from 'react';
+import { useCallback, JSX, PropsWithChildren } from 'react';
 
 import {
   AllNavigatorParams,
   type BottomTabsNavigatorParams,
-  type TodoTabNavigatorParams,
+  type TodoListNavigatorParams,
 } from '#/types/routes';
-import { Theme } from '#/types/theme';
 
 import { useTheme } from '#/alf';
+import { Theme } from '#/alf/types';
 
 import { useSession } from '#/state/session';
 
@@ -41,7 +41,7 @@ type AllNavigatorsType = ReturnType<
 
 const Tab = createBottomTabNavigator<BottomTabsNavigatorParams>();
 
-const TodoTab = createNativeStackNavigator<TodoTabNavigatorParams>();
+const TodoTab = createNativeStackNavigator<TodoListNavigatorParams>();
 
 /*
  * Screens that are accesible from any Screen in any navigator

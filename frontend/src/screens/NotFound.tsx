@@ -1,8 +1,10 @@
 import { Text, View, StyleSheet } from 'react-native';
 
+import { AllNavigationProp } from '#/types/routes';
+
 import { useTheme } from '#/alf';
 
-type Props = {};
+type Props = { navigation: AllNavigationProp };
 export default function SearchScreen({}: Props) {
   const t = useTheme();
 

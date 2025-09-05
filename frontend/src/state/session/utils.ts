@@ -4,8 +4,6 @@ import { loginUser, registerUser, refreshUser } from '#/services/api';
 
 import { type AccountSchema, type SessionApiContext } from './types';
 
-const URL = 'https://todo.saphynet.io/api';
-
 export async function createAccount({
   email,
   password,

@@ -1,25 +1,28 @@
 import * as SplashScreen from 'expo-splash-screen';
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider as Alf } from '#/alf';
 
-import { init as initPersistedState } from '#/storage/async-storage';
 import {
   Provider as SessionProvider,
   useSession,
   useSessionApi,
 } from '#/state/session';
-import { type AccountSchema } from '#/state/session/types';
+import { init as initPersistedState } from '#/storage/async-storage';
+import { type AccountSchema } from '#/storage/schemas';
 
 import Shell from '#/components/shell';
 
 import Splash from '#/Splash';
+import { isJwtExpired } from '#/util/isSessionExpired';
+
+export const DEBUG = true;
 
 SplashScreen.preventAutoHideAsync();
 
 function InnerApp() {
-  const [isReady, setReady] = React.useState(false);
+  const [isReady, setReady] = useState(false);
 
   // const theme = useColorTheme();
   const theme = 'light';
@@ -28,12 +31,27 @@ function InnerApp() {
   const { resumeSession } = useSessionApi();
 
   // Init
-  React.useEffect(() => {
-    async function onLaunch(account: AccountSchema) {
+  useEffect(() => {
+    async function onLaunch(account?: AccountSchema) {
+      if (!account || !account.refreshJwt) {
+        // NOTE: this means that no-one is currently logged in
+        // This behavior might change though as more development is done
+
+        setReady(true);
+
+        return undefined;
+      }
+      if (isJwtExpired(account.refreshJwt)) {
+        // TODO: Create menu to show that login has expired
+        setReady(true);
+
+        return undefined;
+      }
+
       try {
         await resumeSession(account);
       } catch (e) {
-        console.error('resume session:', e);
+        console.error('initialResumeSession', e);
       } finally {
         setReady(true);
       }
@@ -41,8 +59,6 @@ function InnerApp() {
 
     onLaunch(account);
   }, []);
-
-  // TODO: check here for when session is dropped (i.e. Refresh JWT has expired)
 
   return (
     <Alf theme={theme}>
@@ -54,10 +70,10 @@ function InnerApp() {
 }
 
 export default function App() {
-  const [isReady, setReady] = React.useState(false);
+  const [isReady, setReady] = useState(false);
 
   // Setup
-  React.useEffect(() => {
+  useEffect(() => {
     Promise.all([
       initPersistedState(), // Initialize persisted data
     ]).then(() => setReady(true));

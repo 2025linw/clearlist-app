@@ -1,6 +1,8 @@
 import { Text, View, StyleSheet } from 'react-native';
 
-type Props = {};
+import { AllNavigationProp } from '#/types/routes';
+
+type Props = { navigation: AllNavigationProp };
 export default function SearchScreen({}: Props) {
   return (
     <View style={styles.container}>
@@ -10,9 +12,5 @@ export default function SearchScreen({}: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

@@ -12,7 +12,7 @@ export type BottomTabsNavigatorParams = CommonNavigatorParams & {
   SearchTab: undefined;
 };
 
-export type TodoTabNavigatorParams = CommonNavigatorParams & {
+export type TodoListNavigatorParams = CommonNavigatorParams & {
   Todo: undefined;
 
   List: undefined;
@@ -22,5 +22,5 @@ export type TodoTabNavigatorParams = CommonNavigatorParams & {
 
 export type AllNavigatorParams = CommonNavigatorParams &
   BottomTabsNavigatorParams &
-  TodoTabNavigatorParams;
+  TodoListNavigatorParams;
 export type AllNavigationProp = NativeStackNavigationProp<AllNavigatorParams>;

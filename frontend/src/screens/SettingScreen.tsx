@@ -1,20 +1,19 @@
+import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
+
+import { AllNavigationProp } from '#/types/routes';
 
 import { useSessionApi } from '#/state/session';
 
 import { Button, ButtonText } from '#/components/Button';
-import { AllNavigationProp } from '#/types/routes';
-import { useCallback } from 'react';
 
-type Props = {
-  navigation: AllNavigationProp
-};
-export default function SettingScreen({navigation}: Props) {
+type Props = { navigation: AllNavigationProp };
+export default function SettingScreen({ navigation }: Props) {
   const { logout } = useSessionApi();
 
   const onPressInner = useCallback(() => {
     navigation.navigate('Debug');
-  })
+  }, []);
 
   return (
     <View style={styles.container}>

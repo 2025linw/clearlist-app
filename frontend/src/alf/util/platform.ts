@@ -2,7 +2,9 @@ import { Platform } from 'react-native';
 
 import { isAndroid, isIOS, isNative, isWeb } from '#/util/detectPlatform';
 
-export function web(value: any): any | undefined {
+export function web(
+  value: string | number | object,
+): string | number | object | undefined {
   if (isWeb) {
     return value;
   }
@@ -10,7 +12,9 @@ export function web(value: any): any | undefined {
   return undefined;
 }
 
-export function ios(value: any): any | undefined {
+export function ios(
+  value: string | number | object,
+): string | number | object | undefined {
   if (isIOS) {
     return value;
   }
@@ -18,7 +22,9 @@ export function ios(value: any): any | undefined {
   return undefined;
 }
 
-export function android(value: any): any | undefined {
+export function android(
+  value: string | number | object,
+): string | number | object | undefined {
   if (isAndroid) {
     return value;
   }
@@ -26,7 +32,9 @@ export function android(value: any): any | undefined {
   return undefined;
 }
 
-export function native(value: any): any | undefined {
+export function native(
+  value: string | number | object,
+): string | number | object | undefined {
   if (isNative) {
     return value;
   }

@@ -1,9 +1,11 @@
 import { TextStyle } from 'react-native';
 
-import { type FontScale, type FontFamily } from '#/types/font';
+import { type FontScale, type FontFamily } from '#/alf/types';
+
+import { device } from '#/storage';
+import { Device } from '#/storage/schemas';
 
 import { isAndroid, isWeb } from '#/util/detectPlatform';
-import { Device, device } from '#/storage';
 
 const WEB_FONT_FAMILIES = `system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"`;
 
@@ -21,28 +23,28 @@ export function computeFontScaleMultiplier(scale: Device['fontScale']): number {
 }
 
 export function getFontScale(): FontScale {
-  return device.get(['fontScale']) ?? '0';
+  return device.get('fontScale') ?? '0';
 }
 export function setFontScale(fontScale: Device['fontScale']) {
-  device.set(['fontScale'], fontScale);
+  device.set('fontScale', fontScale);
 }
 
 export function getFontFamily(): FontFamily {
-  return device.get(['fontFamily']) || 'theme';
+  return device.get('fontFamily') || 'theme';
 }
 export function setFontFamily(fontFamily: Device['fontFamily']) {
-  device.set(['fontFamily'], fontFamily);
+  device.set('fontFamily', fontFamily);
 }
 
 export function applyFonts(style: TextStyle, fontFamily: FontFamily) {
   if (fontFamily === 'theme') {
     if (isAndroid) {
       if (style.fontStyle === 'italic') {
-        console.trace("unimplemented");
+        console.trace('unimplemented');
       }
     } else {
       if (style.fontStyle === 'italic') {
-        console.trace("unimplemented");
+        console.trace('unimplemented');
       }
 
       // web fallback families
