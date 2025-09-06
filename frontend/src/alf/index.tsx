@@ -9,8 +9,8 @@ import {
 
 import { type Theme, type ColorMode, type ThemeName } from '#/alf/types';
 
-import { createThemes, defaultTheme } from './themes';
 import { type Device } from '#/storage/schemas';
+
 import {
   computeFontScaleMultiplier,
   getFontFamily,
@@ -18,6 +18,7 @@ import {
   setFontFamily as persistFontFamily,
   setFontScale as persistFontScale,
 } from './fonts';
+import { createThemes, defaultTheme } from './themes';
 
 export { atoms } from './atoms';
 export * from './fonts';
@@ -61,7 +62,7 @@ export function ThemeProvider({
     computeFontScaleMultiplier(fontScale),
   );
   const setFontScaleAndPersist = useCallback<Alf['fonts']['setFontScale']>(
-    (fontScale) => {
+    fontScale => {
       setFontScale(fontScale);
       persistFontScale(fontScale);
 
@@ -74,7 +75,7 @@ export function ThemeProvider({
     getFontFamily(),
   );
   const setFontFamilyAndPersist = useCallback<Alf['fonts']['setFontFamily']>(
-    (fontFamily) => {
+    fontFamily => {
       setFontFamily(fontFamily);
       persistFontFamily(fontFamily);
     },

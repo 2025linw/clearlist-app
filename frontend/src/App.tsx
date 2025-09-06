@@ -16,6 +16,7 @@ import Shell from '#/components/shell';
 
 import Splash from '#/Splash';
 import { isJwtExpired } from '#/util/isSessionExpired';
+import { useColorTheme } from '#/util/useColorTheme';
 
 export const DEBUG = true;
 
@@ -24,8 +25,7 @@ SplashScreen.preventAutoHideAsync();
 function InnerApp() {
   const [isReady, setReady] = useState(false);
 
-  // const theme = useColorTheme();
-  const theme = 'light';
+  const theme = useColorTheme();
 
   const { account } = useSession();
   const { resumeSession } = useSessionApi();
