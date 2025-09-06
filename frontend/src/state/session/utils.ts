@@ -1,4 +1,4 @@
-import { loginResponseSchema, type LoginResponse } from '#/types/response';
+import { type LoginResponseSchema } from '#/types/response';
 
 import { loginUser, registerUser, refreshUser } from '#/services/api';
 
@@ -16,7 +16,7 @@ export async function createAccount({
 
     return await responseToSessionAccountOrThrow(response);
   } catch (e) {
-    console.error(`createAccount error ${e}`);
+    console.error('createAccount - error:', e);
 
     throw Error('error fetching request', { cause: e });
   }
@@ -34,7 +34,7 @@ export async function loginAccount({
 
     return await responseToSessionAccountOrThrow(response);
   } catch (e) {
-    console.error(`loginAccount error ${e}`);
+    console.error('loginAccount - error:', e);
 
     throw Error('error fetching request', { cause: e });
   }
@@ -64,14 +64,14 @@ export async function resumeAccount(
       refreshJwt: data.refreshJwt,
     };
   } catch (e) {
-    console.error('resumeAccount error:', e);
+    console.error('resumeAccount - error:', e);
 
     throw Error('error fetching request', { cause: e });
   }
 }
 
 async function responseToSessionAccountOrThrow(
-  response: LoginResponse,
+  response: LoginResponseSchema,
 ): Promise<AccountSchema> {
   const account = await responseToSessionAccount(response);
   if (!account) {
@@ -82,26 +82,24 @@ async function responseToSessionAccountOrThrow(
 }
 
 async function responseToSessionAccount(
-  response: LoginResponse,
+  response: LoginResponseSchema,
 ): Promise<AccountSchema | undefined> {
   try {
-    const parsed = loginResponseSchema.parse(response);
-
-    if (!['ok', 'success'].includes(parsed.status)) {
-      console.warn('unexpected status:', parsed.status);
+    if (!['ok', 'success'].includes(response.status)) {
+      console.warn('unexpected status:', response.status);
 
       return undefined;
     }
 
-    const data = parsed.data;
+    const data = response.data;
     if (!data) {
-      console.log('response did not contain data');
+      console.error('response did not contain data');
 
       return undefined;
     }
 
     if (!data.userId || !data.email || !data.accessJwt || !data.refreshJwt) {
-      console.log('response data did not contain authntication info');
+      console.error('response data did not contain authentication info');
 
       return undefined;
     }

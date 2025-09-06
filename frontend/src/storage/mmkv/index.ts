@@ -38,6 +38,12 @@ export class MMKVStorage<Schema> implements StorageInterface<Schema> {
     return values;
   }
 
+  getAll<Key extends keyof Schema>(): Array<Schema[Key]> {
+    const keys = this.store.getAllKeys() as Key[];
+
+    return this.getMany(keys) ?? [];
+  }
+
   remove<Key extends keyof Schema>(key: Key) {
     this.store.delete(key.toString());
   }

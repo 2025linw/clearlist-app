@@ -1,62 +1,65 @@
 import { type RefreshSchema, type LoginSchema } from '#/types/request';
 import {
-  type LoginResponse,
-  loginResponseSchema,
-  type RefreshResponse,
-  refreshResponseSchema,
+  type LoginResponseSchema,
+  type RefreshResponseSchema,
 } from '#/types/response';
+
+import { isSuccess, isUserErr } from '#/services/utils';
 
 import apiClient from './apiClient';
 
-function isSuccessOrUserError(status: number): boolean {
-  return (200 <= status && status < 300) || (400 <= status && status < 500);
+function isInternalError(status: number): boolean {
+  return !isSuccess(status) && !isUserErr(status);
 }
 
 export async function registerUser({
   email,
   password,
-}: LoginSchema): Promise<LoginResponse | undefined> {
+}: LoginSchema): Promise<LoginResponseSchema | undefined> {
   const { status, statusText, data } = await apiClient.post('/auth/register', {
     email: email,
     password: password,
   });
-  if (!isSuccessOrUserError(status)) {
-    console.error(`Internal error: ${status} - ${statusText}`);
+  if (isInternalError(status)) {
+    console.error(`registerUser - internal error: ${status} - ${statusText}`);
 
     return undefined;
   }
 
-  return loginResponseSchema.parse(data);
+  // TODO: eventually use zod or some type verification to parse data
+  return data;
 }
 
 export async function loginUser({
   email,
   password,
-}: LoginSchema): Promise<LoginResponse | undefined> {
+}: LoginSchema): Promise<LoginResponseSchema | undefined> {
   const { status, statusText, data } = await apiClient.post('/auth/login', {
     email: email,
     password: password,
   });
-  if (!isSuccessOrUserError(status)) {
-    console.error(`Internal error: ${status} - ${statusText}`);
+  if (isInternalError(status)) {
+    console.error(`loginUser - internal error: ${status} - ${statusText}`);
 
     return undefined;
   }
 
-  return loginResponseSchema.parse(data);
+  // TODO: eventually use zod or some type verification to parse data
+  return data;
 }
 
 export async function refreshUser({
   refreshJwt,
-}: RefreshSchema): Promise<RefreshResponse | undefined> {
+}: RefreshSchema): Promise<RefreshResponseSchema | undefined> {
   const { status, statusText, data } = await apiClient.post('/auth/refresh', {
     refreshJwt: refreshJwt,
   });
-  if (!isSuccessOrUserError(status)) {
-    console.error(`Internal error: ${status} - ${statusText}`);
+  if (isInternalError(status)) {
+    console.error(`refreshUser - internal error: ${status} - ${statusText}`);
 
     return undefined;
   }
 
-  return refreshResponseSchema.parse(data);
+  // TODO: eventually use zod or some type verification to parse data
+  return data;
 }
