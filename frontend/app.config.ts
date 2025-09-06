@@ -23,6 +23,8 @@ const config: ExpoConfig = {
     edgeToEdgeEnabled: true,
   },
 
+  plugins: ['expo-font'],
+
   extra: { eas: { projectId: '484daebd-45bc-432f-9e82-2821014b2ac3' } },
 };
 

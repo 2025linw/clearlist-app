@@ -1,5 +1,6 @@
 import babelParser from '@babel/eslint-parser';
 import js from '@eslint/js';
+import defineConfig from 'eslint/config';
 import parser from '@typescript-eslint/parser';
 import prettier from 'eslint-config-prettier';
 import react from 'eslint-plugin-react';
@@ -7,7 +8,7 @@ import reactNative from 'eslint-plugin-react-native';
 import unusedImports from 'eslint-plugin-unused-imports';
 import ts from 'typescript-eslint';
 
-export default ts.config(
+export default defineConfig(
   js.configs.recommended,
   ts.configs.recommended,
 

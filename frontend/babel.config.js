@@ -1,13 +1,11 @@
-module.exports = {
-  presets: ['babel-preset-expo'],
-  plugins: [
-    [
-      'module-resolver',
-      {
-        alias: {
-          '#': './src',
-        },
+export const presets = ['babel-preset-expo'];
+export const plugins = [
+  [
+    'module-resolver',
+    {
+      alias: {
+        '#': './src',
       },
-    ],
+    },
   ],
-};
+];
