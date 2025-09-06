@@ -28,7 +28,7 @@ function InnerApp() {
   const theme = useColorTheme();
 
   const { account } = useSession();
-  const { resumeSession } = useSessionApi();
+  const { resumeSession, logout } = useSessionApi();
 
   // Init
   useEffect(() => {
@@ -52,6 +52,8 @@ function InnerApp() {
         await resumeSession(account);
       } catch (e) {
         console.error('initialResumeSession', e);
+
+        logout();
       } finally {
         setReady(true);
       }
