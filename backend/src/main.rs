@@ -34,7 +34,7 @@ pub struct AppState {
     encode_key: EncodingKey,
 }
 
-const ENV_VAR_ERR: &str = "Unable to load environment variable from `.env`";
+const ENV_VAR_ERR: &str = "Unable to load environment variables from `.env`";
 
 // Server Main
 #[tokio::main]
