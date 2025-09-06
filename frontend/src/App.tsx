@@ -18,8 +18,6 @@ import Splash from '#/Splash';
 import { isJwtExpired } from '#/util/isSessionExpired';
 import { useColorTheme } from '#/util/useColorTheme';
 
-export const DEBUG = true;
-
 SplashScreen.preventAutoHideAsync();
 
 function InnerApp() {
