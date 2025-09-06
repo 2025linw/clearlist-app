@@ -34,12 +34,16 @@ pub struct AppState {
     encode_key: EncodingKey,
 }
 
+const ENV_VAR_ERR: &str = "Unable to load environment variable from `.env`";
+
 // Server Main
 #[tokio::main]
 async fn main() {
     // Load .env
     dotenv().unwrap_or_else(|_| {
-        log_error_and_exit!("Unable to load environment variables from `.env`")
+        eprint!("{}", ENV_VAR_ERR);
+
+        log_error_and_exit!(ENV_VAR_ERR)
     });
 
     // Initialize logging
