@@ -1,4 +1,4 @@
-import { Attributes, Children, cloneElement, isValidElement } from 'react';
+import { Children, createContext, isValidElement, useContext } from 'react';
 import { View, ViewProps, type StyleProp, type ViewStyle } from 'react-native';
 
 import { atoms as a } from '#/alf';
@@ -6,29 +6,20 @@ import { atoms as a } from '#/alf';
 import { Content } from './content';
 import Header from './header';
 
+const LayoutContext = createContext({ hasHeader: false });
+
 type Props = ViewProps & { style?: StyleProp<ViewStyle> };
 function Layout({ style, children, ...props }: Props) {
-  let hasHeader = false;
-  Children.forEach(children, child => {
-    if (isValidElement(child) && child.type === Header) {
-      hasHeader = true;
-    }
-  });
+  const hasHeader = Children.toArray(children).some(
+    child => isValidElement(child) && child.type === Header,
+  );
 
   return (
-    <View style={[a.util_screen_outer, style]} {...props}>
-      {hasHeader
-        ? Children.map(children, child => {
-            if (isValidElement(child) && child.type === Content) {
-              return cloneElement(child, {
-                hasHeader: true,
-              } as Attributes)
-            }
-
-            return child;
-          })
-        : children}
-    </View>
+    <LayoutContext.Provider value={{ hasHeader }}>
+      <View style={[a.util_screen_outer, style]} {...props}>
+        {children}
+      </View>
+    </LayoutContext.Provider>
   );
 }
 
@@ -36,3 +27,7 @@ Layout.Header = Header;
 Layout.Content = Content;
 
 export default Layout;
+
+export function useLayoutContext() {
+  return useContext(LayoutContext);
+}
