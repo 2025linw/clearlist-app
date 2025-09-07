@@ -6,8 +6,8 @@ import { TodoListNavigatorParams } from '#/types/routes';
 import { atoms as a } from '#/alf';
 
 import {
-  Button as BaseButton,
-  type ButtonProps as BaseButtonProps,
+  Button,
+  type ButtonProps,
   ButtonIcon,
   ButtonText,
 } from '#/components/Button';
@@ -20,7 +20,7 @@ export default function TodoScreen({ navigation }: Props) {
   return (
     <Layout>
       <Layout.Content>
-        <Button
+        <NavButton
           text="Inbox"
           icon={X}
           label="inbox"
@@ -28,51 +28,51 @@ export default function TodoScreen({ navigation }: Props) {
           style={a.mb_lg}
         />
 
-        <Button
+        <NavButton
           text="Today"
           icon={X}
           label="today"
           onPress={() => navigation.navigate('List')}
         />
-        <Button
+        <NavButton
           text="Upcoming"
           icon={X}
           label="upcoming"
           onPress={() => navigation.navigate('List')}
         />
-        <Button
+        <NavButton
           text="Deadline"
           icon={X}
           label="deadline"
           onPress={() => navigation.navigate('List')}
         />
-        <Button
+        <NavButton
           text="Anytime"
           icon={X}
           label="anytime"
           onPress={() => navigation.navigate('List')}
         />
-        <Button
+        <NavButton
           text="Someday"
           icon={X}
           label="someday"
           onPress={() => navigation.navigate('List')}
         />
-        <Button
+        <NavButton
           text="Logbook"
           icon={X}
           label="logbook"
           onPress={() => navigation.navigate('List')}
           style={a.mt_lg}
         />
-        <Button
+        <NavButton
           text="Trash"
           icon={X}
           label="trash"
           onPress={() => navigation.navigate('List')}
         />
 
-        <Button
+        <NavButton
           text="Settings"
           icon={X}
           label="settings"
@@ -84,15 +84,22 @@ export default function TodoScreen({ navigation }: Props) {
   );
 }
 
-type ButtonProps = Omit<BaseButtonProps, 'children'> & {
+type NavButtonProps = Omit<ButtonProps, 'children'> & {
   icon: ComponentType<IconProps>;
   text: string;
 };
-function Button({ text, icon, label, onPress, style, ...rest }: ButtonProps) {
+function NavButton({
+  text,
+  icon,
+  label,
+  onPress,
+  style,
+  ...rest
+}: NavButtonProps) {
   return (
-    <BaseButton {...rest} label={label} onPress={onPress} style={style}>
+    <Button {...rest} label={label} onPress={onPress} style={style}>
       <ButtonIcon icon={icon} />
       <ButtonText>{text}</ButtonText>
-    </BaseButton>
+    </Button>
   );
 }
