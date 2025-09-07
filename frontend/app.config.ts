@@ -1,27 +1,25 @@
 import { ExpoConfig } from 'expo/config';
 import 'ts-node/register';
 
+import pkg from './package.json';
+
 const config: ExpoConfig = {
-  name: 'clear-list',
+  name: 'Clear List',
   slug: 'clear-list',
-  version: '0.0.1',
+
+  version: pkg.version,
 
   newArchEnabled: true,
 
   icon: './assets/ios/AppIcon~ios-marketing.png',
 
   ios: {
-    bundleIdentifier: 'io.saphynet.todo',
-
     supportsTablet: true,
-
+    bundleIdentifier: 'io.saphynet.todo',
     infoPlist: { ITSAppUsesNonExemptEncryption: false },
   },
-  android: {
-    package: 'io.saphynet.todo',
-
-    edgeToEdgeEnabled: true,
-  },
+  android: { edgeToEdgeEnabled: true, package: 'io.saphynet.todo' },
+  web: { favicon: './assets/web/favicon.ico' },
 
   plugins: ['expo-font'],
 
