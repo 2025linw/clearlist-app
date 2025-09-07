@@ -63,8 +63,8 @@ impl ToResponse for DatabaseModel {
         Self::Response {
             id: self.id,
             label: self.tag_label.to_owned().unwrap_or_default(),
-            color: self.color.to_owned().unwrap_or_default(),
-            category: self.category.to_owned().unwrap_or_default(),
+            color: self.color.to_owned(),
+            category: self.category.to_owned(),
             user_id: self.user_id,
             created_on: self.created_on,
             updated_on: self.updated_on,
@@ -80,9 +80,9 @@ pub struct ResponseModel {
     id: Uuid,
 
     label: String,
-    color: String,
+    color: Option<String>,
 
-    category: String,
+    category: Option<String>,
 
     user_id: Uuid,
 

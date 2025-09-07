@@ -58,7 +58,7 @@ impl ToResponse for DatabaseModel {
         Self::Response {
             id: self.id,
             name: self.area_name.to_owned().unwrap_or_default(),
-            icon_url: self.icon_url.to_owned().unwrap_or_default(),
+            icon_url: self.icon_url.to_owned(),
             user_id: self.user_id,
             created_on: self.created_on,
             updated_on: self.updated_on,
@@ -74,7 +74,7 @@ pub struct ResponseModel {
     id: Uuid,
 
     name: String,
-    icon_url: String,
+    icon_url: Option<String>,
 
     user_id: Uuid,
 
