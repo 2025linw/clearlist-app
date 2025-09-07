@@ -12,10 +12,12 @@ export type BottomTabsNavigatorParams = CommonNavigatorParams & {
   SearchTab: undefined;
 };
 
+type ListPage = 'today' | 'upcoming' | 'deadline' | 'anytime' | 'someday' | 'logbook' | 'trash';
+
 export type TodoListNavigatorParams = CommonNavigatorParams & {
   Todo: undefined;
 
-  List: undefined;
+  List: { page: ListPage } | undefined;
   Project: undefined;
   Area: undefined;
 };

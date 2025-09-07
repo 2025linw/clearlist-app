@@ -1,12 +1,17 @@
-import { NavigationProp } from '@react-navigation/native';
+import { NavigationProp, RouteProp } from '@react-navigation/native';
 import { Text } from 'react-native';
 
 import { TodoListNavigatorParams } from '#/types/routes';
 
 import Layout from '#/components/layout';
 
-type Props = { navigation: NavigationProp<TodoListNavigatorParams> };
-export default function ListScreen({ navigation }: Props) {
+type Props = {
+  navigation: NavigationProp<TodoListNavigatorParams>;
+  route: RouteProp<TodoListNavigatorParams>;
+};
+export default function ListScreen({ route }: Props) {
+  const page = route.params?.page ?? 'index';
+
   return (
     <Layout>
       <Layout.Header>
@@ -14,7 +19,7 @@ export default function ListScreen({ navigation }: Props) {
       </Layout.Header>
 
       <Layout.Content>
-        <Text>This is the list screen</Text>
+        <Text>This is the {page} page</Text>
       </Layout.Content>
     </Layout>
   );

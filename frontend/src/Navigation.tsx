@@ -52,8 +52,9 @@ function commonScreens(Stack: AllNavigatorsType) {
   return (
     <>
       <Stack.Screen name="NotFound" component={NotFound} />
-      {/* <Stack.Screen name="Setting" component={SettingScreen} /> */}
       <Stack.Screen name="Setting" component={SettingScreen} />
+
+      {/* TODO: add profile screen */}
 
       <Stack.Screen name="Debug" component={DebugScreen} />
     </>

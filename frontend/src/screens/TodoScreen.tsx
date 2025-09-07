@@ -32,44 +32,44 @@ export default function TodoScreen({ navigation }: Props) {
           text="Today"
           icon={X}
           label="today"
-          onPress={() => navigation.navigate('List')}
+          onPress={() => navigation.navigate('List', { page: 'today' })}
         />
         <NavButton
           text="Upcoming"
           icon={X}
           label="upcoming"
-          onPress={() => navigation.navigate('List')}
+          onPress={() => navigation.navigate('List', { page: 'upcoming' })}
         />
         <NavButton
           text="Deadline"
           icon={X}
           label="deadline"
-          onPress={() => navigation.navigate('List')}
+          onPress={() => navigation.navigate('List', { page: 'deadline' })}
         />
         <NavButton
           text="Anytime"
           icon={X}
           label="anytime"
-          onPress={() => navigation.navigate('List')}
+          onPress={() => navigation.navigate('List', { page: 'anytime' })}
         />
         <NavButton
           text="Someday"
           icon={X}
           label="someday"
-          onPress={() => navigation.navigate('List')}
+          onPress={() => navigation.navigate('List', { page: 'someday' })}
         />
         <NavButton
           text="Logbook"
           icon={X}
           label="logbook"
-          onPress={() => navigation.navigate('List')}
+          onPress={() => navigation.navigate('List', { page: 'logbook' })}
           style={a.mt_lg}
         />
         <NavButton
           text="Trash"
           icon={X}
           label="trash"
-          onPress={() => navigation.navigate('List')}
+          onPress={() => navigation.navigate('List', { page: 'trash' })}
         />
 
         <NavButton
