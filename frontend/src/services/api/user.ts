@@ -4,13 +4,8 @@ import {
   type RefreshResponseSchema,
 } from '#/types/response';
 
-import { isSuccess, isUserErr } from '#/services/utils';
-
-import apiClient from './apiClient';
-
-function isInternalError(status: number): boolean {
-  return !isSuccess(status) && !isUserErr(status);
-}
+import apiClient from '../apiClient';
+import { isServerErr } from '../utils';
 
 export async function registerUser({
   email,
@@ -20,7 +15,7 @@ export async function registerUser({
     email: email,
     password: password,
   });
-  if (isInternalError(status)) {
+  if (isServerErr(status)) {
     console.error(`registerUser - internal error: ${status} - ${statusText}`);
 
     return undefined;
@@ -38,7 +33,7 @@ export async function loginUser({
     email: email,
     password: password,
   });
-  if (isInternalError(status)) {
+  if (isServerErr(status)) {
     console.error(`loginUser - internal error: ${status} - ${statusText}`);
 
     return undefined;
@@ -54,7 +49,7 @@ export async function refreshUser({
   const { status, statusText, data } = await apiClient.post('/auth/refresh', {
     refreshJwt: refreshJwt,
   });
-  if (isInternalError(status)) {
+  if (isServerErr(status)) {
     console.error(`refreshUser - internal error: ${status} - ${statusText}`);
 
     return undefined;

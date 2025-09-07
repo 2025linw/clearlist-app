@@ -12,6 +12,7 @@ import * as persisted from '#/storage/async-storage';
 import { getInitialState, reducer } from './reducer';
 import { type SessionStateContext, type SessionApiContext } from './types';
 import * as accountF from './utils';
+import { setAuthToken } from '#/services/apiClient';
 
 const StateContext = createContext<SessionStateContext>({
   account: undefined,
@@ -71,6 +72,13 @@ export function Provider({ children }: React.PropsWithChildren<unknown>) {
     () => ({ account: state.account, hasSession: !!state.account?.refreshJwt }),
     [state],
   );
+
+  // Add Authorization header to API client if exists
+  useEffect(() => {
+    const { account } = state;
+
+    setAuthToken(account?.accessJwt);
+  }, [state]);
 
   // Keep the account api context
   const api = useMemo(
