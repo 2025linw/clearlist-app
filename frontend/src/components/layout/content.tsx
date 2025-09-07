@@ -17,8 +17,6 @@ export function Content({
 }: Props) {
   const { hasHeader } = useLayoutContext();
 
-  console.log(hasHeader);
-
   return (
     <Animated.ScrollView
       style={[hasHeader ? a.h_full : {}, style]}
