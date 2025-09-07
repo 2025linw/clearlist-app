@@ -1,11 +1,11 @@
 import babelParser from '@babel/eslint-parser';
 import js from '@eslint/js';
-import defineConfig from 'eslint/config';
 import parser from '@typescript-eslint/parser';
 import prettier from 'eslint-config-prettier';
 import react from 'eslint-plugin-react';
 import reactNative from 'eslint-plugin-react-native';
 import unusedImports from 'eslint-plugin-unused-imports';
+import { defineConfig } from 'eslint/config';
 import ts from 'typescript-eslint';
 
 export default defineConfig(
@@ -16,9 +16,11 @@ export default defineConfig(
   { ...react.configs.flat.recommended },
 
   // Babel Config
-  { files: ['./babel.config.js'], languageOptions: { parser: babelParser }, rules: {
-    'no-undef': 'off',
-  } },
+  {
+    files: ['./babel.config.js'],
+    languageOptions: { parser: babelParser },
+    rules: { 'no-undef': 'off' },
+  },
   {
     files: ['**/*.{js,mjs,jsx,ts,mts,tsx}'],
 
@@ -46,7 +48,6 @@ export default defineConfig(
 
       // React Native
       'react-native/no-inline-styles': 'warn',
-
     },
   },
 
