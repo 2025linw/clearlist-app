@@ -2,7 +2,7 @@
   "name": "clear-list",
   "version": "0.0.1",
   "main": "index.js",
-  "type":"module",
+  "type": "module",
   "scripts": {
     "start": "expo start --dev-client",
     "android": "expo run:android",
