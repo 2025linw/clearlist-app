@@ -1,5 +1,4 @@
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { useCallback } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,23 +17,13 @@ export function BottomBar({ navigation }: BottomTabBarProps) {
   const inset = useSafeAreaInsets();
   const t = useTheme();
 
-  const onPressTodo = useCallback(() => {
-    navigation.navigate('TodoTab');
-  }, []);
-  const onPressCalendar = useCallback(() => {
-    navigation.navigate('CalendarTab');
-  }, []);
-  const onPressSearch = useCallback(() => {
-    navigation.navigate('SearchTab');
-  }, []);
-
   return (
     <Animated.View
       style={[styles.bottomBar, t.atoms.bg, { paddingBottom: inset.bottom }]}
     >
-      <Btn page="Todo" onPress={onPressTodo} />
-      <Btn page="Calendar" onPress={onPressCalendar} />
-      <Btn page="Search" onPress={onPressSearch} />
+      <Btn page="Todo" onPress={() => navigation.navigate('TodoTab')} />
+      <Btn page="Calendar" onPress={() => navigation.navigate('CalendarTab')} />
+      <Btn page="Search" onPress={() => navigation.navigate('SearchTab')} />
     </Animated.View>
   );
 }
@@ -43,7 +32,7 @@ type BtnProps = Pick<ButtonProps, 'onPress'> & { page: string };
 function Btn({ page, onPress }: BtnProps) {
   return (
     <Button
-      label={page + "Nav"}
+      label={page + 'Nav'}
       size="large"
       color="transparent"
       shape="square"
