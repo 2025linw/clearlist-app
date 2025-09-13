@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import { AllNavigationProp } from '#/types/routes';
 
 import { useSessionApi } from '#/state/session';
 
 import { Button, ButtonText } from '#/components/Button';
+import Layout from '#/components/layout';
 
 type Props = { navigation: AllNavigationProp };
 export default function SettingScreen({ navigation }: Props) {
@@ -16,17 +16,15 @@ export default function SettingScreen({ navigation }: Props) {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <Button label="debug-screen" onPress={onPressInner}>
-        <ButtonText>Debug</ButtonText>
-      </Button>
-      <Button label="logout" onPress={() => logout()}>
-        <ButtonText>Logout</ButtonText>
-      </Button>
-    </View>
+    <Layout>
+      <Layout.Content>
+        <Button label="debug-screen" onPress={onPressInner}>
+          <ButtonText>Debug</ButtonText>
+        </Button>
+        <Button label="logout" onPress={() => logout()}>
+          <ButtonText>Logout</ButtonText>
+        </Button>
+      </Layout.Content>
+    </Layout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-});

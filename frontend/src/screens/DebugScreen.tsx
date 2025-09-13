@@ -1,5 +1,3 @@
-import { View } from 'react-native';
-
 import { AllNavigationProp } from '#/types/routes';
 
 import { atoms as a } from '#/alf';

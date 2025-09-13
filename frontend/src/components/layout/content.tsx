@@ -1,20 +1,19 @@
-import { StyleProp, ViewStyle } from 'react-native';
-import Animated, { AnimatedScrollViewProps } from 'react-native-reanimated';
+import Animated, {
+  AnimatedScrollViewProps,
+  FlatListPropsWithLayout,
+} from 'react-native-reanimated';
 
 import { atoms as a } from '#/alf';
 
-import { useLayoutContext } from '#/components/layout';
+import { useLayoutContext } from './context';
 
-type Props = AnimatedScrollViewProps & {
-  style?: StyleProp<ViewStyle>;
-  contentContainerStyle?: StyleProp<ViewStyle>;
-};
+type ContentProps = AnimatedScrollViewProps & {};
 export function Content({
   children,
   style,
   contentContainerStyle,
-  ...props
-}: Props) {
+  ...rest
+}: ContentProps) {
   const { hasHeader } = useLayoutContext();
 
   return (
@@ -22,9 +21,28 @@ export function Content({
       style={[hasHeader ? a.h_full : {}, style]}
       contentContainerStyle={contentContainerStyle}
       scrollEnabled={true}
-      {...props}
+      {...rest}
     >
       {children}
     </Animated.ScrollView>
+  );
+}
+
+type DataContentProps<T> = FlatListPropsWithLayout<T> & {};
+export function DataContent<T>({
+  data,
+  renderItem,
+  style,
+  contentContainerStyle,
+  ...rest
+}: DataContentProps<T>) {
+  return (
+    <Animated.FlatList
+      data={data}
+      renderItem={renderItem}
+      style={style}
+      contentContainerStyle={contentContainerStyle}
+      {...rest}
+    ></Animated.FlatList>
   );
 }

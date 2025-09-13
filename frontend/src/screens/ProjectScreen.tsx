@@ -1,17 +1,17 @@
 import { NavigationProp } from '@react-navigation/native';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text } from 'react-native';
 
 import { TodoListNavigatorParams } from '#/types/routes';
+
+import Layout from '#/components/layout';
 
 type Props = { navigation: NavigationProp<TodoListNavigatorParams> };
 export default function ProjectScreen({}: Props) {
   return (
-    <View style={styles.container}>
-      <Text>This is the project screen</Text>
-    </View>
+    <Layout>
+      <Layout.Content>
+        <Text>This is the project screen</Text>
+      </Layout.Content>
+    </Layout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-});
