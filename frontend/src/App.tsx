@@ -20,6 +20,8 @@ import { useColorTheme } from '#/util/useColorTheme';
 
 SplashScreen.preventAutoHideAsync();
 
+// TODO: consider making a custom error type
+
 function InnerApp() {
   const [isReady, setReady] = useState(false);
 
@@ -41,6 +43,7 @@ function InnerApp() {
       }
       if (isJwtExpired(account.refreshJwt)) {
         // TODO: Create menu to show that login has expired
+
         setReady(true);
 
         return undefined;
