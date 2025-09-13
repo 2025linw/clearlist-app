@@ -189,7 +189,7 @@ export function Button({
         baseStyles.push({ backgroundColor: t.palette.primary_step2 });
       }
     } else if (color === 'transparent') {
-      baseStyles.push({ backgroundColor: 'transparent '})
+      baseStyles.push({ backgroundColor: 'transparent ' });
     }
 
     if (shape === 'default') {
@@ -361,6 +361,7 @@ export function ButtonIcon({
 
     return { iconSize, iconContainerSize };
   }, [buttonSize, size]);
+  const iconPosition = { top: '50%', left: '50%' };
 
   return (
     <View
@@ -372,8 +373,7 @@ export function ButtonIcon({
           {
             width: iconSize,
             height: iconSize,
-            top: '50%',
-            left: '50%',
+            ...iconPosition,
             transform: [
               { translateX: (iconSize / 2) * -1 },
               { translateY: (iconSize / 2) * -1 },
