@@ -108,8 +108,8 @@ CREATE TABLE IF NOT EXISTS data.areas
     updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     deleted_on timestamptz(0)
 
-	PRIMARY	KEY(area_id),
-	FOREIGN	KEY(user_id) REFERENCES auth.users(user_id)
+	PRIMARY	KEY (area_id),
+	FOREIGN	KEY (user_id) REFERENCES auth.users(user_id)
 );
 
 /*
@@ -137,9 +137,9 @@ CREATE TABLE IF NOT EXISTS data.projects
     updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     deleted_on timestamptz(0),
 
-	PRIMARY KEY(project_id),
-    FOREIGN KEY(area_id) REFERENCES data.areas(area_id),
-	FOREIGN	KEY(user_id) REFERENCES auth.users(user_id)
+	PRIMARY KEY (project_id),
+    FOREIGN KEY (area_id) REFERENCES data.areas(area_id),
+	FOREIGN	KEY (user_id) REFERENCES auth.users(user_id)
 );
 
 /*
@@ -168,10 +168,10 @@ CREATE TABLE IF NOT EXISTS data.tasks
     updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     deleted_on timestamptz(0),
 
-	PRIMARY KEY(task_id),
-	FOREIGN KEY(area_id) REFERENCES data.areas(area_id) ON DELETE SET NULL,
-	FOREIGN KEY(project_id) REFERENCES data.projects(project_id) ON DELETE SET NULL,
-	FOREIGN	KEY(user_id) REFERENCES auth.users(user_id)
+	PRIMARY KEY (task_id),
+	FOREIGN KEY (area_id) REFERENCES data.areas(area_id) ON DELETE SET NULL,
+	FOREIGN KEY (project_id) REFERENCES data.projects(project_id) ON DELETE SET NULL,
+	FOREIGN	KEY (user_id) REFERENCES auth.users(user_id)
 );
 
 /*
@@ -190,8 +190,8 @@ CREATE TABLE IF NOT EXISTS data.tags
     created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
-	PRIMARY KEY(tag_id),
-	FOREIGN KEY(user_id) REFERENCES auth.users(user_id)
+	PRIMARY KEY (tag_id),
+	FOREIGN KEY (user_id) REFERENCES auth.users(user_id)
 );
 
 /*
@@ -204,9 +204,9 @@ CREATE TABLE IF NOT EXISTS data.project_tags
 	project_id uuid,
 	tag_id uuid,
 
-	PRIMARY KEY(project_id, tag_id),
-	FOREIGN KEY(project_id) REFERENCES data.projects(project_id) ON DELETE CASCADE,
-	FOREIGN KEY(tag_id) REFERENCES data.tags(tag_id) ON DELETE CASCADE
+	PRIMARY KEY (project_id, tag_id),
+	FOREIGN KEY (project_id) REFERENCES data.projects(project_id) ON DELETE CASCADE,
+	FOREIGN KEY (tag_id) REFERENCES data.tags(tag_id) ON DELETE CASCADE
 );
 
 CREATE OR REPLACE TRIGGER check_user_id_match_trigger
@@ -223,9 +223,9 @@ CREATE TABLE IF NOT EXISTS data.task_tags
 	task_id uuid,
 	tag_id uuid,
 
-	PRIMARY KEY(task_id, tag_id),
-	FOREIGN KEY(task_id) REFERENCES data.tasks(task_id) ON DELETE CASCADE,
-	FOREIGN KEY(tag_id) REFERENCES data.tags(tag_id) ON DELETE CASCADE
+	PRIMARY KEY (task_id, tag_id),
+	FOREIGN KEY (task_id) REFERENCES data.tasks(task_id) ON DELETE CASCADE,
+	FOREIGN KEY (tag_id) REFERENCES data.tags(tag_id) ON DELETE CASCADE
 );
 
 CREATE OR REPLACE TRIGGER check_user_id_match_trigger
