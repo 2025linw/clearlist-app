@@ -176,7 +176,6 @@ async fn get_task_tags(conn: &Object, task_id: Uuid) -> Result<Vec<tag::Database
     let mut builder = SqlQueryBuilder::new(task::tag::TABLE);
     builder.add_condition(task::tag::TASK_ID, PostgresCmp::Equal, &task_id);
     builder.add_join(Join::Right, tag::DatabaseModel::TABLE, task::tag::TAG_ID);
-    builder.add_condition(tag::DatabaseModel::DELETED, PostgresCmp::IsNull, &NULL);
 
     let (statement, params) = builder.build_select();
 
@@ -406,7 +405,6 @@ async fn get_project_tags(conn: &Object, project_id: Uuid) -> Result<Vec<tag::Da
     let mut builder = SqlQueryBuilder::new(project::tag::TABLE);
     builder.add_condition(project::tag::PROJECT_ID, PostgresCmp::Equal, &project_id);
     builder.add_join(Join::Right, tag::DatabaseModel::TABLE, project::tag::TAG_ID);
-    builder.add_condition(tag::DatabaseModel::DELETED, PostgresCmp::IsNull, &NULL);
 
     let (statement, params) = builder.build_select();
 
