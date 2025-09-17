@@ -1,4 +1,4 @@
-name: Deploy to backend to personal server
+name: Deploy to backend
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
       run: cargo test --bin todo-api --verbose
 
     - name: Build release
-      run: cargo build --bin todo-api --release 
+      run: cargo build --bin todo-api --release
 
     - name: Upload binary
       uses: appleboy/scp-action@v0.1.7
