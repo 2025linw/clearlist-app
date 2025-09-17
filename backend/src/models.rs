@@ -107,8 +107,12 @@ impl<T: ToSql> ToSql for UpdateMethod<T> {
 
 /// Query request body elements
 #[derive(Debug, Deserialize)]
+// #[derive(Debug, Default, Deserialize)]
+// TODO: add NoOp
 #[serde(untagged)]
 pub enum QueryMethod<T: ToSql> {
+    // #[default]
+    // NoOp,
     NotNull(bool),
     Match(T),
     Compare(T, Compare),

@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS data.areas
 
     created_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_on timestamptz(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    deleted_on timestamptz(0)
+    deleted_on timestamptz(0),
 
 	PRIMARY	KEY (area_id),
 	FOREIGN	KEY (user_id) REFERENCES auth.users(user_id)

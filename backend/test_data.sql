@@ -185,7 +185,7 @@ INSERT INTO data.tasks -- Task B
 	user_id,
 	completed_on,
 	logged_on,
-	trashed_on
+	deleted_on
 )
 VALUES
 (
@@ -375,7 +375,7 @@ INSERT INTO data.projects -- Project B
 	user_id,
 	completed_on,
 	logged_on,
-	trashed_on
+	deleted_on
 )
 VALUES
 (
