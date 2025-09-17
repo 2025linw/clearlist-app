@@ -83,9 +83,8 @@ pub struct ResponseModel {
     deleted_on: Option<DateTime<Local>>,
 }
 
-#[derive(Debug, Deserialize)]
-#[cfg_attr(test, derive(Default))]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct CreateRequest {
     name: Option<String>,
     icon_url: Option<String>,
@@ -154,9 +153,8 @@ impl ToSqlQueryBuilder for UpdateRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[cfg_attr(test, derive(Default))]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct QueryRequest {
     name: Option<QueryMethod<String>>,
 

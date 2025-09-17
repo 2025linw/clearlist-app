@@ -86,9 +86,8 @@ pub struct ResponseModel {
     updated_on: DateTime<Local>,
 }
 
-#[derive(Debug, Deserialize)]
-#[cfg_attr(test, derive(Default))]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct CreateRequest {
     label: Option<String>,
     color: Option<String>,
@@ -155,9 +154,8 @@ impl ToSqlQueryBuilder for UpdateRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[cfg_attr(test, derive(Default))]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct QueryRequest {
     label: Option<QueryMethod<String>>,
 
