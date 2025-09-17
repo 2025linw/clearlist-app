@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 use uuid::Uuid;
 
-use crate::util::{NULL, PostgresCmp, SqlQueryBuilder, ToPostgresCmp, ToSqlQueryBuilder};
+use crate::util::{PostgresCmp, SqlQueryBuilder, ToPostgresCmp, ToSqlQueryBuilder};
 
 use super::{QueryMethod, ToResponse, UpdateMethod};
 

@@ -4,7 +4,7 @@ use uuid::Uuid;
 use crate::{
     error::{Error, Result},
     models::{area, auth, project, tag, task, user},
-    util::{Join, NULL, PostgresCmp, SqlQueryBuilder, ToSqlQueryBuilder},
+    util::{Join, PostgresCmp, SqlQueryBuilder, ToSqlQueryBuilder},
 };
 
 // Task
