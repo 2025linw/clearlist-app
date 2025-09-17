@@ -14,6 +14,10 @@ export function isClientError(status: number): boolean {
   return status >= 400 && status < 500;
 }
 
-export function isServerErr(status: number): boolean {
+export function isServerError(status: number): boolean {
   return status >= 500 && status < 600;
+}
+
+export function nonAPIStatusCodes(status: number): boolean {
+  return isInformational(status) || isRedirect(status);
 }

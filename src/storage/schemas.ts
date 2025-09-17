@@ -10,8 +10,8 @@ export type AccountSchema = {
 
   email: string;
 
-  accessJwt: string;
-  refreshJwt: string;
+  accessJwt?: string;
+  refreshJwt?: string;
 };
 
 export type PersistedSchema = { account: AccountSchema | undefined };

@@ -1,4 +1,4 @@
-# UI Components, Modals, etc.
+# UI Components, Modals, etc
 
 ## Layout
 

@@ -3,7 +3,7 @@ import { AccountSchema } from '#/storage/schemas';
 export { AccountSchema } from '#/storage/schemas';
 
 export type SessionStateContext = {
-  account: AccountSchema | undefined;
+  account?: AccountSchema;
 
   hasSession: boolean;
 };

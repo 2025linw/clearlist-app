@@ -14,6 +14,8 @@ function Layout({ style, children, ...props }: Props) {
     child => isValidElement(child) && child.type === Header,
   );
 
+  
+
   return (
     <LayoutContext.Provider value={{ hasHeader }}>
       <View style={[a.util_screen_outer, style]} {...props}>

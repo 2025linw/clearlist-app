@@ -7,12 +7,12 @@ import {
   useContext,
 } from 'react';
 
+import { setAuthToken } from '#/services/apiClient';
 import * as persisted from '#/storage/async-storage';
 
 import { getInitialState, reducer } from './reducer';
 import { type SessionStateContext, type SessionApiContext } from './types';
 import * as accountF from './utils';
-import { setAuthToken } from '#/services/apiClient';
 
 const StateContext = createContext<SessionStateContext>({
   account: undefined,

@@ -18,7 +18,7 @@ const config: ExpoConfig = {
     bundleIdentifier: 'io.saphynet.todo',
     infoPlist: { ITSAppUsesNonExemptEncryption: false },
   },
-  android: { edgeToEdgeEnabled: true, package: 'io.saphynet.todo' },
+  android: { package: 'io.saphynet.todo' },
   web: { favicon: './assets/web/favicon.ico' },
 
   plugins: ['expo-font'],
