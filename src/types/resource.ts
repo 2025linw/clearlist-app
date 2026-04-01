@@ -8,11 +8,11 @@ export type Task = {
   deadline: Date;
 
   tags: Tag[];
-}
+};
 
 export type Tag = {
   id: string;
 
   label: string;
   category: string;
-}
+};

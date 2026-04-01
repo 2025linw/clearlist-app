@@ -3,7 +3,8 @@ import { expoClient } from '@better-auth/expo/client';
 import * as SecureStore from 'expo-secure-store';
 
 export const authClient = createAuthClient({
-  baseURL: 'https://todo.saphynet.io',
+  baseURL: 'http://localhost:5001',
+  // baseURL: 'https://todo.saphynet.io',
   plugins: [
     expoClient({
       scheme: 'clearlist',
@@ -11,4 +12,7 @@ export const authClient = createAuthClient({
       storage: SecureStore,
     }),
   ],
+  emailAndPassword: {
+    enabled: true,
+  },
 });

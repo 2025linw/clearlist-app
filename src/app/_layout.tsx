@@ -1,4 +1,5 @@
-import { AuthProvider } from '@/context/AuthContext';
+import { AuthProvider } from '@/context/auth-context';
+
 import { Stack } from 'expo-router';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 

@@ -1,6 +1,7 @@
-import { Task } from "@/types/resource";
+import { Task } from '@/types/resource';
 
+export async function getTasks(): Promise<Task[]> {
+  // fetch
 
-export async function getTasks() {
-
+  return [];
 }

@@ -10,6 +10,7 @@ import {
 
 import { authClient } from '@/lib/auth-client';
 import { SessionApiContext, UserSessionContext } from './types';
+import { useRouter } from 'expo-router';
 
 export const AuthContext = createContext<UserSessionContext>({
   currentSession: undefined,
@@ -22,6 +23,8 @@ export const ApiContext = createContext<SessionApiContext>({
 });
 
 export function AuthProvider({ children }: PropsWithChildren) {
+  const router = useRouter();
+
   const [user, setUser] = useState<UserSessionContext>({
     currentSession: undefined,
     hasSession: false,
@@ -41,6 +44,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
         // if there isn't an existing session or session expired
         return;
       }
+
+      console.log(data);
 
       setUser({
         currentSession: data.session.token,
@@ -104,7 +109,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       currentSession: undefined,
       hasSession: false,
     });
-  }, []);
+
+    router.navigate('/');
+  }, [router]);
 
   const api = useMemo(
     () => ({

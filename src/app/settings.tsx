@@ -1,6 +1,10 @@
-import { Text, View } from 'react-native';
+import { useSessionApi } from '@/context/auth-context';
+
+import { Button, Text, View } from 'react-native';
 
 export default function Index() {
+  const { logout } = useSessionApi();
+
   return (
     <View
       style={{
@@ -10,6 +14,11 @@ export default function Index() {
       }}
     >
       <Text>This is the Settings!</Text>
+
+      <Button
+        title="Logout"
+        onPress={() => logout()}
+      />
     </View>
   );
 }

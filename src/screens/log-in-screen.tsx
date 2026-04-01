@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Button, Text, TextInput, View } from 'react-native';
 
-import { useSessionApi } from '@/context/AuthContext';
+import { useSessionApi } from '@/context/auth-context';
 
 export default function TaskItem() {
   const { login, createAccount } = useSessionApi();
 
-  const [email, setEmail] = useState('testuser@email.com');
-  const [password, setPassword] = useState('testuser');
+  const [email, setEmail] = useState('will@email.com');
+  const [password, setPassword] = useState('testpass');
   const [name, setName] = useState('');
 
   const [isFocused, setFocus] = useState(false);
