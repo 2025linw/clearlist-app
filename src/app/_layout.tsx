@@ -1,22 +1,20 @@
-import { AuthProvider } from '@/context/auth-context';
-
 import { Stack } from 'expo-router';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { AuthProvider } from '@/context/auth';
+import { ThemeProvider } from '@/context/theme';
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <SafeAreaView
-          style={{
-            flex: 1,
-            backgroundColor: 'white',
-          }}
-          edges={['top']}
-        >
-          <Stack screenOptions={{ headerShown: false }} />
-        </SafeAreaView>
+        <ThemeProvider>
+          <AuthProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+          </AuthProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
-    </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -2,17 +2,24 @@ export type Task = {
   id: string;
 
   title: string;
-  notes: string;
-  start_date: Date;
-  start_time: Date;
-  deadline: Date;
-
+  notes?: string;
+  start?: Date;
+  deadline?: Date;
   tags: Tag[];
+
+  completed_at?: Date;
+  deleted_at?: Date;
+
+  created_at: Date;
+  updated_at: Date;
 };
 
 export type Tag = {
   id: string;
 
   label: string;
-  category: string;
+  category?: string;
+
+  created_at: Date;
+  updated_at: Date;
 };

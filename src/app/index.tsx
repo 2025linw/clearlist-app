@@ -1,10 +1,17 @@
-import { useSession } from '@/context/auth-context';
+import { Redirect } from 'expo-router';
 
-import LogInScreen from '#/log-in-screen';
-import ListScreen from '#/lists-screen';
+import { useSession } from '@/context/auth';
 
 export default function Index() {
   const { hasSession } = useSession();
 
-  return hasSession ? <ListScreen /> : <LogInScreen />;
+  if (hasSession === undefined) {
+    return null;
+  }
+
+  if (!hasSession) {
+    return <Redirect href="/login" />;
+  }
+
+  return <Redirect href="/(protected)" />;
 }
