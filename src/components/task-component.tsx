@@ -1,16 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Task } from '@/types/resource';
 
-import useTheme from '@/hooks/use-theme';
+import { useTheme } from '@/context/theme';
+
+import Typography from '@/components/primitives/typography';
 
 type TaskItemProp = {
   task: Task;
 };
 
 export default function TaskItem(props: TaskItemProp) {
-  const { currentColor } = useTheme();
+  const theme = useTheme();
 
   return (
     <View style={styles.container}>
@@ -30,7 +32,7 @@ export default function TaskItem(props: TaskItemProp) {
         </View>
       </Pressable>
 
-      <Text style={{ color: currentColor.text }}>{props.task.title}</Text>
+      <Typography style={{ color: theme.palette.text }}>{props.task.title}</Typography>
     </View>
   );
 }

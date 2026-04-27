@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Button, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import { useSessionApi } from '@/context/auth';
 
 import FormField from '@/components/forms/form-field';
 import Layout from '@/components/layout';
+import Button from '@/components/primitives/button';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -57,7 +58,7 @@ export default function LoginPage() {
 
         <View style={styles.loginField}>
           <Button
-            title="Login"
+            text="Login"
             onPress={async () =>
               login({ email, password }).then(
                 () => router.replace('/'),
@@ -70,7 +71,7 @@ export default function LoginPage() {
 
       <View style={styles.footer}>
         <Button
-          title="Don't have an account? Register"
+          text="Don't have an account? Register"
           onPress={() => router.replace('/register')}
         />
       </View>

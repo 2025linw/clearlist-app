@@ -5,7 +5,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { runOnJS } from 'react-native-worklets';
 
-import useTheme from '@/hooks/use-theme';
+import { useTheme } from '@/context/theme';
 
 import FormTextInput from '@/components/forms/form-text-input';
 
@@ -14,7 +14,7 @@ type Props = {
 };
 
 export default function AddTaskModal(props: Props) {
-  const { currentColor } = useTheme();
+  const theme = useTheme();
 
   const [showModal, setShowModal] = useState(false);
 
@@ -80,7 +80,7 @@ export default function AddTaskModal(props: Props) {
           <Ionicons
             name="add-circle"
             size={64}
-            color={currentColor.primary}
+            color={theme.palette.primary}
           />
         </Animated.View>
       </GestureDetector>

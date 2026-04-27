@@ -1,37 +1,74 @@
 import { ReactNode } from 'react';
-import { Pressable, PressableProps, StyleSheet, Text, View } from 'react-native';
+import { ColorValue, Pressable, PressableProps, StyleSheet, View } from 'react-native';
 
-import useTheme from '@/hooks/use-theme';
+import { useTheme } from '@/context/theme';
+import { Palette } from '@/context/theme/types';
+
+import Typography from '@/components/primitives/typography';
+
+type ButtonShemes = 'default' | keyof Pick<Palette, 'primary' | 'danger'>;
 
 export type Props = PressableProps & {
-  children: string;
+  text: string;
+  scheme?: ButtonShemes;
   leftIcon?: ReactNode;
+  disabled?: boolean;
 };
 
-export default function Button({ children, ...props }: Props) {
-  const { currentColor } = useTheme();
+function splitStyles({
+  backgroundColor,
+  borderColor,
+  color,
+}: {
+  backgroundColor: ColorValue;
+  borderColor: ColorValue;
+  color: ColorValue;
+}): [{ backgroundColor: ColorValue; borderColor: ColorValue }, { color: ColorValue }] {
+  return [{ backgroundColor, borderColor }, { color }];
+}
+
+export default function Button({ text, scheme = 'default', ...props }: Props) {
+  const { rounded, spacings, components } = useTheme();
+
+  const paletteStyle = props.disabled ? components.Button.disabled : components.Button[scheme];
+
+  const [buttonStyle, typographicStyle] = splitStyles(paletteStyle);
 
   return (
     <Pressable {...props}>
-      <View style={[styles.button, { backgroundColor: currentColor.secondary }]}>
+      <View
+        style={[
+          styles.container,
+          { borderRadius: rounded.base, paddingVertical: spacings.lg, paddingHorizontal: spacings.xl },
+          buttonStyle,
+        ]}
+      >
         {props.leftIcon && props.leftIcon}
 
-        <Text style={[styles.text, { color: currentColor.text }]}>{children}</Text>
+        <Typography
+          variant="button"
+          style={typographicStyle}
+        >
+          {text}
+        </Typography>
       </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  button: {
+  container: {
     flexDirection: 'row',
 
     alignItems: 'center',
   },
-  text: {
-    margin: 8,
-
-    fontSize: 18,
-    textAlign: 'center',
-  },
 });
+
+export function Demo() {
+  return (
+    <View>
+      <Button text="Default" />
+      <Button text="Primary" />
+    </View>
+  );
+}

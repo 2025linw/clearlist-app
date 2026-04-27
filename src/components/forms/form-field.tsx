@@ -1,5 +1,7 @@
 import { ReactNode } from 'react';
-import { StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
+
+import Typography from '@/components/primitives/typography';
 
 export type Props = {
   label?: string;
@@ -11,7 +13,14 @@ export type Props = {
 export default function FormField({ children, ...props }: Props) {
   return (
     <View style={[styles.field, props.style]}>
-      {props.label && <Text style={[styles.label, props.labelStyle]}>{props.label}</Text>}
+      {props.label && (
+        <Typography
+          variant="h2"
+          style={styles.label}
+        >
+          {props.label}
+        </Typography>
+      )}
 
       <View style={styles.inputContainer}>{children}</View>
     </View>

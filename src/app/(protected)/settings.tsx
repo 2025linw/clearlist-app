@@ -1,23 +1,23 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useSessionApi } from '@/context/auth';
-import usePersisted from '@/hooks/use-persisted';
+import { useThemeMode } from '@/context/theme';
 
 import FormField from '@/components/forms/form-field';
 import Layout from '@/components/layout';
+import Button from '@/components/primitives/button';
+import Typography from '@/components/primitives/typography';
 
 import { authClient } from '@/lib/auth-client';
-import { useTheme } from '@/context/theme';
 
 export default function Index() {
   const router = useRouter();
   const { logout } = useSessionApi();
-  const { setThemeVariant } = useTheme();
-  const { data, isPending } = authClient.useSession();
 
-  // console.log(theme);
+  const [themeMode, setThemeMode] = useThemeMode();
+
+  const { data, isPending } = authClient.useSession();
 
   return !isPending && data ? (
     <Layout
@@ -27,27 +27,38 @@ export default function Index() {
       <FormField label="Mode">
         <View style={styles.colorMode}>
           <Button
-            title="Auto"
-            onPress={() => {}}
+            text="System"
+            style={{ flex: 1 }}
+            scheme={themeMode === 'system' ? 'primary' : 'default'}
+            onPress={() => setThemeMode('system')}
           />
           <Button
-            title="Light"
-            onPress={() => {}}
+            text="Light"
+            style={{ flex: 1 }}
+            scheme={themeMode === 'light' ? 'primary' : 'default'}
+            onPress={() => setThemeMode('light')}
           />
           <Button
-            title="Dark"
-            onPress={() => {}}
+            text="Dark"
+            style={{ flex: 1 }}
+            scheme={themeMode === 'dark' ? 'primary' : 'default'}
+            onPress={() => setThemeMode('dark')}
           />
         </View>
       </FormField>
+
       <Button
-        title="Logout"
+        text="Debug"
+        onPress={() => router.navigate('/settings/typography-debug')}
+      />
+      <Button
+        text="Logout"
         onPress={() => logout().finally(() => router.navigate('/login'))}
       />
     </Layout>
   ) : (
     <Layout>
-      <Text>Loading...</Text>
+      <Typography>Loading...</Typography>
     </Layout>
   );
 }

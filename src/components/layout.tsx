@@ -1,12 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { PropsWithChildren, ReactNode } from 'react';
-import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import useTheme from '@/hooks/use-theme';
+import { useTheme } from '@/context/theme';
 
 import AddTaskModal from '@/components/add-task-modal';
+import Typography from '@/components/primitives/typography';
 
 type LayoutProps = PropsWithChildren & {
   showBackButton?: boolean;
@@ -26,14 +27,14 @@ export default function Layout({
 }: LayoutProps) {
   const router = useRouter();
 
-  const { currentColor } = useTheme();
+  const theme = useTheme();
 
   const canGoBack = router.canGoBack() && showBackButton;
 
   return (
     <SafeAreaView
       edges={['top', 'bottom']}
-      style={[styles.container, { backgroundColor: currentColor.secondary }]}
+      style={[styles.container, { backgroundColor: theme.palette.background }]}
     >
       {(canGoBack || props.headerText || props.headerIcon) && (
         <View style={styles.header}>
@@ -43,15 +44,13 @@ export default function Layout({
                 <Ionicons
                   name="arrow-back-circle"
                   size={40}
-                  color={currentColor.primary}
+                  color={theme.palette.navigation}
                 />
               </Pressable>
             )}
           </View>
 
-          <Text style={{ flex: 1, fontSize: 32, textAlign: 'center', color: currentColor.text }}>
-            {props.headerText}
-          </Text>
+          {props.headerText && <Typography variant="h1">{props.headerText}</Typography>}
 
           <View style={styles.headerEle}>
             {hasOptions && (
@@ -59,7 +58,7 @@ export default function Layout({
                 <Ionicons
                   name="ellipsis-horizontal-circle"
                   size={40}
-                  color={currentColor.primary}
+                  color={theme.palette.primary}
                 />
               </Pressable>
             )}

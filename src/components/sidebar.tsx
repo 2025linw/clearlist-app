@@ -1,42 +1,38 @@
-import { usePathname, useRouter } from 'expo-router';
-import { Button, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { useRouter } from 'expo-router';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import Layout from '@/components/layout';
+import Button from '@/components/primitives/button';
 
 type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
 export default function Sidebar(props: Props) {
-  const pathname = usePathname();
   const router = useRouter();
 
   return (
     <Layout style={[props.style]}>
       <View style={styles.container}>
         <Button
-          color={pathname === '/list/inbox' ? 'red' : undefined}
-          title="Inbox"
+          text="Inbox"
           onPress={() => router.navigate('/lists/inbox')}
         />
         <Button
-          color={pathname === '/list/today' ? 'red' : undefined}
-          title="Today"
+          text="Today"
           onPress={() => router.navigate('/lists/today')}
         />
         <Button
-          color={pathname === '/list/upcoming' ? 'red' : undefined}
-          title="Upcoming"
+          text="Upcoming"
           onPress={() => router.navigate('/lists/upcoming')}
         />
         <Button
-          color={pathname === '/list/deadline' ? 'red' : undefined}
-          title="Deadline"
+          text="Deadline"
           onPress={() => router.navigate('/lists/deadline')}
         />
 
         <Button
-          title="Settings"
+          text="Setting"
           onPress={() => router.navigate('/settings')}
         />
       </View>

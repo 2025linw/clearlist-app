@@ -1,37 +1,113 @@
-import { PropsWithChildren, createContext, useCallback, useContext, useState } from 'react';
+import { ReactNode, createContext, useContext } from 'react';
+import { useColorScheme } from 'react-native';
 
-import { Theme, ThemeContextType, ThemeVariant } from './types';
 import usePersisted from '@/hooks/use-persisted';
 
+import { ColorTheme, Theme, ThemeMode, buildTheme } from './types';
+
 type Context = {
+  loaded: boolean;
+
   theme: Theme;
-  themeVariant: ThemeVariant;
-  setThemeVariant: (_: ThemeVariant) => void;
-  resetThemeVariant: () => void;
+
+  themeMode: 'system' | ThemeMode;
+  setThemeMode: (_: 'system' | ThemeMode) => void;
+  resetThemeMode: () => void;
+
+  colorTheme: ColorTheme;
+  setColorTheme: (_: ColorTheme) => void;
+  resetColorTheme: () => void;
 };
-const ThemeContext = createContext<Context>({});
+const ThemeContext = createContext<Context>({} as unknown as Context); // TODO: fix this jank?
 
-const light: Theme = {
-  theme: 'light',
-  colors: {
-    primary: '#2B396D',
-    secondary: '#E4E4E4',
-
-    text: '#0B0B0B',
-  },
+type Props = {
+  children: ReactNode;
+  onThemeVariantChange?: (_v: ColorTheme) => void; // TODO: is this needed?
 };
 
-export function ThemeProvider({ children }: PropsWithChildren) {
-  const [theme, setTheme] = useState<ThemeVariant>('default');
-  const [persistedTheme, setPersistedTheme] = usePersisted('theme');
+export function ThemeProvider({ children, ...props }: Props) {
+  const { value: themeMode, setValue: _setThemeMode, loaded: themeLoaded } = usePersisted('systemTheme');
+  const { value: colorTheme, setValue: _setColorTheme, loaded: colorLoaded } = usePersisted('colorTheme');
 
-  // TODO: get persisted
+  const systemTheme = useColorScheme();
 
-  const setThemeCb = useCallback<ThemeContextType['setTheme']>(async (theme) => {});
+  const darkMode = themeMode === 'system' ? (systemTheme === 'dark' ? 'dark' : 'light') : themeMode;
 
-  return <ThemeContext value={{ theme, setThemeCb }}>{children}</ThemeContext>;
+  const theme = buildTheme(colorTheme, darkMode);
+
+  function setThemeMode(v: 'system' | ThemeMode) {
+    _setThemeMode(v);
+  }
+  function resetThemeMode() {
+    _setThemeMode('system');
+  }
+
+  function setColorTheme(v: ColorTheme) {
+    _setColorTheme(v);
+    props.onThemeVariantChange?.(v);
+  }
+  function resetColorTheme() {
+    _setColorTheme('default');
+    props.onThemeVariantChange?.('default');
+  }
+
+  const loaded = themeLoaded && colorLoaded;
+
+  return (
+    <ThemeContext
+      value={{
+        loaded,
+        theme,
+        themeMode,
+        setThemeMode,
+        resetThemeMode,
+        colorTheme,
+        setColorTheme,
+        resetColorTheme,
+      }}
+    >
+      {children}
+    </ThemeContext>
+  );
+}
+
+export function useThemeContext() {
+  const ctx = useContext(ThemeContext);
+
+  // TODO: add this to all contexts
+  // if (!ctx) {
+  //   throw new Error('useTheme must be used inside ThemeProvider');
+  // }
+
+  return ctx;
 }
 
 export function useTheme() {
-  return useContext(ThemeContext);
+  const { theme } = useThemeContext();
+
+  return theme;
+}
+
+export function useThemeMode() {
+  const { themeMode, setThemeMode } = useThemeContext();
+
+  return [themeMode, setThemeMode] as const;
+}
+
+export function useResetThemeMode() {
+  const { resetThemeMode } = useThemeContext();
+
+  return resetThemeMode;
+}
+
+export function useColorTheme() {
+  const { colorTheme, setColorTheme } = useThemeContext();
+
+  return [colorTheme, setColorTheme] as const;
+}
+
+export function useResetColorTheme() {
+  const { resetColorTheme } = useThemeContext();
+
+  return resetColorTheme;
 }

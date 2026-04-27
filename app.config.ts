@@ -3,20 +3,22 @@ import { ConfigContext, ExpoConfig } from 'expo/config';
 export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'Clear List',
   slug: 'clearlist-app',
+  scheme: 'clearlist',
   version: '0.0.1',
+  owner: '2025linw',
+
+  userInterfaceStyle: 'automatic',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
-  scheme: 'clearlist',
-  userInterfaceStyle: 'automatic',
-  owner: '2025linw',
   ios: {
-    supportsTablet: true,
     bundleIdentifier: 'com.saphy.clearlist',
+    supportsTablet: true,
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
   },
   android: {
+    package: 'com.saphy.clearlist',
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/android-icon-foreground.png',
@@ -24,7 +26,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
-    package: 'com.saphy.clearlist',
   },
   web: {
     output: 'static',
@@ -48,7 +49,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-font',
       {
-        fonts: ['./assets/fonts/Inter.otf'], //
+        fonts: ['./assets/fonts/Inter-Regular.otf'],
         android: {
           fonts: [
             {
@@ -56,8 +57,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
               fontDefinitions: [
                 {
                   path: './assets/fonts/Inter-Italic.otf',
-                  weight: 500,
+                  weight: 400,
                   style: 'italic',
+                },
+                {
+                  path: './assets/fonts/Inter-Medium.otf',
+                  weight: 500,
                 },
                 {
                   path: './assets/fonts/Inter-Bold.otf',
@@ -68,12 +73,22 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
                   weight: 700,
                   style: 'italic',
                 },
+                {
+                  path: './assets/fonts/Inter-Black.otf',
+                  weight: 900,
+                },
               ],
             },
           ],
         },
         ios: {
-          fonts: ['./assets/'],
+          fonts: [
+            './assets/fonts/Inter-Italic.otf',
+            './assets/fonts/Inter-Medium.otf',
+            './assets/fonts/Inter-Bold.otf',
+            './assets/fonts/Inter-BoldItalic.otf',
+            './assets/fonts/Inter-Black.otf',
+          ],
         },
       },
     ],

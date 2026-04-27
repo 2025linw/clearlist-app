@@ -1,10 +1,9 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 import { Task } from '@/types';
 
-import useTheme from '@/hooks/use-theme';
-
 import Layout from '@/components/layout';
+import Typography from '@/components/primitives/typography';
 import TaskItem from '@/components/task-component';
 
 export type Props = {
@@ -14,8 +13,6 @@ export type Props = {
 };
 
 export default function ListScreen(props: Props) {
-  const { currentColor } = useTheme();
-
   return (
     <Layout
       headerText={props.listName}
@@ -30,9 +27,7 @@ export default function ListScreen(props: Props) {
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={{ color: currentColor.text }}>
-              {props.tasks === null ? 'Loading tasks...' : 'Create a new task!'}
-            </Text>
+            <Typography>{props.tasks === null ? 'Loading tasks...' : 'Create a new task!'}</Typography>
           </View>
         }
       />

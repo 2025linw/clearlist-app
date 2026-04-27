@@ -1,26 +1,46 @@
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
 
-type Key = 'theme';
+import { ColorTheme, ThemeMode } from '@/context/theme/types';
 
-export default function usePersisted<T>(key: Key, initialValue?: T) {
-  const [value, setValue] = useState<typeof initialValue | null>(initialValue || null);
+type StorageSchema = {
+  systemTheme: 'system' | ThemeMode;
+  colorTheme: ColorTheme;
+};
+const storageDefaults: StorageSchema = {
+  systemTheme: 'system',
+  colorTheme: 'default',
+};
+
+export default function usePersisted<K extends keyof StorageSchema>(key: K) {
+  const [value, setValue] = useState<StorageSchema[K]>(storageDefaults[key]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     SecureStore.getItemAsync(key).then((stored) => {
       if (stored !== null) {
-        setValue(JSON.parse(stored));
-      } else {
-        setValue(undefined);
+        try {
+          const parsed = JSON.parse(stored);
+
+          setValue(parsed);
+        } catch {
+          console.error('Invalid format found in storage');
+
+          setValue(storageDefaults[key]);
+        }
       }
+
+      setLoaded(true);
     });
   }, [key]);
 
-  const setPersisted = (val: T) => {
+  function setPersisted(val: StorageSchema[K]) {
     setValue(val);
 
-    SecureStore.setItemAsync(key, JSON.stringify(val));
-  };
+    SecureStore.setItemAsync(key, JSON.stringify(val)).catch((e) => {
+      console.error('Failed to persist', e);
+    });
+  }
 
-  return [value, setPersisted];
+  return { value, setValue: setPersisted, loaded } as const;
 }
